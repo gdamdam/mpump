@@ -702,15 +702,15 @@ class MpumpApp(App):
         name, desc, _ = GENRES[genre][pat_idx]
         info = Text()
         info.append("genre    ", style=_DIM)
-        info.append(f"{genre}\n", style=RichStyle(color="white", underline=True, meta={"@click": "pick_genre"}))
+        info.append(f"{genre}\n", style=RichStyle(color="white", underline=True, meta={"@click": "app.pick_genre"}))
         info.append("pattern  ", style=_DIM)
         info.append(f"#{pat_idx + 1}  ", style="white")
-        info.append(f"{name}\n", style=RichStyle(color="#58a6ff", underline=True, meta={"@click": "pick_pattern"}))
+        info.append(f"{name}\n", style=RichStyle(color="#58a6ff", underline=True, meta={"@click": "app.pick_pattern"}))
         info.append(f'         "{desc}"\n', style=_DIM)
         info.append("key      ", style=_DIM)
-        info.append(KEY_NAMES[self.s1_key_idx], style=RichStyle(color="white", underline=True, meta={"@click": "pick_key"}))
+        info.append(KEY_NAMES[self.s1_key_idx], style=RichStyle(color="white", underline=True, meta={"@click": "app.pick_key"}))
         info.append("  ")
-        info.append(str(self.s1_octave), style=RichStyle(color="white", underline=True, meta={"@click": "pick_octave"}))
+        info.append(str(self.s1_octave), style=RichStyle(color="white", underline=True, meta={"@click": "app.pick_octave"}))
         if self._s1_pending():
             info.append("   ↵ apply", style=f"bold {_ACCENT}")
         self.query_one("#s1-info", Static).update(info)
@@ -748,21 +748,21 @@ class MpumpApp(App):
         key_str = f"{KEY_NAMES[self.t8_key_idx]}{self.t8_octave}"
         info = Text()
         info.append("drums    ", style=_DIM)
-        info.append(f"{dg}\n", style=RichStyle(color="white", underline=True, meta={"@click": "pick_genre"}))
+        info.append(f"{dg}\n", style=RichStyle(color="white", underline=True, meta={"@click": "app.pick_genre"}))
         info.append("      ↑↓ ", style=_DIM)
         info.append(f"#{d_idx + 1}  ", style="white")
-        info.append(f"{d_name}\n", style=RichStyle(color="#58a6ff", underline=True, meta={"@click": "pick_pattern"}))
+        info.append(f"{d_name}\n", style=RichStyle(color="#58a6ff", underline=True, meta={"@click": "app.pick_pattern"}))
         info.append(f'         "{d_desc}"\n', style=_DIM)
         info.append("bass     ", style=_DIM)
-        info.append(f"{bg}\n", style=RichStyle(color="white", underline=True, meta={"@click": "pick_bass_genre"}))
+        info.append(f"{bg}\n", style=RichStyle(color="white", underline=True, meta={"@click": "app.pick_bass_genre"}))
         info.append("      b/B", style=_DIM)
         info.append(f" #{b_idx + 1}  ", style="white")
-        info.append(f"{b_name}\n", style=RichStyle(color="#58a6ff", underline=True, meta={"@click": "pick_bass_pattern"}))
+        info.append(f"{b_name}\n", style=RichStyle(color="#58a6ff", underline=True, meta={"@click": "app.pick_bass_pattern"}))
         info.append(f'         "{b_desc}"\n', style=_DIM)
         info.append("key      ", style=_DIM)
-        info.append(KEY_NAMES[self.t8_key_idx], style=RichStyle(color="white", underline=True, meta={"@click": "pick_key"}))
+        info.append(KEY_NAMES[self.t8_key_idx], style=RichStyle(color="white", underline=True, meta={"@click": "app.pick_key"}))
         info.append("  ")
-        info.append(str(self.t8_octave), style=RichStyle(color="white", underline=True, meta={"@click": "pick_octave"}))
+        info.append(str(self.t8_octave), style=RichStyle(color="white", underline=True, meta={"@click": "app.pick_octave"}))
         if self._t8_pending():
             info.append("   ↵ apply", style=f"bold {_ACCENT}")
         self.query_one("#t8-info", Static).update(info)
@@ -794,10 +794,10 @@ class MpumpApp(App):
         cs = J6_CHORD_SETS[genre]
         info = Text()
         info.append("genre    ", style=_DIM)
-        info.append(f"{genre}\n", style=RichStyle(color="white", underline=True, meta={"@click": "pick_genre"}))
+        info.append(f"{genre}\n", style=RichStyle(color="white", underline=True, meta={"@click": "app.pick_genre"}))
         info.append("pattern  ", style=_DIM)
         info.append(f"#{pat_idx + 1}  ", style="white")
-        info.append(f"{name}\n", style=RichStyle(color="#58a6ff", underline=True, meta={"@click": "pick_pattern"}))
+        info.append(f"{name}\n", style=RichStyle(color="#58a6ff", underline=True, meta={"@click": "app.pick_pattern"}))
         info.append(f'         "{desc}"\n', style=_DIM)
         info.append("set      ", style=_DIM)
         info.append(f"#{cs}", style="white")
@@ -1021,6 +1021,13 @@ class MpumpApp(App):
             self._push_s1()
             self._push_t8()
         self._refresh_topbar()
+
+    def check_action(self, action: str, parameters: tuple) -> bool | None:
+        # Disable all App-level bindings while a modal picker/help is active,
+        # so their keys (↑↓←→ enter space …) reach the modal's own handlers.
+        if isinstance(self.screen, ModalScreen):
+            return False
+        return super().check_action(action, parameters)
 
     def action_show_help(self) -> None:
         self.push_screen(HelpScreen())
