@@ -7,6 +7,7 @@ from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
 from textual.reactive import reactive
+from textual.screen import ModalScreen
 from textual.widget import Widget
 from textual.widgets import Footer, Static
 
@@ -230,6 +231,46 @@ class J6Panel(DevicePanel):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Help overlay
+# ─────────────────────────────────────────────────────────────────────────────
+
+_HELP_TEXT = """\
+ Tab          Switch focus  S-1 / T-8 / J-6
+ ← / →        Previous / next genre
+ ↑ / ↓        Previous / next pattern
+ , / .        Previous / next bass genre  (T-8)
+ b / B        Bass pattern  ↓ / ↑          (T-8)
+ k / K        Key  ↓ / ↑
+ o / O        Octave  ↓ / ↑
+ l            Lock / unlock key across all devices
+ = / -        BPM  +5 / -5
+ Space        Play / pause focused device
+ ↵            Apply pending pattern change
+ h            This help
+ q            Quit\
+"""
+
+class HelpScreen(ModalScreen):
+    DEFAULT_CSS = """
+    HelpScreen {
+        align: center middle;
+    }
+    HelpScreen > Static {
+        background: #161b22;
+        border: round #58a6ff;
+        padding: 1 3;
+        width: auto;
+        height: auto;
+        color: #c9d1d9;
+    }
+    """
+    BINDINGS = [Binding("h,escape,q", "dismiss", show=False, priority=True)]
+
+    def compose(self) -> ComposeResult:
+        yield Static(_HELP_TEXT)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Main app
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -312,25 +353,26 @@ class MpumpApp(App):
     """
 
     BINDINGS = [
-        Binding("q",      "quit",              "Quit"),
-        Binding("tab",    "next_panel",        "Tab ⇄ switch",    priority=True),
-        Binding("left",   "prev_genre",        "← drum genre",    priority=True),
-        Binding("right",  "next_genre",        "→ drum genre",    priority=True),
-        Binding("up",     "next_pattern",      "↑ pattern",       priority=True),
-        Binding("down",   "prev_pattern",      "↓ pattern",       priority=True),
-        Binding("space",  "toggle_device",     "Space ▶/■",       priority=True),
-        Binding("comma",  "bass_genre_prev",   ", bass genre ←"),
-        Binding("period", "bass_genre_next",   ". bass genre →"),
-        Binding("k",      "prev_key",          "k key ↓"),
-        Binding("K",      "next_key",          "K key ↑"),
-        Binding("o",      "prev_octave",       "o oct ↓"),
-        Binding("O",      "next_octave",       "O oct ↑"),
-        Binding("b",      "bass_prev",         "b bass ↓"),
-        Binding("B",      "bass_next",         "B bass ↑"),
-        Binding("equal",  "bpm_up",            "+ BPM"),
-        Binding("minus",  "bpm_down",          "- BPM"),
-        Binding("enter",  "commit",            "↵ apply",         priority=True),
-        Binding("l",      "lock_keys",         "l lock keys"),
+        Binding("q",      "quit",              "Quit",            show=False),
+        Binding("tab",    "next_panel",        "Tab ⇄ switch",    show=False, priority=True),
+        Binding("left",   "prev_genre",        "← drum genre",    show=False, priority=True),
+        Binding("right",  "next_genre",        "→ drum genre",    show=False, priority=True),
+        Binding("up",     "next_pattern",      "↑ pattern",       show=False, priority=True),
+        Binding("down",   "prev_pattern",      "↓ pattern",       show=False, priority=True),
+        Binding("space",  "toggle_device",     "Space ▶/■",       show=False, priority=True),
+        Binding("comma",  "bass_genre_prev",   ", bass genre ←",  show=False),
+        Binding("period", "bass_genre_next",   ". bass genre →",  show=False),
+        Binding("k",      "prev_key",          "k key ↓",         show=False),
+        Binding("K",      "next_key",          "K key ↑",         show=False),
+        Binding("o",      "prev_octave",       "o oct ↓",         show=False),
+        Binding("O",      "next_octave",       "O oct ↑",         show=False),
+        Binding("b",      "bass_prev",         "b bass ↓",        show=False),
+        Binding("B",      "bass_next",         "B bass ↑",        show=False),
+        Binding("equal",  "bpm_up",            "+ BPM",           show=False),
+        Binding("minus",  "bpm_down",          "- BPM",           show=False),
+        Binding("enter",  "commit",            "↵ apply",         show=False, priority=True),
+        Binding("l",      "lock_keys",         "l lock keys",     show=False),
+        Binding("h",      "show_help",         "h  help"),
     ]
 
     # ── Reactive state ──────────────────────────────────────────────────────
@@ -858,6 +900,9 @@ class MpumpApp(App):
             self._push_s1()
             self._push_t8()
         self._refresh_topbar()
+
+    def action_show_help(self) -> None:
+        self.push_screen(HelpScreen())
 
     def on_key(self, event) -> None:
         """Catch = and + for BPM up regardless of terminal key naming."""
