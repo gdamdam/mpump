@@ -501,10 +501,12 @@ class MpumpApp(App):
     # ── Scanner update helpers ───────────────────────────────────────────────
 
     def _s1_pending(self) -> bool:
-        return self._s1_committed["pattern"] != self.s1_pattern_idx
+        c = self._s1_committed
+        return c["pattern"] != self.s1_pattern_idx or c["genre"] != self.s1_genre_idx
 
     def _t8_pending(self) -> bool:
-        return self._t8_committed["pattern"] != self.t8_pattern_idx
+        c = self._t8_committed
+        return c["pattern"] != self.t8_pattern_idx or c["genre"] != self.t8_genre_idx
 
     def _push_s1(self) -> None:
         self._s1_committed = dict(genre=self.s1_genre_idx, pattern=self.s1_pattern_idx,
@@ -530,18 +532,18 @@ class MpumpApp(App):
     def action_prev_genre(self) -> None:
         if self.focused_panel == 0:
             self.s1_genre_idx = (self.s1_genre_idx - 1) % len(GENRE_NAMES)
-            self._push_s1()
+            self._refresh_s1_ui()
         else:
             self.t8_genre_idx = (self.t8_genre_idx - 1) % len(T8_GENRE_NAMES)
-            self._push_t8()
+            self._refresh_t8_ui()
 
     def action_next_genre(self) -> None:
         if self.focused_panel == 0:
             self.s1_genre_idx = (self.s1_genre_idx + 1) % len(GENRE_NAMES)
-            self._push_s1()
+            self._refresh_s1_ui()
         else:
             self.t8_genre_idx = (self.t8_genre_idx + 1) % len(T8_GENRE_NAMES)
-            self._push_t8()
+            self._refresh_t8_ui()
 
     def action_prev_pattern(self) -> None:
         if self.focused_panel == 0:
