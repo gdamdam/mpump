@@ -14,6 +14,7 @@ DEFAULT_GENRE           = "techno"
 DEFAULT_PATTERN         = 1
 DEFAULT_T8_GENRE        = "techno"
 DEFAULT_T8_PATTERN      = 1
+DEFAULT_T8_BASS_GENRE   = "techno"
 DEFAULT_T8_BASS_PATTERN = 1
 DEFAULT_J6_GENRE        = "techno"
 DEFAULT_J6_PATTERN      = 1
@@ -59,11 +60,13 @@ def parse_args() -> argparse.Namespace:
 
     t8 = parser.add_argument_group("T-8 (drum machine + bass)")
     t8.add_argument("--t8-genre",         default=DEFAULT_T8_GENRE,        choices=T8_GENRE_NAMES, metavar="GENRE",
-                    help=f"T-8 genre (default: {DEFAULT_T8_GENRE})")
+                    help=f"T-8 drum genre (default: {DEFAULT_T8_GENRE})")
     t8.add_argument("--t8-pattern",       type=int, default=DEFAULT_T8_PATTERN,      metavar="N",
                     help=f"T-8 drum pattern 1–10 (default: {DEFAULT_T8_PATTERN})")
+    t8.add_argument("--t8-bass-genre",    default=DEFAULT_T8_BASS_GENRE,   choices=T8_GENRE_NAMES, metavar="GENRE",
+                    help=f"T-8 bass genre, independent of drums (default: same as --t8-genre)")
     t8.add_argument("--t8-bass-pattern",  type=int, default=DEFAULT_T8_BASS_PATTERN, metavar="N",
-                    help=f"T-8 bass pattern 1–10, independent of drums (default: {DEFAULT_T8_BASS_PATTERN})")
+                    help=f"T-8 bass pattern 1–10 (default: {DEFAULT_T8_BASS_PATTERN})")
     t8.add_argument("--t8-key",           default=DEFAULT_KEY,    metavar="KEY",
                     help=f"Root key for T-8 bass (default: {DEFAULT_KEY})")
     t8.add_argument("--t8-octave",        type=int, default=DEFAULT_OCTAVE, metavar="N",
@@ -87,11 +90,12 @@ def main() -> None:
 
     run_ui(
         bpm=args.bpm,
-        s1_genre=args.genre,     s1_pattern=args.pattern,
-        s1_key=args.key,         s1_octave=args.octave,
-        t8_genre=args.t8_genre,  t8_pattern=args.t8_pattern,  t8_bass_pattern=args.t8_bass_pattern,
-        t8_key=args.t8_key,      t8_octave=args.t8_octave,
-        j6_genre=args.j6_genre,  j6_pattern=args.j6_pattern,
+        s1_genre=args.genre,         s1_pattern=args.pattern,
+        s1_key=args.key,             s1_octave=args.octave,
+        t8_genre=args.t8_genre,      t8_pattern=args.t8_pattern,
+        t8_bass_genre=args.t8_bass_genre, t8_bass_pattern=args.t8_bass_pattern,
+        t8_key=args.t8_key,          t8_octave=args.t8_octave,
+        j6_genre=args.j6_genre,      j6_pattern=args.j6_pattern,
     )
 
 

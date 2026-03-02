@@ -30,6 +30,7 @@ DEFAULT_PATTERN    = 1
 DEFAULT_BPM        = 120
 DEFAULT_T8_GENRE        = "techno"
 DEFAULT_T8_PATTERN      = 1
+DEFAULT_T8_BASS_GENRE   = "techno"
 DEFAULT_T8_BASS_PATTERN = 1
 DEFAULT_J6_GENRE   = "techno"
 DEFAULT_J6_PATTERN = 1
@@ -79,11 +80,16 @@ def parse_args() -> argparse.Namespace:
     t8.add_argument(
         "--t8-genre", default=DEFAULT_T8_GENRE, choices=T8_GENRE_NAMES,
         metavar="GENRE",
-        help=f"T-8 drum genre: {', '.join(T8_GENRE_NAMES)} (default: {DEFAULT_T8_GENRE})",
+        help=f"T-8 drum genre (default: {DEFAULT_T8_GENRE})",
     )
     t8.add_argument(
         "--t8-pattern", type=int, default=DEFAULT_T8_PATTERN, metavar="N",
         help=f"T-8 drum pattern 1–10 (default: {DEFAULT_T8_PATTERN})",
+    )
+    t8.add_argument(
+        "--t8-bass-genre", default=DEFAULT_T8_BASS_GENRE, choices=T8_GENRE_NAMES,
+        metavar="GENRE",
+        help=f"T-8 bass genre, independent of drums (default: same as --t8-genre)",
     )
     t8.add_argument(
         "--t8-bass-pattern", type=int, default=DEFAULT_T8_BASS_PATTERN, metavar="N",
@@ -168,12 +174,12 @@ def main() -> None:
         sys.exit(1)
 
     try:
-        t8_bass, t8_bass_desc = get_t8_bass_pattern(args.t8_genre, args.t8_bass_pattern)
+        t8_bass, t8_bass_desc = get_t8_bass_pattern(args.t8_bass_genre, args.t8_bass_pattern)
     except ValueError as e:
         print(f"Error (T-8 bass pattern): {e}", file=sys.stderr)
         sys.exit(1)
 
-    t8_bass_name = T8_BASS[args.t8_genre][args.t8_bass_pattern - 1][0]
+    t8_bass_name = T8_BASS[args.t8_bass_genre][args.t8_bass_pattern - 1][0]
 
     # J-6 ----------------------------------------------------------------
     try:
@@ -194,9 +200,9 @@ def main() -> None:
     print(f"mpump — {args.bpm} BPM  (Ctrl-C to quit)")
     print(f"S-1  key={args.key}{args.octave}  {args.genre}  #{args.pattern}: {s1_name}")
     print(f'     "{s1_desc}"')
-    print(f"T-8  key={args.t8_key}{args.t8_octave}  {args.t8_genre}")
-    print(f"     drums #{args.t8_pattern}: {t8_name}  —  {t8_desc}")
-    print(f"     bass  #{args.t8_bass_pattern}: {t8_bass_name}  —  {t8_bass_desc}")
+    print(f"T-8  key={args.t8_key}{args.t8_octave}")
+    print(f"     drums {args.t8_genre}  #{args.t8_pattern}: {t8_name}  —  {t8_desc}")
+    print(f"     bass  {args.t8_bass_genre}  #{args.t8_bass_pattern}: {t8_bass_name}  —  {t8_bass_desc}")
     print(f"J-6  {args.j6_genre}  #{args.j6_pattern}: {j6_name}  (chord set #{j6_chord_set})")
     print(f'     "{j6_desc}"')
     print()
