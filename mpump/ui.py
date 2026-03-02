@@ -177,6 +177,8 @@ class T8Panel(DevicePanel):
 
 class MpumpApp(App):
 
+    ENABLE_COMMAND_PALETTE = False
+
     CSS = """
     Screen {
         background: #0d1117;
@@ -231,19 +233,19 @@ class MpumpApp(App):
     """
 
     BINDINGS = [
-        Binding("q",      "quit",        "Quit"),
-        Binding("tab",    "next_panel",  "Tab ⇄ switch"),
-        Binding("left",   "prev_genre",  "← genre"),
-        Binding("right",  "next_genre",  "→ genre"),
-        Binding("up",     "next_pattern","↑ pattern"),
-        Binding("down",   "prev_pattern","↓ pattern"),
-        Binding("k",      "prev_key",    "k key ↓"),
-        Binding("K",      "next_key",    "K key ↑"),
-        Binding("o",      "prev_octave", "o oct ↓"),
-        Binding("O",      "next_octave", "O oct ↑"),
-        Binding("equal",  "bpm_up",      "+ BPM"),
-        Binding("minus",  "bpm_down",    "- BPM"),
-        Binding("enter",  "commit",      "↵ apply"),
+        Binding("q",      "quit",         "Quit"),
+        Binding("tab",    "next_panel",   "Tab ⇄ switch",  priority=True),
+        Binding("left",   "prev_genre",   "← genre",       priority=True),
+        Binding("right",  "next_genre",   "→ genre",        priority=True),
+        Binding("up",     "next_pattern", "↑ pattern",      priority=True),
+        Binding("down",   "prev_pattern", "↓ pattern",      priority=True),
+        Binding("k",      "prev_key",     "k key ↓"),
+        Binding("K",      "next_key",     "K key ↑"),
+        Binding("o",      "prev_octave",  "o oct ↓"),
+        Binding("O",      "next_octave",  "O oct ↑"),
+        Binding("equal",  "bpm_up",       "+ BPM"),
+        Binding("minus",  "bpm_down",     "- BPM"),
+        Binding("enter",  "commit",       "↵ apply",        priority=True),
     ]
 
     # ── Reactive state ──────────────────────────────────────────────────────
@@ -349,10 +351,10 @@ class MpumpApp(App):
             t8_step_callback=lambda i: self.call_from_thread(self._on_t8_step, i),
             connected_callback=self._on_connected,
         )
-        self._refresh_topbar()
-        self._refresh_s1_ui()
-        self._refresh_t8_ui()
-        self._refresh_panel_focus()
+        self.call_after_refresh(self._refresh_topbar)
+        self.call_after_refresh(self._refresh_s1_ui)
+        self.call_after_refresh(self._refresh_t8_ui)
+        self.call_after_refresh(self._refresh_panel_focus)
         self.set_interval(0.5, self._poll)
 
     def _poll(self) -> None:
