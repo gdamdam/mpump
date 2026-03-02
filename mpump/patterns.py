@@ -322,6 +322,144 @@ DUB_TECHNO: list[tuple[str, list[Step]]] = [
 ]
 
 # ---------------------------------------------------------------------------
+# IDM  (complex rhythms, chromatic/dissonant movement, slide-heavy)
+# Characteristic: irregular step density, polytonal passing tones,
+# micro-repetitions, 3+3+3+7 metric ambiguity within 16 steps.
+# ---------------------------------------------------------------------------
+
+IDM: list[tuple[str, list[Step]]] = [
+    (
+        "Aphex Low",
+        "Sub-octave sparse beauty — slow, dissonant, haunting",
+        [st(-12), N, N, N, st(-11), N, N, N,
+         st(-12), N, N, N, st(-9), N, N, N],
+    ),
+    (
+        "Drill Cell",
+        "Rapid irregular 16ths — glitchy machine energy",
+        [st(0), st(0), N, st(3), st(0), N, st(7), N,
+         st(0), st(0), N, st(5), st(3), N, st(0), N],
+    ),
+    (
+        "Autechre Pulse",
+        "Mechanical offbeat displacement — feels like 5/4 inside 4/4",
+        [N, st(0), N, N, st(3), N, st(0), N,
+         N, st(5), N, st(0), N, N, st(3), N],
+    ),
+    (
+        "Glide Cluster",
+        "Chromatic slides with semi-random direction — slithering dissonance",
+        [st(0, R, S), st(1), st(3, R, S), st(2), st(0), N, st(5, R, S), st(7),
+         st(5), N, st(3, R, S), st(2), st(0), N, st(-1), N],
+    ),
+    (
+        "Broken Arp",
+        "Displaced minor arpeggio — familiar intervals, wrong order",
+        [st(7), N, st(0), N, st(12), N, st(3), N,
+         st(5), N, N, st(7), st(0), N, st(10), N],
+    ),
+    (
+        "Polymetric 3",
+        "3+3+3+3+4 grouping across 16 steps — metric illusion",
+        [st(0), N, N, st(3), N, N, st(7), N,
+         N, st(0), N, N, st(5), N, N, N],
+    ),
+    (
+        "Micro Stutter",
+        "Repeating 2-note cells with rhythmic displacement",
+        [st(0), st(0), N, st(3), st(3), N, st(0), N,
+         st(0), st(0), N, N, st(5), st(5), st(0), N],
+    ),
+    (
+        "5-Note Ghost",
+        "Five-note modal cell cycling across 16 — phasing effect",
+        [st(0), N, st(3), N, st(5), N, N, st(0),
+         N, st(3), N, N, st(7), N, st(5), N],
+    ),
+    (
+        "Cluster Bomb",
+        "Chromatic cluster with octave escape — dense and volatile",
+        [st(0), st(1), st(2), N, st(3), N, st(2), st(1),
+         st(0), N, st(-1), N, st(0), st(1), st(3), N],
+    ),
+    (
+        "Warp Sequence",
+        "Wide interval jumps — Warp Records early-90s catalogue energy",
+        [st(0), N, st(12), N, N, st(3), N, st(19),
+         N, st(0), N, st(7), N, N, st(10), N],
+    ),
+]
+
+# ---------------------------------------------------------------------------
+# EDM  (commercial dance music: big room, progressive house, festival)
+# Characteristic: 4-on-the-floor feel in bass, anthemic hooks,
+# sidechain-pump simulation, octave jumps, build/drop contrast.
+# ---------------------------------------------------------------------------
+
+EDM: list[tuple[str, list[Step]]] = [
+    (
+        "Main Stage",
+        "Simple powerful hook — instantly memorable, stadium-ready",
+        [st(0), N, N, st(0), N, st(0), st(3), N,
+         st(5), N, N, st(5), N, st(3), st(0), N],
+    ),
+    (
+        "Bounce",
+        "8th-note groove with melodic peak — upbeat festival energy",
+        [st(0), N, st(0), N, st(3), N, st(5), N,
+         st(7), N, st(5), N, st(3), N, st(0), N],
+    ),
+    (
+        "Festival Arp",
+        "16th-note climb and fall — peak-time crowd lift",
+        [st(0), st(3), st(7), st(10), st(12), st(10), st(7), st(5),
+         st(3), st(5), st(7), st(10), st(7), st(5), st(3), st(0)],
+    ),
+    (
+        "Pluck Burst",
+        "Staccato synth pluck with rhythmic gaps — sidechain feel",
+        [st(0), st(0), st(0), N, st(3), st(3), N, st(5),
+         N, st(7), N, st(5), st(3), N, st(0), N],
+    ),
+    (
+        "Pumping Octave",
+        "Root + octave alternating — simulates sidechain compression",
+        [st(0), N, st(12), N, st(0), N, st(12), N,
+         st(0), N, st(12), N, st(0), N, st(12), N],
+    ),
+    (
+        "Build Stab",
+        "Rising single-note tension — classic EDM pre-drop build",
+        [st(0), N, st(0), N, st(0), N, st(0), N,
+         st(3), N, st(3), N, st(5), N, st(7), N],
+    ),
+    (
+        "Chord Pluck",
+        "Arpeggiated chord tones — progressive house movement",
+        [st(0), st(7), st(3), st(7), st(0), st(7), st(5), st(3),
+         st(0), st(7), st(3), st(5), st(0), st(7), st(3), st(0)],
+    ),
+    (
+        "Breakdown Pad",
+        "Long sustained scale tones — emotional breakdown moment",
+        [st(0), N, N, N, st(3), N, N, N,
+         st(5), N, N, N, st(7), N, N, N],
+    ),
+    (
+        "Drop Fill",
+        "Quick ascending fill into sustained drop — energy burst",
+        [st(0), st(0), st(3), st(3), st(5), st(5), st(7), st(7),
+         st(10), st(7), st(5), st(3), st(0), st(0), st(0), st(0)],
+    ),
+    (
+        "Big Room",
+        "Energetic 16th root drive with upper hook — anthem closer",
+        [st(0), st(3), st(0), st(3), st(5), st(3), st(0), st(3),
+         st(7), st(5), st(3), st(0), st(3), st(5), st(7), st(10)],
+    ),
+]
+
+# ---------------------------------------------------------------------------
 # Genre registry
 # ---------------------------------------------------------------------------
 
@@ -330,6 +468,8 @@ GENRES: dict[str, list[tuple]] = {
     "acid-techno":  ACID_TECHNO,
     "trance":       TRANCE,
     "dub-techno":   DUB_TECHNO,
+    "idm":          IDM,
+    "edm":          EDM,
 }
 
 GENRE_NAMES = list(GENRES.keys())
