@@ -182,6 +182,14 @@ class MpumpApp(App):
         background: #0d1117;
     }
 
+    #topbar {
+        height: 3;
+        background: #161b22;
+        border-bottom: solid #21262d;
+        padding: 1 2;
+        text-align: center;
+    }
+
     #body {
         height: 1fr;
     }
@@ -224,7 +232,7 @@ class MpumpApp(App):
 
     BINDINGS = [
         Binding("q",      "quit",        "Quit"),
-        Binding("tab",    "next_panel",  "Switch", show=False),
+        Binding("tab",    "next_panel",  "Tab ⇄ switch"),
         Binding("left",   "prev_genre",  "← genre"),
         Binding("right",  "next_genre",  "→ genre"),
         Binding("up",     "next_pattern","↑ pattern"),
@@ -305,10 +313,29 @@ class MpumpApp(App):
     # ── Lifecycle ────────────────────────────────────────────────────────────
 
     def compose(self) -> ComposeResult:
+        yield Static("", id="topbar")
         with Horizontal(id="body"):
             yield S1Panel(id="s1-panel")
             yield T8Panel(id="t8-panel")
         yield Footer()
+
+    def _refresh_topbar(self) -> None:
+        s1_key = f"{KEY_NAMES[self.s1_key_idx]}{self.s1_octave}"
+        t8_key = f"{KEY_NAMES[self.t8_key_idx]}{self.t8_octave}"
+        t = Text()
+        t.append("mpump", style="bold white")
+        t.append("   │   ", style=_DIM)
+        t.append("♩ ", style=_DIM)
+        t.append(f"{self.bpm}", style="bold #58a6ff")
+        t.append(" BPM", style=_DIM)
+        t.append("  - +", style=f"dim {_DIM}")
+        t.append("   │   ", style=_DIM)
+        t.append("S-1 ", style=_DIM)
+        t.append(s1_key, style="bold white")
+        t.append("   │   ", style=_DIM)
+        t.append("T-8 ", style=_DIM)
+        t.append(t8_key, style="bold white")
+        self.query_one("#topbar", Static).update(t)
 
     def on_mount(self) -> None:
         self._scanner = DeviceScanner(
@@ -322,6 +349,7 @@ class MpumpApp(App):
             t8_step_callback=lambda i: self.call_from_thread(self._on_t8_step, i),
             connected_callback=self._on_connected,
         )
+        self._refresh_topbar()
         self._refresh_s1_ui()
         self._refresh_t8_ui()
         self._refresh_panel_focus()
@@ -447,6 +475,7 @@ class MpumpApp(App):
     def _push_s1(self) -> None:
         self._s1_committed = dict(genre=self.s1_genre_idx, pattern=self.s1_pattern_idx,
                                   key=self.s1_key_idx, octave=self.s1_octave)
+        self._refresh_topbar()
         self._refresh_s1_ui()
         if self._scanner:
             self._scanner.update_s1(self._s1_pattern(), self._s1_root())
@@ -454,6 +483,7 @@ class MpumpApp(App):
     def _push_t8(self) -> None:
         self._t8_committed = dict(genre=self.t8_genre_idx, pattern=self.t8_pattern_idx,
                                   key=self.t8_key_idx, octave=self.t8_octave)
+        self._refresh_topbar()
         self._refresh_t8_ui()
         if self._scanner:
             self._scanner.update_t8(self._t8_drum(), self._t8_bass(), self._t8_root())
@@ -539,7 +569,7 @@ class MpumpApp(App):
             self.bpm = new
             if self._scanner:
                 self._scanner.update_bpm(new)
-            self.sub_title = f"{self.bpm} BPM"
+            self._refresh_topbar()
 
     def action_bpm_down(self) -> None:
         new = max(20, self.bpm - 5)
@@ -547,7 +577,7 @@ class MpumpApp(App):
             self.bpm = new
             if self._scanner:
                 self._scanner.update_bpm(new)
-            self.sub_title = f"{self.bpm} BPM"
+            self._refresh_topbar()
 
 
 def run_ui(bpm=120, s1_genre="techno", s1_pattern=1, s1_key=DEFAULT_KEY, s1_octave=DEFAULT_OCTAVE,
