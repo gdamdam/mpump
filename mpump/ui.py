@@ -330,11 +330,13 @@ class MpumpApp(App):
         Binding("equal",  "bpm_up",            "+ BPM"),
         Binding("minus",  "bpm_down",          "- BPM"),
         Binding("enter",  "commit",            "↵ apply",         priority=True),
+        Binding("l",      "lock_keys",         "l lock keys"),
     ]
 
     # ── Reactive state ──────────────────────────────────────────────────────
-    focused_panel: reactive[int] = reactive(0)   # 0 = S-1, 1 = T-8, 2 = J-6
-    bpm:           reactive[int] = reactive(120)
+    focused_panel: reactive[int]  = reactive(0)   # 0 = S-1, 1 = T-8, 2 = J-6
+    bpm:           reactive[int]  = reactive(120)
+    keys_locked:   reactive[bool] = reactive(False)
 
     s1_genre_idx:   reactive[int]  = reactive(0)
     s1_pattern_idx: reactive[int]  = reactive(0)
@@ -446,6 +448,8 @@ class MpumpApp(App):
         t.append("♩ ", style=_DIM)
         t.append(f"{self.bpm}", style="bold #58a6ff")
         t.append(" BPM", style=_DIM)
+        if self.keys_locked:
+            t.append("   🔒 key lock", style="bold #f0a500")
         self.query_one("#topbar-bpm", Static).update(t)
 
     def on_mount(self) -> None:
@@ -779,34 +783,58 @@ class MpumpApp(App):
     def action_prev_key(self) -> None:
         if self.focused_panel == 0:
             self.s1_key_idx = (self.s1_key_idx - 1) % len(KEY_NAMES)
+            if self.keys_locked:
+                self.t8_key_idx = self.s1_key_idx
+                self._push_t8()
             self._push_s1()
         elif self.focused_panel == 1:
             self.t8_key_idx = (self.t8_key_idx - 1) % len(KEY_NAMES)
+            if self.keys_locked:
+                self.s1_key_idx = self.t8_key_idx
+                self._push_s1()
             self._push_t8()
         # J-6: root is always C4=60, key/octave not applicable
 
     def action_next_key(self) -> None:
         if self.focused_panel == 0:
             self.s1_key_idx = (self.s1_key_idx + 1) % len(KEY_NAMES)
+            if self.keys_locked:
+                self.t8_key_idx = self.s1_key_idx
+                self._push_t8()
             self._push_s1()
         elif self.focused_panel == 1:
             self.t8_key_idx = (self.t8_key_idx + 1) % len(KEY_NAMES)
+            if self.keys_locked:
+                self.s1_key_idx = self.t8_key_idx
+                self._push_s1()
             self._push_t8()
 
     def action_prev_octave(self) -> None:
         if self.focused_panel == 0:
             self.s1_octave = max(OCTAVE_MIN, self.s1_octave - 1)
+            if self.keys_locked:
+                self.t8_octave = self.s1_octave
+                self._push_t8()
             self._push_s1()
         elif self.focused_panel == 1:
             self.t8_octave = max(OCTAVE_MIN, self.t8_octave - 1)
+            if self.keys_locked:
+                self.s1_octave = self.t8_octave
+                self._push_s1()
             self._push_t8()
 
     def action_next_octave(self) -> None:
         if self.focused_panel == 0:
             self.s1_octave = min(OCTAVE_MAX, self.s1_octave + 1)
+            if self.keys_locked:
+                self.t8_octave = self.s1_octave
+                self._push_t8()
             self._push_s1()
         elif self.focused_panel == 1:
             self.t8_octave = min(OCTAVE_MAX, self.t8_octave + 1)
+            if self.keys_locked:
+                self.s1_octave = self.t8_octave
+                self._push_s1()
             self._push_t8()
 
     def action_commit(self) -> None:
@@ -816,6 +844,20 @@ class MpumpApp(App):
             self._push_t8()
         else:
             self._push_j6()
+
+    def action_lock_keys(self) -> None:
+        self.keys_locked = not self.keys_locked
+        if self.keys_locked:
+            # Snap all devices to the focused panel's key+octave
+            if self.focused_panel == 0:
+                self.t8_key_idx = self.s1_key_idx
+                self.t8_octave  = self.s1_octave
+            else:
+                self.s1_key_idx = self.t8_key_idx
+                self.s1_octave  = self.t8_octave
+            self._push_s1()
+            self._push_t8()
+        self._refresh_topbar()
 
     def on_key(self, event) -> None:
         """Catch = and + for BPM up regardless of terminal key naming."""

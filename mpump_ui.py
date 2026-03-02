@@ -37,6 +37,7 @@ def parse_args() -> argparse.Namespace:
             "  ⇧↑ / ⇧↓      Previous / next bass pattern (T-8 only)\n"
             "  k / K        Key down / up\n"
             "  o / O        Octave down / up\n"
+            "  l            Lock / unlock key across all devices\n"
             "  = / -        BPM +5 / -5\n"
             "  q            Quit\n"
         ),
