@@ -289,7 +289,7 @@ class PickerScreen(ModalScreen):
             )
 
     def on_mount(self) -> None:
-        self.query_one("#picker-list", ListView).move_cursor(row=self._current)
+        self.query_one("#picker-list", ListView).index = self._current
 
     def on_list_view_selected(self, event: ListView.Selected) -> None:
         self.dismiss(self.query_one("#picker-list", ListView).index)
@@ -430,8 +430,8 @@ class MpumpApp(App):
         Binding("up",     "next_pattern",      "↑ pattern",       show=False, priority=True),
         Binding("down",   "prev_pattern",      "↓ pattern",       show=False, priority=True),
         Binding("space",  "toggle_device",     "Space ▶/■",       show=False, priority=True),
-        Binding("comma",  "bass_genre_prev",   ", bass genre ←",  show=False),
-        Binding("period", "bass_genre_next",   ". bass genre →",  show=False),
+        Binding("comma",      "bass_genre_prev",   ", bass genre ←",  show=False),
+        Binding("full_stop",  "bass_genre_next",   ". bass genre →",  show=False),
         Binding("k",      "prev_key",          "k key ↓",         show=False),
         Binding("K",      "next_key",          "K key ↑",         show=False),
         Binding("o",      "prev_octave",       "o oct ↓",         show=False),
