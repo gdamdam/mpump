@@ -278,9 +278,9 @@ class PickerScreen(ModalScreen):
             yield Static("", id="picker-list")
 
     def on_mount(self) -> None:
-        self._render()
+        self._refresh_list()
 
-    def _render(self) -> None:
+    def _refresh_list(self) -> None:
         t = Text()
         for i, item in enumerate(self._items):
             if i == self._cursor:
@@ -291,11 +291,11 @@ class PickerScreen(ModalScreen):
 
     def action_cursor_up(self) -> None:
         self._cursor = (self._cursor - 1) % len(self._items)
-        self._render()
+        self._refresh_list()
 
     def action_cursor_down(self) -> None:
         self._cursor = (self._cursor + 1) % len(self._items)
-        self._render()
+        self._refresh_list()
 
     def action_confirm(self) -> None:
         self.dismiss(self._cursor)
