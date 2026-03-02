@@ -269,9 +269,11 @@ class PickerScreen(ModalScreen):
     """
 
     BINDINGS = [
-        Binding("escape", "cancel", show=False, priority=True),
-        Binding("g",      "cancel", show=False),
-        Binding("p",      "cancel", show=False),
+        Binding("up",     "cursor_up",   show=False, priority=True),
+        Binding("down",   "cursor_down", show=False, priority=True),
+        Binding("escape", "cancel",      show=False, priority=True),
+        Binding("g",      "cancel",      show=False),
+        Binding("p",      "cancel",      show=False),
     ]
 
     def __init__(self, title: str, items: list, current: int) -> None:
@@ -290,6 +292,12 @@ class PickerScreen(ModalScreen):
 
     def on_mount(self) -> None:
         self.query_one("#picker-list", ListView).index = self._current
+
+    def action_cursor_up(self) -> None:
+        self.query_one("#picker-list", ListView).action_cursor_up()
+
+    def action_cursor_down(self) -> None:
+        self.query_one("#picker-list", ListView).action_cursor_down()
 
     def on_list_view_selected(self, event: ListView.Selected) -> None:
         self.dismiss(self.query_one("#picker-list", ListView).index)
