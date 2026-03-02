@@ -76,28 +76,24 @@ class StepGrid(Static):
 
 
 class DrumGrid(Static):
-    """Drum rows + bass row for T-8."""
+    """Six drum rows for T-8 (BD SD CH OH CP CY)."""
 
     current_step: reactive[int] = reactive(-1)
 
     def __init__(self, **kw):
         super().__init__(**kw)
         self._drum: list = [[] for _ in range(16)]
-        self._bass: list = [None] * 16
 
-    def set_patterns(self, drum: list, bass: list) -> None:
+    def set_pattern(self, drum: list) -> None:
         self._drum = drum
-        self._bass = bass
         self.refresh()
 
     def _step_span(self, i: int) -> str:
-        """Separator before group of 4."""
         return "  " if (i > 0 and i % 4 == 0) else ""
 
     def render(self) -> Text:
         t = Text()
         cur = self.current_step
-
         for note, label in DRUM_ROWS:
             t.append(f"{label} ", style=f"bold {_DIM}")
             for i, dstep in enumerate(self._drum):
@@ -119,9 +115,31 @@ class DrumGrid(Static):
                 if i < 15 and (i + 1) % 4 != 0:
                     t.append(" ")
             t.append("\n")
+        return t
 
-        # Bass row
-        t.append("bs ", style=f"bold {_DIM}")
+    def watch_current_step(self, _: int) -> None:
+        self.refresh()
+
+
+class BassGrid(Static):
+    """Single bass row for T-8 bass pattern."""
+
+    current_step: reactive[int] = reactive(-1)
+
+    def __init__(self, **kw):
+        super().__init__(**kw)
+        self._bass: list = [None] * 16
+
+    def set_pattern(self, bass: list) -> None:
+        self._bass = bass
+        self.refresh()
+
+    def _step_span(self, i: int) -> str:
+        return "  " if (i > 0 and i % 4 == 0) else ""
+
+    def render(self) -> Text:
+        t = Text()
+        cur = self.current_step
         for i, bstep in enumerate(self._bass):
             t.append(self._step_span(i))
             active = i == cur
@@ -225,8 +243,10 @@ class T8Panel(DevicePanel):
         yield Static("", id="t8-header")
         yield Static("", id="t8-now")
         yield BeatWidget(id="t8-beat")
-        yield Static("", id="t8-info")
-        yield DrumGrid(id="t8-grid")
+        yield Static("", id="t8-drum-info")
+        yield DrumGrid(id="t8-drum-grid")
+        yield Static("", id="t8-bass-info")
+        yield BassGrid(id="t8-bass-grid")
 
 
 class J6Panel(DevicePanel):
@@ -246,6 +266,8 @@ class J6Panel(DevicePanel):
 
 class PickerList(Widget):
     """Leaf widget: renders a list, owns keyboard and mouse selection."""
+
+    can_focus = True  # required so .focus() works and on_key receives events
 
     class Selected(Message):
         def __init__(self, index: int) -> None:
@@ -442,9 +464,13 @@ class MpumpApp(App):
         margin-bottom: 1;
     }
 
-    #s1-info, #t8-info, #j6-info {
+    #s1-info, #t8-drum-info, #t8-bass-info, #j6-info {
         color: #8b949e;
         margin-bottom: 1;
+    }
+
+    #t8-bass-info {
+        margin-top: 1;
     }
 
     StepGrid {
@@ -453,7 +479,12 @@ class MpumpApp(App):
     }
 
     DrumGrid {
-        height: 7;
+        height: 6;
+        margin-top: 1;
+    }
+
+    BassGrid {
+        height: 1;
         margin-top: 1;
     }
 
@@ -746,29 +777,32 @@ class MpumpApp(App):
         d_name, d_desc, _ = T8_DRUMS[dg][d_idx]
         b_name, b_desc, _ = T8_BASS[bg][b_idx]
         key_str = f"{KEY_NAMES[self.t8_key_idx]}{self.t8_octave}"
-        info = Text()
-        info.append("drums    ", style=_DIM)
-        info.append(f"{dg}\n", style=RichStyle(color="white", underline=True, meta={"@click": "app.pick_genre"}))
-        info.append("      ↑↓ ", style=_DIM)
-        info.append(f"#{d_idx + 1}  ", style="white")
-        info.append(f"{d_name}\n", style=RichStyle(color="#58a6ff", underline=True, meta={"@click": "app.pick_pattern"}))
-        info.append(f'         "{d_desc}"\n', style=_DIM)
-        info.append("bass     ", style=_DIM)
-        info.append(f"{bg}\n", style=RichStyle(color="white", underline=True, meta={"@click": "app.pick_bass_genre"}))
-        info.append("      b/B", style=_DIM)
-        info.append(f" #{b_idx + 1}  ", style="white")
-        info.append(f"{b_name}\n", style=RichStyle(color="#58a6ff", underline=True, meta={"@click": "app.pick_bass_pattern"}))
-        info.append(f'         "{b_desc}"\n', style=_DIM)
-        info.append("key      ", style=_DIM)
-        info.append(KEY_NAMES[self.t8_key_idx], style=RichStyle(color="white", underline=True, meta={"@click": "app.pick_key"}))
-        info.append("  ")
-        info.append(str(self.t8_octave), style=RichStyle(color="white", underline=True, meta={"@click": "app.pick_octave"}))
+        drum_info = Text()
+        drum_info.append("genre    ", style=_DIM)
+        drum_info.append(f"{dg}\n", style=RichStyle(color="white", underline=True, meta={"@click": "app.pick_genre"}))
+        drum_info.append("pattern  ", style=_DIM)
+        drum_info.append(f"#{d_idx + 1}  ", style="white")
+        drum_info.append(f"{d_name}\n", style=RichStyle(color="#58a6ff", underline=True, meta={"@click": "app.pick_pattern"}))
+        drum_info.append(f'         "{d_desc}"', style=_DIM)
         if self._t8_pending():
-            info.append("   ↵ apply", style=f"bold {_ACCENT}")
-        self.query_one("#t8-info", Static).update(info)
+            drum_info.append("   ↵ apply", style=f"bold {_ACCENT}")
+        self.query_one("#t8-drum-info", Static).update(drum_info)
 
-        grid = self.query_one("#t8-grid", DrumGrid)
-        grid.set_patterns(self._t8_drum(), self._t8_bass())
+        bass_info = Text()
+        bass_info.append("genre    ", style=_DIM)
+        bass_info.append(f"{bg}\n", style=RichStyle(color="white", underline=True, meta={"@click": "app.pick_bass_genre"}))
+        bass_info.append("pattern  ", style=_DIM)
+        bass_info.append(f"#{b_idx + 1}  ", style="white")
+        bass_info.append(f"{b_name}\n", style=RichStyle(color="#58a6ff", underline=True, meta={"@click": "app.pick_bass_pattern"}))
+        bass_info.append(f'         "{b_desc}"\n', style=_DIM)
+        bass_info.append("key      ", style=_DIM)
+        bass_info.append(KEY_NAMES[self.t8_key_idx], style=RichStyle(color="white", underline=True, meta={"@click": "app.pick_key"}))
+        bass_info.append("  ")
+        bass_info.append(str(self.t8_octave), style=RichStyle(color="white", underline=True, meta={"@click": "app.pick_octave"}))
+        self.query_one("#t8-bass-info", Static).update(bass_info)
+
+        self.query_one("#t8-drum-grid", DrumGrid).set_pattern(self._t8_drum())
+        self.query_one("#t8-bass-grid", BassGrid).set_pattern(self._t8_bass())
 
     def _refresh_j6_ui(self) -> None:
         # Committed (now playing)
@@ -819,7 +853,8 @@ class MpumpApp(App):
         self.query_one("#s1-beat", BeatWidget).current_step = val
 
     def watch_t8_step(self, val: int) -> None:
-        self.query_one("#t8-grid", DrumGrid).current_step = val
+        self.query_one("#t8-drum-grid", DrumGrid).current_step = val
+        self.query_one("#t8-bass-grid", BassGrid).current_step = val
         self.query_one("#t8-beat", BeatWidget).current_step = val
 
     def watch_j6_step(self, val: int) -> None:
