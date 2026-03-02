@@ -2,39 +2,62 @@ import time
 import mido
 
 from .devices import DEVICES
-from .sequencer import Sequencer
+from .sequencer import Sequencer, T8Sequencer
 
 
 class DeviceScanner:
-    """Polls MIDI output ports and manages one Sequencer thread per device.
+    """Polls MIDI output ports and manages sequencer threads per device.
 
-    The S-1 receives a dynamically chosen pattern (genre/index/root_note).
-    All other devices use the fixed pattern stored in their device profile.
+    S-1  → Sequencer  (melodic, dynamic genre/pattern/key)
+    T-8  → T8Sequencer (drums Ch10 + bass Ch2, dynamic genre/pattern/key)
+    J-6  → Sequencer  (fixed chord pattern)
+    SP-404MK2 → Sequencer (fixed pad pattern)
     """
 
-    POLL_INTERVAL = 0.5  # seconds between scans
+    POLL_INTERVAL = 0.5
 
     def __init__(
         self,
         bpm: int = 120,
-        s1_pattern=None,      # list[Step] for S-1
-        s1_root: int = 45,    # root MIDI note for S-1 (from --key)
+        s1_pattern=None,
+        s1_root: int = 45,
+        t8_drum_pattern=None,
+        t8_bass_pattern=None,
+        t8_bass_root: int = 45,
     ):
-        self.bpm = bpm
-        self._s1_pattern = s1_pattern
-        self._s1_root = s1_root
-        self._active: dict[str, Sequencer] = {}
+        self.bpm             = bpm
+        self._s1_pattern     = s1_pattern
+        self._s1_root        = s1_root
+        self._t8_drum        = t8_drum_pattern
+        self._t8_bass        = t8_bass_pattern
+        self._t8_bass_root   = t8_bass_root
+        self._active: dict[str, Sequencer | T8Sequencer] = {}
 
     def _available_ports(self) -> set[str]:
         return set(mido.get_output_names())
 
-    def _build_sequencer(self, name: str, profile: dict) -> Sequencer:
+    def _build(self, name: str, profile: dict) -> Sequencer | T8Sequencer | None:
+        if profile["type"] == "t8":
+            if self._t8_drum is None:
+                return None
+            return T8Sequencer(
+                port_match=profile["port_match"],
+                drum_pattern=self._t8_drum,
+                bass_pattern=self._t8_bass,
+                bass_root=self._t8_bass_root,
+                base_velocity=profile["base_velocity"],
+                bpm=self.bpm,
+            )
+
+        # synth devices
         if name == "S-1":
-            pattern  = self._s1_pattern
-            root     = self._s1_root
+            if self._s1_pattern is None:
+                return None
+            pattern = self._s1_pattern
+            root    = self._s1_root
         else:
-            pattern  = profile["pattern"]
-            root     = profile["root_note"]
+            pattern = profile["pattern"]
+            root    = profile["root_note"]
 
         return Sequencer(
             name=name,
@@ -50,22 +73,16 @@ class DeviceScanner:
     def tick(self) -> None:
         available = self._available_ports()
 
-        # Start sequencers for newly connected devices
         for name, profile in DEVICES.items():
             if profile["port_match"] in available and name not in self._active:
-                # S-1 needs a pattern; skip if none configured
-                if name == "S-1" and self._s1_pattern is None:
+                seq = self._build(name, profile)
+                if seq is None:
                     continue
                 print(f"[scanner] {name} connected → launching sequencer")
-                seq = self._build_sequencer(name, profile)
                 self._active[name] = seq
                 seq.start()
 
-        # Stop sequencers for disconnected devices
-        gone = [
-            name for name, _ in self._active.items()
-            if DEVICES[name]["port_match"] not in available
-        ]
+        gone = [n for n in self._active if DEVICES[n]["port_match"] not in available]
         for name in gone:
             print(f"[scanner] {name} disconnected → stopping sequencer")
             self._active[name].stop()
@@ -73,8 +90,7 @@ class DeviceScanner:
             del self._active[name]
 
     def run(self) -> None:
-        watching = ", ".join(DEVICES)
-        print(f"[scanner] Watching for: {watching}")
+        print(f"[scanner] Watching for: {', '.join(DEVICES)}")
         print(f"[scanner] Ports now: {sorted(self._available_ports()) or '(none)'}")
         try:
             while True:
