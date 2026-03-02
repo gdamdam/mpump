@@ -421,7 +421,7 @@ class MpumpApp(App):
     }
 
     #topbar {
-        height: 5;
+        height: 4;
         background: #161b22;
         border-bottom: solid #21262d;
         layout: horizontal;
@@ -429,12 +429,25 @@ class MpumpApp(App):
 
     #topbar-title {
         width: 1fr;
-        padding: 2 2;
+        padding: 1 2;
     }
 
-    #topbar-bpm {
+    #footer {
+        height: 1;
+        background: #161b22;
+        dock: bottom;
+    }
+
+    #footer-hint {
+        width: 1fr;
+        padding: 0 1;
+        color: #58a6ff;
+    }
+
+    #footer-bpm {
         width: auto;
-        padding: 2 2;
+        padding: 0 1;
+        color: #8b949e;
         text-align: right;
     }
 
@@ -493,8 +506,7 @@ class MpumpApp(App):
     }
 
     Footer {
-        background: #161b22;
-        color: #58a6ff;
+        display: none;
     }
     """
 
@@ -623,24 +635,27 @@ class MpumpApp(App):
     def compose(self) -> ComposeResult:
         with Horizontal(id="topbar"):
             title = Text()
-            title.append("ｍｐｕｍｐ", style="bold #58a6ff")
+            title.append("█▀▄▀█ █▀█ █ █ █▀▄▀█ █▀█\n", style="bold #58a6ff")
+            title.append("█ ▀ █ █▀▀ ▀▄▀ █ ▀ █ █▀▀", style="bold #58a6ff")
             title.append(f"  v{__version__}", style=_DIM)
             yield Static(title, id="topbar-title")
-            yield Static("", id="topbar-bpm")
         with Horizontal(id="body"):
             yield S1Panel(id="s1-panel")
             yield T8Panel(id="t8-panel")
             yield J6Panel(id="j6-panel")
+        with Horizontal(id="footer"):
+            yield Static(" h  help", id="footer-hint")
+            yield Static("", id="footer-bpm")
         yield Footer()
 
     def _refresh_topbar(self) -> None:
         t = Text()
+        if self.keys_locked:
+            t.append("🔒 key lock   ", style="bold #f0a500")
         t.append("♩ ", style=_DIM)
         t.append(f"{self.bpm}", style="bold #58a6ff")
         t.append(" BPM", style=_DIM)
-        if self.keys_locked:
-            t.append("   🔒 key lock", style="bold #f0a500")
-        self.query_one("#topbar-bpm", Static).update(t)
+        self.query_one("#footer-bpm", Static).update(t)
 
     def on_mount(self) -> None:
         self._scanner = DeviceScanner(
