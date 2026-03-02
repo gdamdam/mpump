@@ -153,12 +153,54 @@ class DevicePanel(Widget):
         self.set_class(val, "focused")
 
 
+class BeatWidget(Static):
+    """4-beat quarter-note dot indicator showing playback position."""
+
+    current_step: reactive[int] = reactive(-1)
+
+    # One char per step — 16 steps = one bar
+    _WAVE = "▁▂▃▄▅▆▇█▇▆▅▄▃▂▁▂"
+
+    def render(self) -> Text:
+        t = Text()
+        step = self.current_step
+        beat = step // 4 if step >= 0 else -1
+
+        # 4 quarter-beat dots
+        for i in range(4):
+            if i > 0:
+                t.append("  ")
+            if i == beat:
+                t.append("●", style="bold #58a6ff")
+            else:
+                t.append("○", style="#2d333b")
+
+        # waveform bar — one block per step, current step highlighted
+        t.append("    ")
+        for i, ch in enumerate(self._WAVE):
+            if i == step:
+                t.append(ch, style="bold #58a6ff")
+            elif step >= 0 and i < step:
+                t.append(ch, style="#2a4060")
+            else:
+                t.append(ch, style="#1a1f27")
+
+        if step < 0:
+            t.append("  ○ stopped", style="#333")
+
+        return t
+
+    def watch_current_step(self, _: int) -> None:
+        self.refresh()
+
+
 class S1Panel(DevicePanel):
     """Left panel: S-1 melodic sequencer."""
 
     def compose(self) -> ComposeResult:
         yield Static("", id="s1-header")
         yield Static("", id="s1-now")
+        yield BeatWidget(id="s1-beat")
         yield Static("", id="s1-info")
         yield StepGrid(id="s1-grid")
 
@@ -169,6 +211,7 @@ class T8Panel(DevicePanel):
     def compose(self) -> ComposeResult:
         yield Static("", id="t8-header")
         yield Static("", id="t8-now")
+        yield BeatWidget(id="t8-beat")
         yield Static("", id="t8-info")
         yield DrumGrid(id="t8-grid")
 
@@ -205,14 +248,15 @@ class MpumpApp(App):
     }
 
     #s1-now, #t8-now {
-        margin-bottom: 1;
-        padding: 0 0 1 0;
-        border-bottom: solid #21262d;
-        transition: background 100ms;
+        margin-bottom: 0;
+        padding: 0 0 0 0;
     }
 
-    #s1-now.beat, #t8-now.beat {
-        background: #0f2d4a;
+    BeatWidget {
+        height: 1;
+        margin-bottom: 1;
+        padding-bottom: 1;
+        border-bottom: solid #21262d;
     }
 
     #body {
@@ -496,17 +540,11 @@ class MpumpApp(App):
 
     def watch_s1_step(self, val: int) -> None:
         self.query_one("#s1-grid", StepGrid).current_step = val
-        if val >= 0 and val % 4 == 0:
-            w = self.query_one("#s1-now", Static)
-            w.add_class("beat")
-            self.set_timer(0.08, lambda: w.remove_class("beat"))
+        self.query_one("#s1-beat", BeatWidget).current_step = val
 
     def watch_t8_step(self, val: int) -> None:
         self.query_one("#t8-grid", DrumGrid).current_step = val
-        if val >= 0 and val % 4 == 0:
-            w = self.query_one("#t8-now", Static)
-            w.add_class("beat")
-            self.set_timer(0.08, lambda: w.remove_class("beat"))
+        self.query_one("#t8-beat", BeatWidget).current_step = val
 
     def watch_focused_panel(self, _: int) -> None:
         self._refresh_panel_focus()
