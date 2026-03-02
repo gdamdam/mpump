@@ -6,6 +6,7 @@ from rich.text import Text
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
+from textual.message import Message
 from textual.reactive import reactive
 from textual.screen import ModalScreen
 from textual.widget import Widget
@@ -234,6 +235,54 @@ class J6Panel(DevicePanel):
 # Genre / pattern picker overlay
 # ─────────────────────────────────────────────────────────────────────────────
 
+class PickerList(Widget):
+    """Leaf widget: renders a list, owns keyboard and mouse selection."""
+
+    class Selected(Message):
+        def __init__(self, index: int) -> None:
+            super().__init__()
+            self.index = index
+
+    DEFAULT_CSS = "PickerList { height: auto; }"
+
+    def __init__(self, items: list, cursor: int) -> None:
+        super().__init__()
+        self._items  = items
+        self.cursor  = cursor
+
+    def render(self) -> Text:
+        t = Text()
+        for i, item in enumerate(self._items):
+            if i == self.cursor:
+                t.append(f" ▶ {item}\n", style="bold #f0a500")
+            else:
+                t.append(f"   {item}\n", style="#c9d1d9")
+        return t
+
+    def on_key(self, event) -> None:
+        if event.key == "up":
+            self.cursor = (self.cursor - 1) % len(self._items)
+            self.refresh()
+            event.prevent_default()
+            event.stop()
+        elif event.key == "down":
+            self.cursor = (self.cursor + 1) % len(self._items)
+            self.refresh()
+            event.prevent_default()
+            event.stop()
+        elif event.key == "enter":
+            self.post_message(PickerList.Selected(self.cursor))
+            event.prevent_default()
+            event.stop()
+
+    def on_click(self, event) -> None:
+        idx = event.y
+        if 0 <= idx < len(self._items):
+            self.cursor = idx
+            self.refresh()
+            self.post_message(PickerList.Selected(idx))
+
+
 class PickerScreen(ModalScreen):
     DEFAULT_CSS = """
     PickerScreen {
@@ -252,53 +301,30 @@ class PickerScreen(ModalScreen):
         text-style: bold;
         margin-bottom: 1;
     }
-    PickerScreen #picker-list {
-        height: auto;
-    }
     """
 
     BINDINGS = [
-        Binding("up",     "cursor_up",   show=False, priority=True),
-        Binding("down",   "cursor_down", show=False, priority=True),
-        Binding("enter",  "confirm",     show=False, priority=True),
-        Binding("escape", "cancel",      show=False, priority=True),
-        Binding("g",      "cancel",      show=False),
-        Binding("p",      "cancel",      show=False),
+        Binding("escape", "cancel", show=False, priority=True),
+        Binding("g",      "cancel", show=False),
+        Binding("p",      "cancel", show=False),
     ]
 
     def __init__(self, title: str, items: list, current: int) -> None:
         super().__init__()
-        self._title  = title
-        self._items  = items
-        self._cursor = current
+        self._title   = title
+        self._items   = items
+        self._current = current
 
     def compose(self) -> ComposeResult:
         with Vertical():
             yield Static(self._title, id="picker-title")
-            yield Static("", id="picker-list")
+            yield PickerList(self._items, self._current)
 
     def on_mount(self) -> None:
-        self._refresh_list()
+        self.query_one(PickerList).focus()
 
-    def _refresh_list(self) -> None:
-        t = Text()
-        for i, item in enumerate(self._items):
-            if i == self._cursor:
-                t.append(f" ▶ {item}\n", style="bold #f0a500")
-            else:
-                t.append(f"   {item}\n", style="#c9d1d9")
-        self.query_one("#picker-list", Static).update(t)
-
-    def action_cursor_up(self) -> None:
-        self._cursor = (self._cursor - 1) % len(self._items)
-        self._refresh_list()
-
-    def action_cursor_down(self) -> None:
-        self._cursor = (self._cursor + 1) % len(self._items)
-        self._refresh_list()
-
-    def action_confirm(self) -> None:
-        self.dismiss(self._cursor)
+    def on_picker_list_selected(self, event: PickerList.Selected) -> None:
+        self.dismiss(event.index)
 
     def action_cancel(self) -> None:
         self.dismiss(None)
