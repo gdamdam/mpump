@@ -7,11 +7,15 @@ from .patterns_t8 import DrumStep
 
 
 class MidiClock(threading.Thread):
-    """Sends MIDI clock (24 PPQN) + Start/Stop to one device port.
+    """Sends MIDI clock ticks (24 PPQN) to one device port for BPM sync.
 
-    Opens its own connection to the port so the sequencer thread is
-    not affected.  On macOS CoreMIDI multiple opens of the same
-    virtual endpoint are allowed.
+    Sends only clock (0xF8) messages — no Start/Stop — so the device's
+    internal sequencer is not triggered.  This syncs BPM-dependent
+    effects (LFO, delay, arpeggiator) without conflicting with our
+    own note-level sequencing.
+
+    Opens its own port connection; macOS CoreMIDI allows multiple
+    connections to the same endpoint from the same process.
     """
 
     PPQN = 24  # clocks per quarter note
@@ -39,7 +43,6 @@ class MidiClock(threading.Thread):
             return
 
         clock = mido.Message("clock")
-        port.send(mido.Message("start"))
         print(f"[clock:{self._port_match}] Started")
 
         try:
@@ -49,10 +52,6 @@ class MidiClock(threading.Thread):
                 port.send(clock)
                 self._stop_flag.wait(timeout=60.0 / (bpm * self.PPQN))
         finally:
-            try:
-                port.send(mido.Message("stop"))
-            except Exception:
-                pass
             port.close()
             print(f"[clock:{self._port_match}] Stopped.")
 
@@ -139,8 +138,12 @@ class Sequencer(threading.Thread):
         step_idx = 0
         pending_off: int | None = None   # note awaiting note_off (slide carry)
 
+        # Use absolute time targets to avoid drift accumulation
+        t_next = time.perf_counter()
+
         try:
             while not self._stop_flag.is_set():
+                t_step_start = t_next
                 if self._step_callback:
                     self._step_callback(step_idx)
                 step: Step = self._pattern[step_idx]
@@ -150,7 +153,6 @@ class Sequencer(threading.Thread):
                     if pending_off is not None:
                         self._off(port, pending_off)
                         pending_off = None
-                    self._stop_flag.wait(timeout=self._step_dur)
 
                 else:
                     semitones, vel_factor, slide = step
@@ -160,13 +162,11 @@ class Sequencer(threading.Thread):
                     if slide:
                         # Send note_on; carry note_off to next step for legato
                         if pending_off is not None and pending_off != note:
-                            # New note_on BEFORE old note_off → synth glides
                             self._on(port, note, velocity)
                             self._off(port, pending_off)
                         else:
                             self._on(port, note, velocity)
                         pending_off = note
-                        self._stop_flag.wait(timeout=self._step_dur)
                     else:
                         # Normal: note_on then note_off within this step
                         if pending_off is not None:
@@ -175,9 +175,20 @@ class Sequencer(threading.Thread):
                             pending_off = None
                         else:
                             self._on(port, note, velocity)
-                        self._stop_flag.wait(timeout=gate)
+                        t_gate_off = t_step_start + gate
+                        delay = t_gate_off - time.perf_counter()
+                        if delay > 0:
+                            self._stop_flag.wait(timeout=delay)
+                        if self._stop_flag.is_set():
+                            self._off(port, note)
+                            break
                         self._off(port, note)
-                        self._stop_flag.wait(timeout=rest)
+
+                # ── Wait until next step boundary ─────────────────────
+                t_next = t_step_start + self._step_dur
+                delay = t_next - time.perf_counter()
+                if delay > 0:
+                    self._stop_flag.wait(timeout=delay)
 
                 step_idx = (step_idx + 1) % len(self._pattern)
 
@@ -282,8 +293,12 @@ class T8Sequencer(threading.Thread):
         pending_bass_off: int | None = None
         pending_bass_slide = False
 
+        # Use absolute time targets to avoid drift accumulation
+        t_next = time.perf_counter()
+
         try:
             while not self._stop_flag.is_set():
+                t_step_start = t_next
                 if self._step_callback:
                     self._step_callback(step_idx)
                 d_step: DrumStep  = self._drum_pattern[step_idx]
@@ -313,20 +328,32 @@ class T8Sequencer(threading.Thread):
                     pending_bass_slide = slide
 
                 # ── Wait drum gate, then release drums ───────────────
-                self._stop_flag.wait(timeout=drum_gate)
+                t_drum_off = t_step_start + drum_gate
+                delay = t_drum_off - time.perf_counter()
+                if delay > 0:
+                    self._stop_flag.wait(timeout=delay)
+                if self._stop_flag.is_set():
+                    break
                 self._release_drums(port, pending_drum_notes)
 
                 # ── Wait remainder up to bass gate ───────────────────
-                bass_remaining = bass_gate - drum_gate
-                self._stop_flag.wait(timeout=bass_remaining)
+                t_bass_off = t_step_start + bass_gate
+                delay = t_bass_off - time.perf_counter()
+                if delay > 0:
+                    self._stop_flag.wait(timeout=delay)
+                if self._stop_flag.is_set():
+                    break
 
                 # ── Release bass if not sliding ──────────────────────
                 if b_step is not None and not pending_bass_slide:
                     self._send(port, self.BASS_CH, pending_bass_off, 0, False)
                     pending_bass_off = None
 
-                # ── Wait rest of step ─────────────────────────────────
-                self._stop_flag.wait(timeout=bass_rest)
+                # ── Wait rest of step (absolute target) ───────────────
+                t_next = t_step_start + self._step_dur
+                delay = t_next - time.perf_counter()
+                if delay > 0:
+                    self._stop_flag.wait(timeout=delay)
 
                 step_idx = (step_idx + 1) % len(self._drum_pattern)
 
