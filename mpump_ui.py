@@ -35,6 +35,8 @@ def parse_args() -> argparse.Namespace:
             "  ← / →        Previous / next genre\n"
             "  ↑ / ↓        Previous / next drum pattern (T-8: drums)\n"
             "  ⇧↑ / ⇧↓      Previous / next bass pattern (T-8 only)\n"
+            "  g            Genre picker (↑↓ select, ↵ apply)\n"
+            "  p            Pattern picker (↑↓ select, ↵ apply)\n"
             "  k / K        Key down / up\n"
             "  o / O        Octave down / up\n"
             "  l            Lock / unlock key across all devices\n"

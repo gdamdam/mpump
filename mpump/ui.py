@@ -9,7 +9,7 @@ from textual.containers import Horizontal, Vertical
 from textual.reactive import reactive
 from textual.screen import ModalScreen
 from textual.widget import Widget
-from textual.widgets import Footer, Static
+from textual.widgets import Footer, ListItem, ListView, Static
 
 from . import __version__
 from .devices import DEVICES
@@ -231,11 +231,81 @@ class J6Panel(DevicePanel):
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Genre / pattern picker overlay
+# ─────────────────────────────────────────────────────────────────────────────
+
+class PickerScreen(ModalScreen):
+    DEFAULT_CSS = """
+    PickerScreen {
+        align: center middle;
+    }
+    PickerScreen > Vertical {
+        background: #161b22;
+        border: round #58a6ff;
+        padding: 1 2;
+        width: 52;
+        height: auto;
+        max-height: 24;
+    }
+    PickerScreen #picker-title {
+        color: #58a6ff;
+        text-style: bold;
+        margin-bottom: 1;
+    }
+    PickerScreen ListView {
+        background: transparent;
+        height: auto;
+        max-height: 18;
+    }
+    PickerScreen ListItem {
+        background: transparent;
+        padding: 0 1;
+        color: #c9d1d9;
+    }
+    PickerScreen ListItem.--highlight {
+        background: #1f6feb;
+        color: white;
+    }
+    """
+
+    BINDINGS = [
+        Binding("escape", "cancel", show=False, priority=True),
+        Binding("g",      "cancel", show=False),
+        Binding("p",      "cancel", show=False),
+    ]
+
+    def __init__(self, title: str, items: list, current: int) -> None:
+        super().__init__()
+        self._title   = title
+        self._items   = items
+        self._current = current
+
+    def compose(self) -> ComposeResult:
+        with Vertical():
+            yield Static(self._title, id="picker-title")
+            yield ListView(
+                *[ListItem(Static(label)) for label in self._items],
+                id="picker-list",
+            )
+
+    def on_mount(self) -> None:
+        self.query_one("#picker-list", ListView).move_cursor(row=self._current)
+
+    def on_list_view_selected(self, event: ListView.Selected) -> None:
+        self.dismiss(self.query_one("#picker-list", ListView).index)
+
+    def action_cancel(self) -> None:
+        self.dismiss(None)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Help overlay
 # ─────────────────────────────────────────────────────────────────────────────
 
 _HELP_TEXT = """\
  Tab          Switch focus  S-1 / T-8 / J-6
+ g            Genre picker  (↑↓ navigate, ↵ apply)
+ p            Pattern picker  (↑↓ navigate, ↵ apply)
  ← / →        Previous / next genre
  ↑ / ↓        Previous / next pattern
  , / .        Previous / next bass genre  (T-8)
@@ -372,6 +442,8 @@ class MpumpApp(App):
         Binding("minus",  "bpm_down",          "- BPM",           show=False),
         Binding("enter",  "commit",            "↵ apply",         show=False, priority=True),
         Binding("l",      "lock_keys",         "l lock keys",     show=False),
+        Binding("g",      "pick_genre",        "g genre",         show=False),
+        Binding("p",      "pick_pattern",      "p pattern",       show=False),
         Binding("h",      "show_help",         "h  help"),
     ]
 
@@ -903,6 +975,65 @@ class MpumpApp(App):
 
     def action_show_help(self) -> None:
         self.push_screen(HelpScreen())
+
+    def action_pick_genre(self) -> None:
+        p = self.focused_panel
+        if p == 0:
+            items   = list(GENRE_NAMES)
+            current = self.s1_genre_idx
+            title   = "S-1  genre"
+            def _apply(idx):
+                if idx is not None:
+                    self.s1_genre_idx = idx
+                    self._push_s1()
+        elif p == 1:
+            items   = list(T8_GENRE_NAMES)
+            current = self.t8_drum_genre_idx
+            title   = "T-8  drum genre"
+            def _apply(idx):
+                if idx is not None:
+                    self.t8_drum_genre_idx = idx
+                    self._push_t8()
+        else:
+            items   = list(J6_GENRE_NAMES)
+            current = self.j6_genre_idx
+            title   = "J-6  genre"
+            def _apply(idx):
+                if idx is not None:
+                    self.j6_genre_idx = idx
+                    self._push_j6()
+        self.push_screen(PickerScreen(title, items, current), _apply)
+
+    def action_pick_pattern(self) -> None:
+        p = self.focused_panel
+        if p == 0:
+            genre   = self._s1_genre()
+            items   = [f"#{i+1}  {n}  —  {d}" for i, (n, d, _) in enumerate(GENRES[genre])]
+            current = self.s1_pattern_idx
+            title   = f"S-1  pattern  [{genre}]"
+            def _apply(idx):
+                if idx is not None:
+                    self.s1_pattern_idx = idx
+                    self._push_s1()
+        elif p == 1:
+            genre   = self._t8_drum_genre()
+            items   = [f"#{i+1}  {n}  —  {d}" for i, (n, d, _) in enumerate(T8_DRUMS[genre])]
+            current = self.t8_pattern_idx
+            title   = f"T-8  drum pattern  [{genre}]"
+            def _apply(idx):
+                if idx is not None:
+                    self.t8_pattern_idx = idx
+                    self._push_t8()
+        else:
+            genre   = self._j6_genre()
+            items   = [f"#{i+1}  {n}  —  {d}" for i, (n, d, _) in enumerate(J6_GENRES[genre])]
+            current = self.j6_pattern_idx
+            title   = f"J-6  pattern  [{genre}]"
+            def _apply(idx):
+                if idx is not None:
+                    self.j6_pattern_idx = idx
+                    self._push_j6()
+        self.push_screen(PickerScreen(title, items, current), _apply)
 
     def on_key(self, event) -> None:
         """Catch = and + for BPM up regardless of terminal key naming."""
