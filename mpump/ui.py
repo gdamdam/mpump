@@ -9,7 +9,7 @@ from textual.containers import Horizontal, Vertical
 from textual.reactive import reactive
 from textual.screen import ModalScreen
 from textual.widget import Widget
-from textual.widgets import Footer, ListItem, ListView, Static
+from textual.widgets import Footer, Static
 
 from . import __version__
 from .devices import DEVICES
@@ -252,25 +252,15 @@ class PickerScreen(ModalScreen):
         text-style: bold;
         margin-bottom: 1;
     }
-    PickerScreen ListView {
-        background: transparent;
+    PickerScreen #picker-list {
         height: auto;
-        max-height: 18;
-    }
-    PickerScreen ListItem {
-        background: transparent;
-        padding: 0 1;
-        color: #c9d1d9;
-    }
-    PickerScreen ListItem.--highlight {
-        background: #1f6feb;
-        color: white;
     }
     """
 
     BINDINGS = [
         Binding("up",     "cursor_up",   show=False, priority=True),
         Binding("down",   "cursor_down", show=False, priority=True),
+        Binding("enter",  "confirm",     show=False, priority=True),
         Binding("escape", "cancel",      show=False, priority=True),
         Binding("g",      "cancel",      show=False),
         Binding("p",      "cancel",      show=False),
@@ -278,29 +268,37 @@ class PickerScreen(ModalScreen):
 
     def __init__(self, title: str, items: list, current: int) -> None:
         super().__init__()
-        self._title   = title
-        self._items   = items
-        self._current = current
+        self._title  = title
+        self._items  = items
+        self._cursor = current
 
     def compose(self) -> ComposeResult:
         with Vertical():
             yield Static(self._title, id="picker-title")
-            yield ListView(
-                *[ListItem(Static(label)) for label in self._items],
-                id="picker-list",
-            )
+            yield Static("", id="picker-list")
 
     def on_mount(self) -> None:
-        self.query_one("#picker-list", ListView).index = self._current
+        self._render()
+
+    def _render(self) -> None:
+        t = Text()
+        for i, item in enumerate(self._items):
+            if i == self._cursor:
+                t.append(f" ▶ {item}\n", style="bold #f0a500")
+            else:
+                t.append(f"   {item}\n", style="#c9d1d9")
+        self.query_one("#picker-list", Static).update(t)
 
     def action_cursor_up(self) -> None:
-        self.query_one("#picker-list", ListView).action_cursor_up()
+        self._cursor = (self._cursor - 1) % len(self._items)
+        self._render()
 
     def action_cursor_down(self) -> None:
-        self.query_one("#picker-list", ListView).action_cursor_down()
+        self._cursor = (self._cursor + 1) % len(self._items)
+        self._render()
 
-    def on_list_view_selected(self, event: ListView.Selected) -> None:
-        self.dismiss(self.query_one("#picker-list", ListView).index)
+    def action_confirm(self) -> None:
+        self.dismiss(self._cursor)
 
     def action_cancel(self) -> None:
         self.dismiss(None)
