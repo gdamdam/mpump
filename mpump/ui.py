@@ -314,7 +314,7 @@ class MpumpApp(App):
             t8_bass_root=self._t8_root(),
             s1_step_callback=lambda i: self.call_from_thread(self._on_s1_step, i),
             t8_step_callback=lambda i: self.call_from_thread(self._on_t8_step, i),
-            connected_callback=lambda name, state: self.call_from_thread(self._on_connected, name, state),
+            connected_callback=self._on_connected,
         )
         self._refresh_s1_ui()
         self._refresh_t8_ui()
