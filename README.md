@@ -1,4 +1,4 @@
-# mpump
+# mpump v0.2.0
 
 Hot-plug MIDI sequencer for Roland AIRA Compact devices. Plug in a device and it starts playing immediately. Unplug it and it stops cleanly. No configuration files, no drivers — just USB and sound.
 
@@ -84,7 +84,7 @@ Browse with `← → ↑ ↓` (and `b/B` for bass) then press `Enter` to apply. 
 | Flag | Default | Description |
 |---|---|---|
 | `--bpm N` | `120` | Tempo (20–300) |
-| `--genre GENRE` | `techno` | S-1 genre: `techno`, `acid-techno`, `trance`, `dub-techno`, `idm`, `edm` |
+| `--genre GENRE` | `techno` | S-1 genre — see [GENRES.md](GENRES.md) for full list |
 | `--pattern N` | `1` | Pattern 1–10 within genre |
 | `--key KEY` | `A` | Root key: `A A# Bb B C C# Db D D# Eb E F F# Gb G G# Ab` |
 | `--octave N` | `2` | Root octave 0–6 (A2 = MIDI 45) |
@@ -106,7 +106,7 @@ Browse with `← → ↑ ↓` (and `b/B` for bass) then press `Enter` to apply. 
 
 | Flag | Default | Description |
 |---|---|---|
-| `--j6-genre GENRE` | `techno` | Chord genre |
+| `--j6-genre GENRE` | `techno` | Chord genre — see [GENRES.md](GENRES.md) for full list |
 | `--j6-pattern N` | `1` | Chord pattern 1–10 |
 | `--list-j6` | — | Print all J-6 patterns and exit |
 
@@ -114,9 +114,9 @@ Browse with `← → ↑ ↓` (and `b/B` for bass) then press `Enter` to apply. 
 
 ## Pattern library
 
-### S-1 — 60 patterns, 6 genres × 10
+### S-1 — 150 patterns, 15 genres × 10
 
-Genres: `techno`, `acid-techno`, `trance`, `dub-techno`, `idm`, `edm`
+Genres: `techno`, `acid-techno`, `trance`, `dub-techno`, `idm`, `edm`, `drum-and-bass`, `house`, `breakbeat`, `jungle`, `garage`, `ambient`, `glitch`, `electro`, `downtempo`
 
 All patterns are expressed as semitone offsets from the root, so `--key` and `--octave` transpose them freely.
 
@@ -124,7 +124,7 @@ All patterns are expressed as semitone offsets from the root, so `--key` and `--
 mpump --list           # full catalogue with descriptions
 ```
 
-### T-8 — 60 drum + 60 bass patterns, 6 genres × 10 each
+### T-8 — 150 drum + 150 bass patterns, 15 genres × 10 each
 
 Drum and bass patterns are selected independently. The bass runs on Ch 2; drums on Ch 10 (GM).
 
@@ -133,7 +133,7 @@ mpump --list-t8        # drum patterns
 mpump --list-t8-bass   # bass patterns
 ```
 
-### J-6 — 60 chord progressions, 6 genres × 10
+### J-6 — 150 chord progressions, 15 genres × 10
 
 Root is always C (MIDI 60). On connect, mpump sends a Program Change to auto-select the matching chord set on the J-6.
 

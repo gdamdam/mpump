@@ -183,15 +183,250 @@ J6_EDM = [
      [st(C,A), N, N, N,  st(C,A), N, N, N,  st(F,A), N, N, N,  st(G,A), N, N, N]),
 ]
 
+# ── DRUM-AND-BASS — chord set #15 "Minor" (dark minor voicings) ─────────────
+
+J6_DNB = [
+    ("Reese",         "Single minor root — maximum sub pressure",
+     [st(C,A), N, N, N,  st(C), N, N, N,  st(C,A), N, N, N,  st(C), N, N, N]),
+    ("Two-Step",      "i–v offbeat push — 2-step DnB feel",
+     [st(C,A), N, N, st(G),  N, N, st(C,A), N,  N, st(G), N, N,  st(C,A), N, N, N]),
+    ("Liquid",        "i–VI–III–VII — melodic liquid DnB",
+     [st(C,A), N, N, N,  st(Ab,A), N, N, N,  st(Eb,A), N, N, N,  st(Bb,A), N, N, N]),
+    ("Neuro Tension", "i–bII tritone crunch — neurofunk dissonance",
+     [st(C,A), N, N, N,  st(Cs,A), N, N, N,  st(C,A), N, N, N,  st(G), N, N, N]),
+    ("Jump Joy",      "i–III–VII–VI — jump-up uplift",
+     [st(C,A), N, N, N,  st(Eb,A), N, N, N,  st(Bb,A), N, N, N,  st(Ab), N, N, N]),
+    ("Darkstep Fall", "i–VII–VI–v — descending dark DnB",
+     [st(C,A), N, N, N,  st(Bb), N, N, N,  st(Ab), N, N, N,  st(G), N, N, N]),
+    ("Halftime Drone","Single sustained root — massive halftime space",
+     [st(C,A), N, N, N,  N, N, N, N,  st(C), N, N, N,  N, N, N, N]),
+    ("Technical",     "i–iv–v–i fast cycle — technical DnB movement",
+     [st(C,A), N, st(F,A), N,  st(G,A), N, st(C,A), N,  st(C,A), N, st(F), N,  st(G), N, st(C), N]),
+    ("Pressure",      "Rapid i–v alternation — jump-up floor pressure",
+     [st(C,A), N, st(G), N,  st(C,A), N, st(G), N,  st(C,A), N, st(G), N,  st(C,A), N, N, N]),
+    ("Rollers",       "i–VII–i–iv rolling cycle — DnB floor roller",
+     [st(C,A), N, N, N,  st(Bb), N, N, N,  st(C,A), N, N, N,  st(F), N, N, N]),
+]
+
+# ── HOUSE — chord set #30 "Soul" (funky/soulful voicings) ───────────────────
+
+J6_HOUSE = [
+    ("Classic House", "I–IV–V–IV pump — four-on-the-floor house",
+     [st(C,A), N, N, N,  st(F,A), N, N, N,  st(G,A), N, N, N,  st(F,A), N, N, N]),
+    ("Deep Groove",   "i–iv–VII–i — deep house minor feel",
+     [st(C,A), N, N, N,  st(F), N, N, N,  st(Bb,A), N, N, N,  st(C,A), N, N, N]),
+    ("Chicago Jack",  "I–IV–ii–V jacking — classic Chicago house",
+     [st(C,A), N, N, N,  st(F,A), N, N, N,  st(D), N, N, N,  st(G,A), N, N, N]),
+    ("Soulful",       "I–vi–ii–V gospel — soulful house progression",
+     [st(C,A), N, N, N,  st(A), N, N, N,  st(D,A), N, N, N,  st(G,A), N, N, N]),
+    ("Tech Acid",     "i–bII–i–bVII — acid tech-house tension",
+     [st(C,A), N, N, N,  st(Cs), N, N, N,  st(C,A), N, N, N,  st(Bb), N, N, N]),
+    ("Gospel Lift",   "I–IV–I–V 8th bounce — uplifting gospel house",
+     [st(C,A), N, st(C), N,  st(F,A), N, st(F), N,  st(C,A), N, st(C), N,  st(G,A), N, N, N]),
+    ("Minor House",   "i–VII–VI–VII — dark underground minor house",
+     [st(C,A), N, N, N,  st(Bb,A), N, N, N,  st(Ab,A), N, N, N,  st(Bb,A), N, N, N]),
+    ("Funky Chords",  "Off-beat I–IV — syncopated funky house stabs",
+     [N, st(C,A), N, N,  N, st(F,A), N, N,  N, st(C,A), N, st(F),  N, N, st(G,A), N]),
+    ("Future House",  "I–V–VI–IV — future house bouncy anthem",
+     [st(C,A), N, N, N,  st(G,A), N, N, N,  st(A,A), N, N, N,  st(F,A), N, N, N]),
+    ("Afterhours",    "Slow sparse i–iv — deep late-night groove",
+     [st(C,A), N, N, N,  N, N, N, N,  st(F), N, N, N,  N, N, N, N]),
+]
+
+# ── BREAKBEAT — chord set #20 "Hip Hop" (warm hip-hop voicings) ─────────────
+
+J6_BREAKBEAT = [
+    ("Big Beat",      "I–IV–I–V stomp — classic big beat energy",
+     [st(C,A), N, N, N,  st(F,A), N, st(C,A), N,  N, N, st(G,A), N,  N, N, N, N]),
+    ("Funky Break",   "I–IV–ii–V syncopated — James Brown inspired",
+     [N, st(C,A), N, st(C),  N, st(F,A), N, N,  N, st(D), N, st(G,A),  N, N, N, N]),
+    ("Boom Bap",      "i–v–i–VII — hip-hop underground chords",
+     [st(C,A), N, N, N,  st(G), N, N, N,  st(C,A), N, N, N,  st(Bb), N, N, N]),
+    ("Amen Chords",   "i–VII–v–i — Amen-break chord feel",
+     [st(C,A), N, st(Bb), N,  st(G), N, st(C), N,  st(C,A), N, st(Bb), N,  st(G), N, N, N]),
+    ("Chemical",      "i–bVII–bVI–v — Chemical Brothers dark drive",
+     [st(C,A), N, N, N,  st(Bb,A), N, N, N,  st(Ab,A), N, N, N,  st(G), N, N, N]),
+    ("Lo-Fi",         "I–vi–IV–V mellow — lo-fi hip-hop chords",
+     [st(C,A), N, N, N,  st(A), N, N, N,  st(F,A), N, N, N,  st(G,A), N, N, N]),
+    ("Prodigy",       "i–bVII fast stabs — aggressive breakbeat energy",
+     [st(C,A), N, st(Bb,A), N,  st(C,A), N, st(Bb,A), N,  st(C,A), N, N, st(Bb),  N, N, st(C,A), N]),
+    ("Trip Hop",      "i–VI–VII sparse — Massive Attack movement",
+     [st(C,A), N, N, N,  N, N, N, N,  st(Ab), N, N, N,  st(Bb), N, N, N]),
+    ("Nu-Skool",      "i–iv–v–VI — modern nu-skool breaks chord move",
+     [st(C,A), N, N, N,  st(F,A), N, N, N,  st(G,A), N, N, N,  st(Ab), N, N, N]),
+    ("Rolling Break", "I–V–IV–V rolling 8ths — floor-filling break",
+     [st(C,A), N, st(G), N,  st(F,A), N, st(G), N,  st(C,A), N, st(G), N,  st(F,A), N, N, N]),
+]
+
+# ── JUNGLE — chord set #16 "Dark Min" (raw dark minor) ──────────────────────
+
+J6_JUNGLE = [
+    ("Pure Jungle",   "Rapid i–VII stabs — raw jungle energy",
+     [st(C,A), N, st(Bb,A), N,  st(C,A), N, st(Bb), N,  st(C,A), N, N, st(Bb,A),  N, N, st(C,A), N]),
+    ("Ragga Chord",   "i–IV–i–v dancehall — ragga jungle feel",
+     [st(C,A), N, N, N,  st(F,A), N, N, N,  st(C,A), N, N, N,  st(G), N, N, N]),
+    ("Oldskool",      "i–VII–VI–i — original '92 jungle vibe",
+     [st(C,A), N, N, N,  st(Bb), N, N, N,  st(Ab), N, N, N,  st(C,A), N, N, N]),
+    ("Darkside",      "i–v–bVI–bVII — dark menacing jungle",
+     [st(C,A), N, N, N,  st(G), N, N, N,  st(Ab,A), N, N, N,  st(Bb), N, N, N]),
+    ("Rollers",       "i–VII pulsing 8ths — constant jungle roller",
+     [st(C,A), N, st(Bb), N,  st(C,A), N, st(Bb), N,  st(C,A), N, st(Ab), N,  st(Bb,A), N, N, N]),
+    ("Warped",        "Chromatic cluster — warped atonal jungle",
+     [st(C,A), N, N, st(Cs,A),  N, N, st(C,A), N,  st(Bb), N, N, st(B),  N, N, st(C,A), N]),
+    ("Steppers",      "Sparse i–iv — jungle steppers locked feel",
+     [st(C,A), N, N, N,  N, N, N, N,  st(F,A), N, N, N,  N, N, N, N]),
+    ("Rave Jungle",   "i–VI–III–VII euphoric — early rave jungle",
+     [st(C,A), N, N, N,  st(Ab,A), N, N, N,  st(Eb,A), N, N, N,  st(Bb,A), N, N, N]),
+    ("Techno Jungle", "i–v rigid 8ths — techno-jungle hybrid",
+     [st(C,A), N, st(C), N,  st(G,A), N, st(G), N,  st(C,A), N, st(C), N,  st(G,A), N, N, N]),
+    ("Carnage",       "Dense staccato i–VII — total carnage",
+     [st(C,A), st(C), st(Bb,A), st(C),  st(C,A), N, st(Bb,A), N,  st(C,A), st(C), N, N,  st(C,A), N, N, N]),
+]
+
+# ── GARAGE — chord set #35 "RnB" (smooth RnB voicings) ─────────────────────
+
+J6_GARAGE = [
+    ("2-Step",        "Syncopated i–v — UK garage 2-step chords",
+     [st(C,A), N, N, st(G),  N, N, st(C,A), N,  N, N, st(G), N,  st(C,A), N, N, N]),
+    ("Speed",         "i–VII rolling 8ths — speed garage chord flow",
+     [st(C,A), N, st(C), N,  st(Bb,A), N, st(C), N,  st(C,A), N, st(Bb), N,  st(C,A), N, N, N]),
+    ("Grime",         "Sparse i–bII — grime dark stark tension",
+     [st(C,A), N, N, N,  N, N, N, N,  st(Cs), N, N, N,  st(C,A), N, N, N]),
+    ("Vocal Chop",    "Rapid i stabs — vocal chop simulation",
+     [st(C,A), N, st(C,A), N,  N, st(C,A), N, N,  st(C,A), N, N, N,  st(C,A), N, st(C,A), N]),
+    ("Bassline House","I–IV–V–IV bouncy — bassline house rave",
+     [st(C,A), N, N, N,  st(F,A), N, N, N,  st(G,A), N, N, N,  st(F), N, N, N]),
+    ("RnB Chords",    "I–vi–ii–V soulful — RnB garage harmony",
+     [st(C,A), N, N, N,  st(A), N, N, N,  st(D,A), N, N, N,  st(G,A), N, N, N]),
+    ("Night Garage",  "i–bVII sparse menacing — late-night garage",
+     [st(C,A), N, N, N,  N, N, N, N,  st(Bb,A), N, N, N,  N, N, N, N]),
+    ("Rimshot Chords","Staccato i stabs — matches rimshot pattern",
+     [st(C,A), N, N, st(C,A),  N, N, st(C,A), N,  N, st(C,A), N, N,  st(C,A), N, N, N]),
+    ("Proto Dub",     "i halftime — pre-dubstep half-time chords",
+     [st(C,A), N, N, N,  N, N, N, N,  N, N, N, N,  st(Bb), N, N, N]),
+    ("Essex",         "I–V–IV–V skippy — Essex garage bounce",
+     [st(C,A), N, N, st(G),  N, st(F,A), N, N,  st(G,A), N, st(C,A), N,  N, st(F), N, N]),
+]
+
+# ── AMBIENT — chord set #3 "Pad" (lush sustained pad voicings) ──────────────
+
+J6_AMBIENT = [
+    ("Long Drone",    "Single root chord — maximum space and reverb",
+     [st(C), N, N, N,  N, N, N, N,  N, N, N, N,  N, N, N, N]),
+    ("Slow Drift",    "i–VI ultra-slow — barely moving harmony",
+     [st(C), N, N, N,  N, N, N, N,  st(Ab), N, N, N,  N, N, N, N]),
+    ("Pad Wash",      "i–III–V sustained — ambient chord wash",
+     [st(C), N, N, N,  N, N, st(Eb), N,  N, N, N, N,  st(G), N, N, N]),
+    ("Celestial",     "I–V–IV drifting — bright ambient float",
+     [st(C), N, N, N,  N, N, st(G), N,  N, N, N, N,  st(F), N, N, N]),
+    ("Deep Space",    "Two root touches — vast emptiness",
+     [st(C), N, N, N,  N, N, N, N,  N, N, N, N,  st(C), N, N, N]),
+    ("Whisper Chord", "i then bVII ghost — barely there texture",
+     [st(C), N, N, N,  N, N, N, N,  st(Bb), N, N, N,  N, N, N, N]),
+    ("Motion",        "Slow chromatic drift — four chords per bar",
+     [st(C), N, N, N,  st(Cs), N, N, N,  st(D), N, N, N,  st(Eb), N, N, N]),
+    ("Ebb",           "i–V tidal — two chords drifting",
+     [st(C), N, N, N,  N, N, N, st(G),  N, N, N, N,  N, N, N, N]),
+    ("Undertow",      "i–bVII dark wave — deep ambient undertow",
+     [st(C), N, N, N,  N, N, N, N,  st(Bb), N, N, N,  N, N, N, N]),
+    ("Shimmer",       "E–D high register — upper harmonic shimmer",
+     [st(E), N, N, N,  N, N, N, N,  N, N, N, N,  st(D), N, N, N]),
+]
+
+# ── GLITCH — chord set #7 "Dissonant" (cluster/dissonant voicings) ───────────
+
+J6_GLITCH = [
+    ("Corrupt Data",  "Erratic chord hits — corrupted data stream",
+     [st(C,A), N, st(Fs,A), N,  N, st(C), N, st(Bb),  N, st(Cs,A), N, N,  st(D), N, st(C,A), N]),
+    ("Micro Loop",    "Stuttering i stabs — micro loop corruption",
+     [st(C,A), st(C), N, st(C,A),  st(C), N, st(C,A), N,  N, st(C), N, st(C,A),  N, N, N, N]),
+    ("Bit Crush",     "Descending chromatic crash — bit crushing",
+     [st(C,A), N, N, N,  st(B), N, N, N,  st(Bb), N, N, N,  st(A), N, N, N]),
+    ("Stutter Edit",  "Irregular accent cluster — stutter edit feel",
+     [st(C,A), N, st(C,A), N,  N, N, st(C,A), st(C),  N, st(C,A), N, N,  st(C), N, N, N]),
+    ("Granular",      "Fragmented chord bursts — granular texture",
+     [st(C), N, N, st(Eb),  N, st(C), N, N,  st(G), N, N, N,  st(C), N, st(Bb), N]),
+    ("Delete Error",  "Silence then burst — missing beats",
+     [N, N, N, N,  N, N, N, N,  st(C,A), st(C,A), st(C,A), N,  N, st(Fs,A), N, st(C)]),
+    ("Drone Error",   "Long chord then chromatic glitch burst",
+     [st(C), N, N, N,  N, N, N, N,  st(C), st(Cs), N, N,  st(C), N, N, N]),
+    ("Typewriter",    "Rapid chromatic stabs — typewriter feel",
+     [st(C,A), st(Cs,A), st(C,A), N,  st(Bb,A), st(C,A), N, N,  st(Cs,A), N, st(C,A), N,  N, N, N, N]),
+    ("Stack Overflow","All 16 steps — dense noise wall",
+     [st(C,A), st(Cs), st(D), st(Eb),  st(E), st(F), st(Fs), st(G),
+      st(Ab), st(A), st(Bb), st(B),  st(C,A), st(B), st(Bb), st(A)]),
+    ("Loop Corrupt",  "i–VII familiar then broken — loop corruption",
+     [st(C,A), N, N, N,  st(Bb,A), N, N, N,  st(C,A), st(Bb), st(C,A), st(Bb),  st(Cs,A), N, N, N]),
+]
+
+# ── ELECTRO — chord set #40 "Funk" (tight funk voicings) ────────────────────
+
+J6_ELECTRO = [
+    ("Classic 808",   "i–v rigid — 808 electro foundation",
+     [st(C,A), N, N, N,  st(C,A), N, N, N,  st(G,A), N, N, N,  st(C,A), N, N, N]),
+    ("B-Boy",         "i–VII hip-hop feel — b-boy chord move",
+     [st(C,A), N, N, N,  st(Bb,A), N, N, N,  st(C,A), N, N, N,  st(G), N, N, N]),
+    ("Machine Funk",  "I–IV–V–IV robot — Roland 808 machine funk",
+     [st(C,A), N, N, N,  st(F,A), N, N, N,  st(G,A), N, N, N,  st(F), N, N, N]),
+    ("Afrika",        "I–V–IV–I motorik — Afrika Bambaataa style",
+     [st(C,A), N, N, N,  st(G,A), N, N, N,  st(F,A), N, N, N,  st(C,A), N, N, N]),
+    ("Vocoder",       "Rapid i stabs — vocoder chord precision",
+     [st(C,A), N, st(C,A), N,  st(C,A), N, st(C,A), N,  st(G,A), N, st(G,A), N,  st(C,A), N, N, N]),
+    ("Miami",         "I–IV–V–IV fast 8ths — Miami bass electro",
+     [st(C,A), N, st(F,A), N,  st(G,A), N, st(F), N,  st(C,A), N, st(F,A), N,  st(G,A), N, N, N]),
+    ("Zap Chord",     "Staccato i–bVII–V — zap gun electro",
+     [st(C,A), N, N, st(Bb,A),  N, N, st(G,A), N,  st(C,A), N, N, st(Bb),  N, N, st(G), N]),
+    ("Cyberpunk",     "i–bII–i industrial — cyberpunk electro",
+     [st(C,A), N, N, N,  st(Cs,A), N, N, N,  st(C,A), N, N, st(Cs),  N, N, st(C,A), N]),
+    ("NY Groove",     "I–vi–ii–V soulful — New York electro groove",
+     [st(C,A), N, N, N,  st(A), N, N, N,  st(D,A), N, N, N,  st(G,A), N, N, N]),
+    ("808 Rumble",    "Sparse i — massive 808 chord rumble",
+     [st(C,A), N, N, N,  N, N, N, N,  st(C,A), N, N, N,  st(G), N, N, N]),
+]
+
+# ── DOWNTEMPO — chord set #11 "Dark Jazz" (dark jazz/trip-hop voicings) ─────
+
+J6_DOWNTEMPO = [
+    ("Trip Hop",      "i–VII slow sweep — classic trip-hop movement",
+     [st(C,A), N, N, N,  N, N, N, N,  st(Bb), N, N, N,  N, N, N, N]),
+    ("Massive",       "i–VI slow weight — Massive Attack movement",
+     [st(C,A), N, N, N,  N, N, N, N,  st(Ab,A), N, N, N,  N, N, N, N]),
+    ("Shadow",        "i–v–VII–i sampled — DJ Shadow feel",
+     [st(C,A), N, N, N,  st(G), N, N, N,  st(Bb,A), N, N, N,  st(C,A), N, N, N]),
+    ("Haunted",       "i–VI–VII slow — Portishead haunted chords",
+     [st(C,A), N, N, N,  N, N, st(Ab), N,  N, N, N, N,  st(Bb), N, N, N]),
+    ("Jazz Walk",     "ii–V–I–vi slow — jazz-influenced downtempo",
+     [st(D), N, N, N,  st(G,A), N, N, N,  st(C,A), N, N, N,  st(A), N, N, N]),
+    ("Swing Sub",     "i–VII swung — heavily swung slow groove",
+     [st(C,A), N, N, st(C),  N, N, N, st(Bb),  N, N, st(C,A), N,  N, N, N, N]),
+    ("Cinematic",     "i–VI–III slow — cinematic tension arc",
+     [st(C,A), N, N, N,  N, N, N, N,  st(Ab,A), N, N, N,  st(Eb), N, N, N]),
+    ("Lo-Fi Warmth",  "I–vi–IV–V warm — lo-fi chord loop",
+     [st(C,A), N, N, N,  st(A), N, N, N,  st(F,A), N, N, N,  st(G,A), N, N, N]),
+    ("Chill Pulse",   "i–VII slow pulse — chill wave chord pulse",
+     [st(C,A), N, N, N,  st(Bb), N, N, N,  st(C,A), N, N, N,  st(Bb), N, N, N]),
+    ("Gravity",       "Single root chord — maximum gravity weight",
+     [st(C,A), N, N, N,  N, N, N, N,  N, N, N, N,  N, N, N, N]),
+]
+
 # ── Registry ──────────────────────────────────────────────────────────────────
 
 J6_GENRES: dict[str, list] = {
-    "techno":      J6_TECHNO,
-    "acid-techno": J6_ACID_TECHNO,
-    "trance":      J6_TRANCE,
-    "dub-techno":  J6_DUB_TECHNO,
-    "idm":         J6_IDM,
-    "edm":         J6_EDM,
+    "techno":        J6_TECHNO,
+    "acid-techno":   J6_ACID_TECHNO,
+    "trance":        J6_TRANCE,
+    "dub-techno":    J6_DUB_TECHNO,
+    "idm":           J6_IDM,
+    "edm":           J6_EDM,
+    "drum-and-bass": J6_DNB,
+    "house":         J6_HOUSE,
+    "breakbeat":     J6_BREAKBEAT,
+    "jungle":        J6_JUNGLE,
+    "garage":        J6_GARAGE,
+    "ambient":       J6_AMBIENT,
+    "glitch":        J6_GLITCH,
+    "electro":       J6_ELECTRO,
+    "downtempo":     J6_DOWNTEMPO,
 }
 
 J6_GENRE_NAMES = list(J6_GENRES.keys())
@@ -199,12 +434,21 @@ J6_GENRE_NAMES = list(J6_GENRES.keys())
 # Recommended J-6 chord set per genre (1-indexed, matching Roland numbering)
 # PC value sent to device = chord_set - 1
 J6_CHORD_SETS: dict[str, int] = {
-    "techno":      58,   # "Techno"      — dark Cm7 voicings
-    "acid-techno": 12,   # "Jazz Min"    — edgy minor 9ths with tritones
-    "trance":      48,   # "Trance"      — emotional minor/major mix
-    "dub-techno":   8,   # "Trad Min"    — sparse natural minor
-    "idm":          5,   # "Jazz"        — complex major 9th extensions
-    "edm":         62,   # "EDM"         — bright Maj13 voicings
+    "techno":        58,   # "Techno"      — dark Cm7 voicings
+    "acid-techno":   12,   # "Jazz Min"    — edgy minor 9ths with tritones
+    "trance":        48,   # "Trance"      — emotional minor/major mix
+    "dub-techno":     8,   # "Trad Min"    — sparse natural minor
+    "idm":            5,   # "Jazz"        — complex major 9th extensions
+    "edm":           62,   # "EDM"         — bright Maj13 voicings
+    "drum-and-bass": 15,   # "Minor"       — dark minor voicings
+    "house":         30,   # "Soul"        — funky/soulful voicings
+    "breakbeat":     20,   # "Hip Hop"     — warm hip-hop voicings
+    "jungle":        16,   # "Dark Min"    — raw dark minor
+    "garage":        35,   # "RnB"         — smooth RnB voicings
+    "ambient":        3,   # "Pad"         — lush sustained pad voicings
+    "glitch":         7,   # "Dissonant"   — cluster/dissonant voicings
+    "electro":       40,   # "Funk"        — tight funk voicings
+    "downtempo":     11,   # "Dark Jazz"   — dark jazz/trip-hop voicings
 }
 
 

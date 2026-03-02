@@ -460,16 +460,630 @@ EDM: list[tuple[str, list[Step]]] = [
 ]
 
 # ---------------------------------------------------------------------------
+# DRUM AND BASS  (syncopated, rolling sub, fast energy)
+# ---------------------------------------------------------------------------
+
+DRUM_AND_BASS: list[tuple[str, list[Step]]] = [
+    (
+        "Reese Roll",
+        "Deep sliding Reese sub roll — classic DnB foundation",
+        [st(0, R, S), st(0), N, st(0, R, S), st(-2), N, st(0, R, S), st(0),
+         N, st(0, R, S), st(0), N, st(-2, R, S), st(0), N, N],
+    ),
+    (
+        "Amen Bass",
+        "Syncopated root/5th groove — locks to Amen break",
+        [st(0, A), N, N, st(0), N, st(7), N, st(0),
+         N, st(0, A), N, N, st(7), N, st(0), N],
+    ),
+    (
+        "Liquid Line",
+        "Smooth minor melodic run — liquid DnB feel",
+        [st(0), N, st(3), N, st(5), N, st(7), N,
+         st(5), N, st(3), N, st(0), N, N, N],
+    ),
+    (
+        "Neuro Stab",
+        "Chromatic stab pattern — neurofunk sub pressure",
+        [st(0, A), N, st(0), N, st(-1, A), N, st(0), N,
+         st(0, A), N, N, st(-2), N, st(0, A), N, N],
+    ),
+    (
+        "Jump Up",
+        "Syncopated root accents — jump-up DnB energy",
+        [st(0, A), N, N, st(0), N, st(0, A), N, N,
+         st(0), N, st(0, A), N, N, N, st(0), N],
+    ),
+    (
+        "Roller",
+        "Constant rolling sub with accent — relentless DnB floor",
+        [st(0), st(0), N, st(0), st(0), N, st(0, A), N,
+         st(0), st(0), N, st(0), N, st(0, A), N, N],
+    ),
+    (
+        "Steppers",
+        "Sparse locked-step bass — minimal and precise",
+        [st(0, A), N, N, N, st(0), N, N, N,
+         st(0, A), N, N, st(-2), N, N, N, N],
+    ),
+    (
+        "Darkstep",
+        "Descending minor fall — menacing darkstep DnB",
+        [st(0, A), N, N, st(0), N, st(-2), N, st(-5),
+         N, st(-7), N, N, st(-5), N, N, N],
+    ),
+    (
+        "Halfstep",
+        "Halftime feel — massive drops every two bars",
+        [st(0, A), N, N, N, N, N, N, st(-2),
+         N, N, N, N, st(0, A), N, N, N],
+    ),
+    (
+        "Technical Run",
+        "Fast chromatic DnB run — precision bass playing",
+        [st(0), st(1), st(2), st(3), st(2), st(0), N, st(0),
+         st(7), st(5), st(3), st(0), N, st(-2), st(0), N],
+    ),
+]
+
+# ---------------------------------------------------------------------------
+# HOUSE  (4/4 groove, funky, soulful bass lines)
+# ---------------------------------------------------------------------------
+
+HOUSE: list[tuple[str, list[Step]]] = [
+    (
+        "Classic Pump",
+        "8th-note root pump with 5th accent — house foundation",
+        [st(0), N, st(0), N, st(0), N, st(0), N,
+         st(0), N, st(0), N, st(5), N, st(0), N],
+    ),
+    (
+        "Deep Walk",
+        "Slow walking bass — deep house soul",
+        [st(0), N, N, N, st(3), N, N, st(5),
+         N, N, st(7), N, N, N, st(5), N],
+    ),
+    (
+        "Chicago Jack",
+        "Jacking syncopation — classic Chicago house",
+        [st(0, A), N, st(0), N, N, st(0, A), N, st(0),
+         N, st(0, A), N, N, st(5, A), N, st(0), N],
+    ),
+    (
+        "Funk Line",
+        "Funky off-beat groove — soulful house",
+        [st(0, A), N, N, st(0), N, st(3), N, N,
+         st(5, A), N, N, st(3), N, st(0), N, N],
+    ),
+    (
+        "Tech Stab",
+        "Short staccato stabs — tech house punch",
+        [st(0, A), N, st(0, A), N, N, st(0, A), N, N,
+         st(0, A), N, st(0, A), N, N, st(5, A), N, N],
+    ),
+    (
+        "Soulful Walk",
+        "R&B-influenced walking bass — gospel house feel",
+        [st(0), N, st(3), N, st(5), N, st(7), st(5),
+         st(3), N, st(0), N, st(-2), N, st(0), N],
+    ),
+    (
+        "303 House",
+        "Acid house 303-style sliding line — squelchy floor filler",
+        [st(0, R, S), st(0), st(7, R, S), st(-2),
+         st(0, A), N, st(0, R, S), st(12),
+         N, st(0, R, S), st(5), N,
+         st(3, A), N, st(0, R, S), N],
+    ),
+    (
+        "Bounce",
+        "Syncopated bouncing groove — upbeat house feel",
+        [st(0, A), N, N, st(0), N, N, st(3), N,
+         st(5, A), N, N, st(3), N, st(0), N, N],
+    ),
+    (
+        "Future Bass",
+        "Root + octave alternating pump — modern house sub",
+        [st(0), N, st(12), N, st(0), N, st(12), N,
+         st(0), N, st(7), N, st(0), N, st(5), N],
+    ),
+    (
+        "Minimal House",
+        "Very sparse root hits — deep minimal house",
+        [st(0, A), N, N, N, N, N, N, N,
+         st(5), N, N, N, N, N, st(0), N],
+    ),
+]
+
+# ---------------------------------------------------------------------------
+# BREAKBEAT  (syncopated, swing feel, big beat, hip-hop influenced)
+# ---------------------------------------------------------------------------
+
+BREAKBEAT: list[tuple[str, list[Step]]] = [
+    (
+        "Big Beat",
+        "Heavy root drive — Chemical Brothers / Prodigy era",
+        [st(0, A), N, N, st(0), N, N, st(0, A), N,
+         N, st(0), N, st(0, A), N, N, st(0), N],
+    ),
+    (
+        "Funky Break",
+        "James Brown-inspired syncopation — classic breakbeat groove",
+        [st(0, A), N, N, st(0), N, st(3), st(0), N,
+         st(5, A), N, st(3), N, st(0), N, st(-2), N],
+    ),
+    (
+        "Boom Bap",
+        "Hip-hop underground bass — classic boom bap",
+        [st(0, A), N, N, N, st(0), N, N, st(-2),
+         st(0, A), N, N, N, st(7), N, N, N],
+    ),
+    (
+        "Amen Groove",
+        "Rolling Amen-style bass — live break feel",
+        [st(0, A), N, st(0), N, st(0, A), N, N, st(0),
+         N, st(0, A), st(0), N, st(0, A), N, st(7), N],
+    ),
+    (
+        "Chemical",
+        "Distorted aggressive stabs — big synth bass energy",
+        [st(0, A), N, st(0, A), N, N, st(0, A), N, st(0, A),
+         N, N, st(0, A), N, st(5, A), N, N, N],
+    ),
+    (
+        "Lo-Fi Hop",
+        "Warm sparse groove — lo-fi hip-hop bass",
+        [st(0), N, N, N, st(3), N, N, N,
+         st(0), N, st(-2), N, st(0), N, N, N],
+    ),
+    (
+        "Prodigy",
+        "Fast aggressive 16ths — maximum break energy",
+        [st(0, A), st(0), N, st(0, A), st(0), N, st(0, A), st(0),
+         N, st(5, A), N, st(0, A), N, N, st(0, A), N],
+    ),
+    (
+        "Trip Hop Line",
+        "Sparse moody bass — Massive Attack / Portishead feel",
+        [st(0), N, N, N, N, N, st(-2), N,
+         st(0), N, N, N, st(3), N, N, N],
+    ),
+    (
+        "Nu-Skool",
+        "Tight modern break groove — nu-skool precision",
+        [st(0, A), N, N, st(0), st(0, A), N, N, st(3),
+         N, st(5, A), N, N, st(3), N, st(0, A), N],
+    ),
+    (
+        "Rolling Break",
+        "Constant 8th break groove — rolling break foundation",
+        [st(0), N, st(0), N, st(3), N, st(0), N,
+         st(7), N, st(5), N, st(3), N, st(0), N],
+    ),
+]
+
+# ---------------------------------------------------------------------------
+# JUNGLE  (heavy sub, rolling, Amen-influenced, fast and sparse mix)
+# ---------------------------------------------------------------------------
+
+JUNGLE: list[tuple[str, list[Step]]] = [
+    (
+        "Jungle Wobble",
+        "Classic jungle bass wobble — raw sub pressure",
+        [st(0, R, S), st(0), st(0, R, S), st(-2), N, st(0, R, S), st(0), N,
+         st(0, R, S), st(-5), N, st(0, R, S), st(0), N, N, N],
+    ),
+    (
+        "Ragga Sub",
+        "Deep dancehall-influenced sub — roots jungle bass",
+        [st(-12, A), N, N, N, st(-12), N, N, st(-12),
+         N, N, N, st(-12, A), N, N, N, N],
+    ),
+    (
+        "Oldskool Roll",
+        "Original '92 rolling bass — pure jungle foundation",
+        [st(0), N, st(0), N, st(0, A), st(0), N, st(0),
+         st(-2, A), N, st(0), N, st(0, A), N, st(0), N],
+    ),
+    (
+        "Darkside",
+        "Descending dark line — menacing darkside jungle",
+        [st(0, A), N, N, st(-2), N, N, st(-5), N,
+         N, st(-7), N, N, st(-5), N, N, N],
+    ),
+    (
+        "Rolling Sub",
+        "Constant 8th sub with shift — relentless jungle floor",
+        [st(0), N, st(0), N, st(0), N, st(0), N,
+         st(-2), N, st(-2), N, st(0), N, st(0), N],
+    ),
+    (
+        "Warp Bass",
+        "Atonal interval leaps — abstract pitched jungle",
+        [st(0), N, st(6), N, N, st(-1), N, st(0),
+         N, N, st(11), N, N, st(0), N, N],
+    ),
+    (
+        "Steppers Sub",
+        "Sparse locked-step sub — minimal jungle steppers",
+        [st(0, A), N, N, N, N, N, N, N,
+         st(0, A), N, N, st(-2), N, N, N, N],
+    ),
+    (
+        "Rave Run",
+        "Euphoric ascending run — early rave jungle lift",
+        [st(0), st(3), st(5), st(7), st(10), st(12), st(10), st(7),
+         st(5), st(3), st(0), N, N, st(-2), st(0), N],
+    ),
+    (
+        "Techno Jungle",
+        "Rigid 8th sub — techno-influenced jungle hybrid",
+        [st(0, A), N, st(0), N, st(0, A), N, st(0), N,
+         st(0, A), N, st(-2), N, st(0, A), N, N, N],
+    ),
+    (
+        "Carnage Sub",
+        "Maximum density root hits — total carnage sub",
+        [st(0, A), st(0), st(0, A), st(0), N, st(0, A), st(0), N,
+         st(0, A), st(0), N, N, st(0, A), N, N, N],
+    ),
+]
+
+# ---------------------------------------------------------------------------
+# GARAGE  (UK 2-step, syncopated, RnB and grime influenced)
+# ---------------------------------------------------------------------------
+
+GARAGE: list[tuple[str, list[Step]]] = [
+    (
+        "2-Step Sub",
+        "Classic UK garage 2-step sub — syncopated low end",
+        [st(0, A), N, N, st(0), N, N, st(0, A), N,
+         N, N, st(0), N, st(0, A), N, N, st(0)],
+    ),
+    (
+        "Speed Roll",
+        "Speed garage rolling root — constant motion",
+        [st(0), N, st(0), N, st(0, A), st(0), N, st(0),
+         N, st(0, A), N, st(0), N, N, st(0, A), N],
+    ),
+    (
+        "Grime Dark",
+        "Sparse long grime note — stark and menacing",
+        [st(0, A), N, N, N, N, N, N, N,
+         st(-2), N, N, N, N, N, st(0), N],
+    ),
+    (
+        "Vocal Stab",
+        "Short punchy stabs — mimics vocal chop rhythm",
+        [st(0, A), N, N, st(0, A), N, N, st(0, A), N,
+         N, N, st(0, A), N, N, st(0, A), N, N],
+    ),
+    (
+        "Bassline Bounce",
+        "Bouncing bassline house — Leeds garage rave",
+        [st(0, A), N, st(3), N, st(0, A), N, st(5), N,
+         st(7, A), N, st(5), N, st(3, A), N, st(0), N],
+    ),
+    (
+        "RnB Walk",
+        "Soulful R&B-influenced walk — smooth garage feel",
+        [st(0), N, st(3), N, st(5), st(3), N, st(0),
+         N, st(3), N, st(5), N, st(7), st(5), N],
+    ),
+    (
+        "Night Bass",
+        "Atmospheric sparse — late-night garage vibes",
+        [st(0), N, N, N, N, N, st(0), N,
+         N, N, N, N, st(-2), N, N, N],
+    ),
+    (
+        "Punchy Staccato",
+        "Staccato root pattern — matches rimshot density",
+        [st(0, A), N, st(0, A), N, N, st(0, A), N, st(0, A),
+         N, st(0, A), N, N, st(0, A), N, N, N],
+    ),
+    (
+        "Proto Dub",
+        "Pre-dubstep half-time — massive slow drops",
+        [st(0, A), N, N, N, N, N, N, N,
+         N, N, N, N, st(0, A), N, N, N],
+    ),
+    (
+        "Essex Skip",
+        "Skippy syncopated garage — cheeky Essex bounce",
+        [st(0, A), N, N, st(0), st(3), N, st(0, A), N,
+         N, st(0), N, st(3, A), N, N, st(5), N],
+    ),
+]
+
+# ---------------------------------------------------------------------------
+# AMBIENT  (ultra-sparse, sustained, meditative)
+# ---------------------------------------------------------------------------
+
+AMBIENT: list[tuple[str, list[Step]]] = [
+    (
+        "Long Tone",
+        "Single root hit per bar — pure space and weight",
+        [st(0), N, N, N, N, N, N, N,
+         N, N, N, N, N, N, N, N],
+    ),
+    (
+        "Slow Breath",
+        "Root and 5th separated by silence — slow harmonic breath",
+        [st(0), N, N, N, N, N, N, N,
+         st(7), N, N, N, N, N, N, N],
+    ),
+    (
+        "Tonic Fifth",
+        "Root then 5th sparse — minimal tonal grounding",
+        [st(0), N, N, N, N, N, N, st(7),
+         N, N, N, N, N, N, N, N],
+    ),
+    (
+        "Pedal Tone",
+        "Unchanging root four times — hypnotic drone pulse",
+        [st(0), N, N, N, st(0), N, N, N,
+         N, N, st(0), N, N, N, N, N],
+    ),
+    (
+        "Fade",
+        "Ultra-sparse single hit — almost nothing",
+        [st(0), N, N, N, N, N, N, N,
+         N, N, N, N, N, st(0), N, N],
+    ),
+    (
+        "Whisper",
+        "Sub-octave ghost note — barely audible presence",
+        [st(-12), N, N, N, N, N, N, N,
+         N, N, N, st(-12), N, N, N, N],
+    ),
+    (
+        "Motion",
+        "Slow chromatic drift — four notes across the bar",
+        [st(0), N, N, N, st(1), N, N, N,
+         st(2), N, N, N, st(3), N, N, N],
+    ),
+    (
+        "Ebb",
+        "Root then b7 — two notes drifting apart",
+        [st(0), N, N, N, N, N, N, st(-2),
+         N, N, N, N, N, N, N, N],
+    ),
+    (
+        "Undertow",
+        "Root and flat seventh — dark ambient weight",
+        [st(0), N, N, N, N, N, N, N,
+         st(-2), N, N, N, N, N, N, N],
+    ),
+    (
+        "Shimmer",
+        "Upper octave ghost — high harmonic shimmer",
+        [st(12), N, N, N, N, N, N, N,
+         N, N, N, N, st(10), N, N, N],
+    ),
+]
+
+# ---------------------------------------------------------------------------
+# GLITCH  (stuttering, corrupted, erratic, chromatic)
+# ---------------------------------------------------------------------------
+
+GLITCH: list[tuple[str, list[Step]]] = [
+    (
+        "Stutter",
+        "Rapid repeated notes with gaps — stutter edit feel",
+        [st(0), st(0), st(0), N, N, st(0), st(0), N,
+         N, st(0), N, st(0), st(0), N, N, N],
+    ),
+    (
+        "Bit Error",
+        "Chromatic noise bursts — bit-crushed corruption",
+        [st(0), st(1), N, st(-1), st(0), N, st(2), N,
+         st(0), N, st(-2), N, st(1), N, st(0), N],
+    ),
+    (
+        "Micro Stab",
+        "Irregular accent cluster — off-grid micro stabs",
+        [st(0, A), N, N, st(0, A), N, st(0, A), N, N,
+         N, st(0, A), N, N, st(0, A), N, st(0, A), N],
+    ),
+    (
+        "Drone Glitch",
+        "Long note interrupted by burst — drone error",
+        [st(0), N, N, N, N, N, N, N,
+         st(0), st(0), st(0), N, N, N, st(0), N],
+    ),
+    (
+        "Fragmented",
+        "Broken melodic phrase — fragmented data stream",
+        [st(0), N, st(3), N, N, st(7), N, N,
+         st(3), N, N, N, st(5), N, N, st(0)],
+    ),
+    (
+        "Noise Gate",
+        "Gating-style rhythm — pumping noise gate simulation",
+        [st(0, A), N, st(0, A), st(0, A), N, st(0, A), N, N,
+         st(0, A), N, N, st(0, A), st(0, A), N, N, N],
+    ),
+    (
+        "Glitch Run",
+        "Ascending chromatic chaos — Autechre-style disorder",
+        [st(0), st(1), st(2), st(3), N, st(4), st(5), N,
+         st(6), N, st(7), N, N, st(0), N, N],
+    ),
+    (
+        "Data Corrupt",
+        "Wrong notes and corrupted sequence — system error",
+        [st(0), N, st(6), N, st(1), N, N, st(-1),
+         st(0), N, st(11), N, N, st(2), N, st(0)],
+    ),
+    (
+        "Feedback Loop",
+        "Self-referential repeating motif — feedback oscillation",
+        [st(0), st(3), N, st(0), st(3), N, st(0), st(3),
+         N, st(0), st(3), N, st(0), st(3), N, N],
+    ),
+    (
+        "System Crash",
+        "Silence then dense burst — catastrophic reset",
+        [N, N, N, N, N, N, N, N,
+         st(0, A), st(0, A), st(0, A), st(0, A), st(0, A), st(0, A), st(0, A), st(0, A)],
+    ),
+]
+
+# ---------------------------------------------------------------------------
+# ELECTRO  (classic 808, hip-hop influenced, robotic precision)
+# ---------------------------------------------------------------------------
+
+ELECTRO: list[tuple[str, list[Step]]] = [
+    (
+        "Classic Electro",
+        "Root on every beat — 808 electro foundation",
+        [st(0, A), N, N, N, st(0, A), N, N, N,
+         st(0, A), N, N, N, st(0, A), N, N, N],
+    ),
+    (
+        "B-Boy Sub",
+        "Boom bap root and 5th — hip-hop b-boy foundation",
+        [st(0, A), N, N, N, st(0), N, N, N,
+         st(0, A), N, N, st(7), N, st(0), N, N],
+    ),
+    (
+        "Machine Riff",
+        "Short sharp machine funk riff — Roland 808 electro",
+        [st(0, A), N, st(0), st(3), N, st(5), N, st(0, A),
+         N, st(3), N, N, st(5), N, st(0, A), N],
+    ),
+    (
+        "Afrika Line",
+        "Motorik funk bass — Afrika Bambaataa style",
+        [st(0), N, st(0), N, st(3), N, st(0), N,
+         st(5), N, st(0), N, st(7), N, st(5), st(3)],
+    ),
+    (
+        "Vocobass",
+        "Square wave stab pattern — vocoder-era precision",
+        [st(0, A), N, N, st(0, A), N, N, st(5, A), N,
+         N, st(0, A), N, N, st(5, A), N, st(0, A), N],
+    ),
+    (
+        "Miami Sub",
+        "Dominant root pump — Miami bass electro",
+        [st(0, A), N, st(0, A), N, st(0, A), N, st(0, A), N,
+         st(0, A), N, st(5, A), N, st(0, A), N, N, N],
+    ),
+    (
+        "Zap Riff",
+        "Synth lead-style zap phrase — electro zap gun",
+        [st(0), N, st(7), N, st(5), N, st(3), N,
+         st(0), N, N, st(7), st(5), N, st(0), N],
+    ),
+    (
+        "Cyberpunk",
+        "Harsh chromatic industrial bass — cyberpunk electro",
+        [st(0, A), st(0, A), N, N, st(-1, A), st(-1, A), N, N,
+         st(0, A), N, st(0, A), N, N, st(-1, A), N, N],
+    ),
+    (
+        "NY Groove",
+        "Soulful electro groove — New York boogie bass",
+        [st(0, A), N, st(3), N, st(0), N, N, st(5),
+         st(7, A), N, st(5), N, st(3), N, st(0), N],
+    ),
+    (
+        "808 Rumble",
+        "Massive sub hits — sub-octave 808 rumble",
+        [st(-12, A), N, N, N, st(-12, A), N, N, N,
+         st(-12, A), N, N, st(-14), N, N, st(-12, A), N],
+    ),
+]
+
+# ---------------------------------------------------------------------------
+# DOWNTEMPO  (slow, heavy, trip-hop, cinematic, Massive Attack / Portishead)
+# ---------------------------------------------------------------------------
+
+DOWNTEMPO: list[tuple[str, list[Step]]] = [
+    (
+        "Trip Hop",
+        "Heavy slow groove — Massive Attack / Portishead bass",
+        [st(0, A), N, N, N, st(0), N, N, st(-2),
+         N, N, st(0, A), N, N, N, st(3), N],
+    ),
+    (
+        "Massive Sub",
+        "Earth-shaking sparse sub — Massive Attack weight",
+        [st(-12, A), N, N, N, N, N, N, N,
+         st(-12), N, N, N, N, N, N, N],
+    ),
+    (
+        "Shadow Line",
+        "Sample-style bass feel — DJ Shadow layback groove",
+        [st(0), N, N, st(3), N, N, st(0), N,
+         st(-2), N, N, N, st(0), N, N, N],
+    ),
+    (
+        "Haunted",
+        "Dark winding descent — Portishead haunted bass",
+        [st(0), N, N, N, st(-2), N, N, N,
+         st(-4), N, N, N, st(-5), N, st(-2), N],
+    ),
+    (
+        "Jazz Walk",
+        "Slow jazz-influenced walking bass — brushed kit feel",
+        [st(0), N, N, N, st(3), N, N, N,
+         st(7), N, N, N, st(5), N, st(3), N],
+    ),
+    (
+        "Swing Sub",
+        "Heavily swung slow sub — narcotic layback",
+        [st(0, A), N, N, st(0), N, N, N, st(-2),
+         st(0, A), N, N, st(0), N, N, N, N],
+    ),
+    (
+        "Cinematic",
+        "Long cinematic sub notes — film score tension",
+        [st(0), N, N, N, N, N, N, N,
+         st(3), N, N, N, N, N, N, N],
+    ),
+    (
+        "Lo-Fi Warmth",
+        "Warm analog tape feel — lo-fi hip-hop bass",
+        [st(0), N, N, N, st(0), N, N, N,
+         st(5), N, N, N, st(3), N, st(0), N],
+    ),
+    (
+        "Chill Pulse",
+        "Single note per beat — slow minimal pulse",
+        [st(0), N, N, N, st(0), N, N, N,
+         st(0), N, N, N, st(0), N, N, N],
+    ),
+    (
+        "Gravity",
+        "Maximum gravity sub — slow sub-octave anchor",
+        [st(-12, A), N, N, N, N, N, N, N,
+         N, N, N, N, st(-12, A), N, N, N],
+    ),
+]
+
+# ---------------------------------------------------------------------------
 # Genre registry
 # ---------------------------------------------------------------------------
 
 GENRES: dict[str, list[tuple]] = {
-    "techno":       TECHNO,
-    "acid-techno":  ACID_TECHNO,
-    "trance":       TRANCE,
-    "dub-techno":   DUB_TECHNO,
-    "idm":          IDM,
-    "edm":          EDM,
+    "techno":          TECHNO,
+    "acid-techno":     ACID_TECHNO,
+    "trance":          TRANCE,
+    "dub-techno":      DUB_TECHNO,
+    "idm":             IDM,
+    "edm":             EDM,
+    "drum-and-bass":   DRUM_AND_BASS,
+    "house":           HOUSE,
+    "breakbeat":       BREAKBEAT,
+    "jungle":          JUNGLE,
+    "garage":          GARAGE,
+    "ambient":         AMBIENT,
+    "glitch":          GLITCH,
+    "electro":         ELECTRO,
+    "downtempo":       DOWNTEMPO,
 }
 
 GENRE_NAMES = list(GENRES.keys())
