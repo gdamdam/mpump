@@ -235,6 +235,7 @@ class MpumpApp(App):
         Binding("O",      "next_octave", "O oct ↑"),
         Binding("equal",  "bpm_up",      "+ BPM"),
         Binding("minus",  "bpm_down",    "- BPM"),
+        Binding("enter",  "commit",      "↵ apply"),
     ]
 
     # ── Reactive state ──────────────────────────────────────────────────────
@@ -271,6 +272,11 @@ class MpumpApp(App):
         self.t8_key_idx     = KEY_NAMES.index(t8_key) if t8_key in KEY_NAMES else KEY_NAMES.index(DEFAULT_KEY)
         self.t8_octave      = t8_octave
         self._scanner: DeviceScanner | None = None
+        # Tracks what is actually playing (committed to scanner)
+        self._s1_committed = dict(genre=self.s1_genre_idx, pattern=self.s1_pattern_idx,
+                                  key=self.s1_key_idx, octave=self.s1_octave)
+        self._t8_committed = dict(genre=self.t8_genre_idx, pattern=self.t8_pattern_idx,
+                                  key=self.t8_key_idx, octave=self.t8_octave)
 
     # ── Helpers ─────────────────────────────────────────────────────────────
 
@@ -376,6 +382,8 @@ class MpumpApp(App):
         info.append(f'         "{desc}"\n', style=_DIM)
         info.append(f"key      ", style=_DIM)
         info.append(key_str, style="white")
+        if self._s1_pending():
+            info.append("   ↵ apply", style=f"bold {_ACCENT}")
         self.query_one("#s1-info", Static).update(info)
 
         grid = self.query_one("#s1-grid", StepGrid)
@@ -402,6 +410,8 @@ class MpumpApp(App):
         info.append(f'"{b_desc}"\n', style=_DIM)
         info.append(f"key      ", style=_DIM)
         info.append(key_str, style="white")
+        if self._t8_pending():
+            info.append("   ↵ apply", style=f"bold {_ACCENT}")
         self.query_one("#t8-info", Static).update(info)
 
         grid = self.query_one("#t8-grid", DrumGrid)
@@ -424,12 +434,26 @@ class MpumpApp(App):
 
     # ── Scanner update helpers ───────────────────────────────────────────────
 
+    def _s1_pending(self) -> bool:
+        c = self._s1_committed
+        return (c["genre"] != self.s1_genre_idx or c["pattern"] != self.s1_pattern_idx
+                or c["key"] != self.s1_key_idx or c["octave"] != self.s1_octave)
+
+    def _t8_pending(self) -> bool:
+        c = self._t8_committed
+        return (c["genre"] != self.t8_genre_idx or c["pattern"] != self.t8_pattern_idx
+                or c["key"] != self.t8_key_idx or c["octave"] != self.t8_octave)
+
     def _push_s1(self) -> None:
+        self._s1_committed = dict(genre=self.s1_genre_idx, pattern=self.s1_pattern_idx,
+                                  key=self.s1_key_idx, octave=self.s1_octave)
         self._refresh_s1_ui()
         if self._scanner:
             self._scanner.update_s1(self._s1_pattern(), self._s1_root())
 
     def _push_t8(self) -> None:
+        self._t8_committed = dict(genre=self.t8_genre_idx, pattern=self.t8_pattern_idx,
+                                  key=self.t8_key_idx, octave=self.t8_octave)
         self._refresh_t8_ui()
         if self._scanner:
             self._scanner.update_t8(self._t8_drum(), self._t8_bass(), self._t8_root())
@@ -442,65 +466,71 @@ class MpumpApp(App):
     def action_prev_genre(self) -> None:
         if self.focused_panel == 0:
             self.s1_genre_idx = (self.s1_genre_idx - 1) % len(GENRE_NAMES)
-            self._push_s1()
+            self._refresh_s1_ui()
         else:
             self.t8_genre_idx = (self.t8_genre_idx - 1) % len(T8_GENRE_NAMES)
-            self._push_t8()
+            self._refresh_t8_ui()
 
     def action_next_genre(self) -> None:
         if self.focused_panel == 0:
             self.s1_genre_idx = (self.s1_genre_idx + 1) % len(GENRE_NAMES)
-            self._push_s1()
+            self._refresh_s1_ui()
         else:
             self.t8_genre_idx = (self.t8_genre_idx + 1) % len(T8_GENRE_NAMES)
-            self._push_t8()
+            self._refresh_t8_ui()
 
     def action_prev_pattern(self) -> None:
         if self.focused_panel == 0:
             self.s1_pattern_idx = (self.s1_pattern_idx - 1) % 10
-            self._push_s1()
+            self._refresh_s1_ui()
         else:
             self.t8_pattern_idx = (self.t8_pattern_idx - 1) % 10
-            self._push_t8()
+            self._refresh_t8_ui()
 
     def action_next_pattern(self) -> None:
         if self.focused_panel == 0:
             self.s1_pattern_idx = (self.s1_pattern_idx + 1) % 10
-            self._push_s1()
+            self._refresh_s1_ui()
         else:
             self.t8_pattern_idx = (self.t8_pattern_idx + 1) % 10
-            self._push_t8()
+            self._refresh_t8_ui()
 
     def action_prev_key(self) -> None:
         if self.focused_panel == 0:
             self.s1_key_idx = (self.s1_key_idx - 1) % len(KEY_NAMES)
-            self._push_s1()
+            self._refresh_s1_ui()
         else:
             self.t8_key_idx = (self.t8_key_idx - 1) % len(KEY_NAMES)
-            self._push_t8()
+            self._refresh_t8_ui()
 
     def action_next_key(self) -> None:
         if self.focused_panel == 0:
             self.s1_key_idx = (self.s1_key_idx + 1) % len(KEY_NAMES)
-            self._push_s1()
+            self._refresh_s1_ui()
         else:
             self.t8_key_idx = (self.t8_key_idx + 1) % len(KEY_NAMES)
-            self._push_t8()
+            self._refresh_t8_ui()
 
     def action_prev_octave(self) -> None:
         if self.focused_panel == 0:
             self.s1_octave = max(OCTAVE_MIN, self.s1_octave - 1)
-            self._push_s1()
+            self._refresh_s1_ui()
         else:
             self.t8_octave = max(OCTAVE_MIN, self.t8_octave - 1)
-            self._push_t8()
+            self._refresh_t8_ui()
 
     def action_next_octave(self) -> None:
         if self.focused_panel == 0:
             self.s1_octave = min(OCTAVE_MAX, self.s1_octave + 1)
-            self._push_s1()
+            self._refresh_s1_ui()
         else:
             self.t8_octave = min(OCTAVE_MAX, self.t8_octave + 1)
+            self._refresh_t8_ui()
+
+    def action_commit(self) -> None:
+        if self.focused_panel == 0:
+            self._push_s1()
+        else:
             self._push_t8()
 
     def action_bpm_up(self) -> None:
