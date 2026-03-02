@@ -52,13 +52,23 @@ class DeviceScanner:
     def _available_ports(self) -> set[str]:
         return set(mido.get_output_names())
 
-    def _next_step_boundary(self) -> float:
-        """Return the next step boundary on the global grid, guaranteed future."""
+    def _next_bar_boundary(self) -> float:
+        """Return the next 16-step bar boundary on the global grid.
+
+        All devices must start at bar boundaries so their step-0 always
+        coincides — any device started here is guaranteed to be in phase
+        with every other device that was also started at a bar boundary.
+        50 ms minimum lead time covers thread/port startup overhead.
+        """
         step_dur = 60.0 / (self.bpm * 4)
-        elapsed  = time.perf_counter() - self._t0
-        # +1 ensures we're always at least one full step ahead (thread-startup margin)
-        n = math.ceil(elapsed / step_dur) + 1
-        return self._t0 + n * step_dur
+        bar_dur  = 16 * step_dur
+        now      = time.perf_counter()
+        elapsed  = now - self._t0
+        n        = math.ceil(elapsed / bar_dur)
+        t_bar    = self._t0 + n * bar_dur
+        if t_bar - now < 0.05:      # too close — take the following bar
+            t_bar += bar_dur
+        return t_bar
 
     def _build(self, name: str, profile: dict,
                t_start: float | None = None) -> Sequencer | T8Sequencer | None:
@@ -117,7 +127,7 @@ class DeviceScanner:
             if (profile["port_match"] in available
                     and name not in self._active
                     and name not in self._stopped):
-                t_start = self._next_step_boundary()
+                t_start = self._next_bar_boundary()
                 seq = self._build(name, profile, t_start=t_start)
                 if seq is None:
                     continue
@@ -178,7 +188,7 @@ class DeviceScanner:
         old = self._active.pop(name)
         old.stop()
         old.join(timeout=1)
-        t_start = self._next_step_boundary()
+        t_start = self._next_bar_boundary()
         seq = self._build(name, DEVICES[name], t_start=t_start)
         if seq:
             self._active[name] = seq
@@ -201,7 +211,7 @@ class DeviceScanner:
         elif name in self._stopped:
             self._stopped.discard(name)
             if DEVICES[name]["port_match"] in self._available_ports():
-                t_start = self._next_step_boundary()
+                t_start = self._next_bar_boundary()
                 seq = self._build(name, DEVICES[name], t_start=t_start)
                 if seq:
                     self._active[name] = seq
@@ -237,7 +247,7 @@ class DeviceScanner:
             seq.stop()
         for seq in old_seqs.values():
             seq.join(timeout=1)
-        t_start = self._next_step_boundary()
+        t_start = self._next_bar_boundary()
         for name in names:
             seq = self._build(name, DEVICES[name], t_start=t_start)
             if seq:

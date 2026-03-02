@@ -322,6 +322,8 @@ class MpumpApp(App):
         Binding("K",      "next_key",     "K key ↑"),
         Binding("o",      "prev_octave",  "o oct ↓"),
         Binding("O",      "next_octave",  "O oct ↑"),
+        Binding("b",      "bass_prev",    "b bass ↓"),
+        Binding("B",      "bass_next",    "B bass ↑"),
         Binding("equal",  "bpm_up",       "+ BPM"),
         Binding("minus",  "bpm_down",     "- BPM"),
         Binding("enter",  "commit",       "↵ apply",        priority=True),
@@ -576,7 +578,7 @@ class MpumpApp(App):
         info.append(f"#{d_idx + 1}  ", style="white")
         info.append(f"{d_name}\n", style="#58a6ff")
         info.append(f'         "{d_desc}"\n', style=_DIM)
-        info.append(f"bass  ⇧↑↓", style=_DIM)
+        info.append(f"bass  b/B", style=_DIM)
         info.append(f" #{b_idx + 1}  ", style="white")
         info.append(f"{b_name}\n", style="#58a6ff")
         info.append(f'         "{b_desc}"\n', style=_DIM)
@@ -788,32 +790,28 @@ class MpumpApp(App):
             self._push_j6()
 
     def on_key(self, event) -> None:
-        """Catch keys that need special handling across terminal emulators."""
+        """Catch = and + for BPM up regardless of terminal key naming."""
         if event.character in ("=", "+"):
             self.action_bpm_up()
-        elif event.key in ("shift+up", "shift+up"):
-            self.action_bass_next()
-            event.prevent_default()
-        elif event.key == "shift+down":
-            self.action_bass_prev()
-            event.prevent_default()
 
     def action_toggle_device(self) -> None:
-        panel_device = {0: ("S-1", "s1_paused"), 1: ("T-8", "t8_paused"), 2: ("J-6", "j6_paused")}
-        name, attr = panel_device[self.focused_panel]
-        if self._scanner:
-            now_playing = self._scanner.toggle_device(name)
-            setattr(self, attr, not now_playing)
-            if not now_playing:
-                # Clear step indicator when stopped
-                step_attr = {"S-1": "s1_step", "T-8": "t8_step", "J-6": "j6_step"}[name]
-                setattr(self, step_attr, -1)
-        if self.focused_panel == 0:
-            self._refresh_s1_ui()
-        elif self.focused_panel == 1:
-            self._refresh_t8_ui()
-        else:
-            self._refresh_j6_ui()
+        p = self.focused_panel
+        name      = {0: "S-1",          1: "T-8",          2: "J-6"}[p]
+        attr_pau  = {0: "s1_paused",    1: "t8_paused",    2: "j6_paused"}[p]
+        attr_step = {0: "s1_step",      1: "t8_step",      2: "j6_step"}[p]
+        attr_conn = {0: "s1_connected", 1: "t8_connected", 2: "j6_connected"}[p]
+        if not self._scanner:
+            return
+        # Only act if device is connected (playing or paused)
+        if not getattr(self, attr_conn) and not getattr(self, attr_pau):
+            return
+        now_playing = self._scanner.toggle_device(name)
+        setattr(self, attr_pau, not now_playing)
+        if not now_playing:
+            setattr(self, attr_step, -1)
+        if p == 0:   self._refresh_s1_ui()
+        elif p == 1: self._refresh_t8_ui()
+        else:        self._refresh_j6_ui()
 
     def action_bpm_up(self) -> None:
         new = min(300, self.bpm + 5)
