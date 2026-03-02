@@ -24,19 +24,25 @@ class DeviceScanner:
         t8_drum_pattern=None,
         t8_bass_pattern=None,
         t8_bass_root: int = 45,
+        j6_pattern=None,
+        j6_program_change: int | None = None,
         s1_step_callback=None,
         t8_step_callback=None,
+        j6_step_callback=None,
         connected_callback=None,
     ):
-        self.bpm             = bpm
-        self._s1_pattern     = s1_pattern
-        self._s1_root        = s1_root
-        self._t8_drum        = t8_drum_pattern
-        self._t8_bass        = t8_bass_pattern
-        self._t8_bass_root   = t8_bass_root
-        self._s1_step_cb     = s1_step_callback
-        self._t8_step_cb     = t8_step_callback
-        self._connected_cb   = connected_callback
+        self.bpm               = bpm
+        self._s1_pattern       = s1_pattern
+        self._s1_root          = s1_root
+        self._t8_drum          = t8_drum_pattern
+        self._t8_bass          = t8_bass_pattern
+        self._t8_bass_root     = t8_bass_root
+        self._j6_pattern       = j6_pattern
+        self._j6_program_change = j6_program_change
+        self._s1_step_cb       = s1_step_callback
+        self._t8_step_cb       = t8_step_callback
+        self._j6_step_cb       = j6_step_callback
+        self._connected_cb     = connected_callback
         self._active: dict[str, Sequencer | T8Sequencer] = {}
         self._clocks: dict[str, MidiClock] = {}
 
@@ -58,16 +64,25 @@ class DeviceScanner:
             )
 
         # synth devices
+        pc = None
         if name == "S-1":
             if self._s1_pattern is None:
                 return None
             pattern = self._s1_pattern
             root    = self._s1_root
+            cb      = self._s1_step_cb
+        elif name == "J-6":
+            if self._j6_pattern is None:
+                return None
+            pattern = self._j6_pattern
+            root    = profile["root_note"]
+            pc      = self._j6_program_change
+            cb      = self._j6_step_cb
         else:
             pattern = profile["pattern"]
             root    = profile["root_note"]
+            cb      = None
 
-        cb = self._s1_step_cb if name == "S-1" else None
         return Sequencer(
             name=name,
             port_match=profile["port_match"],
@@ -78,6 +93,7 @@ class DeviceScanner:
             note_fraction=profile["note_fraction"],
             bpm=self.bpm,
             step_callback=cb,
+            program_change=pc,
         )
 
     def tick(self) -> None:
@@ -162,6 +178,11 @@ class DeviceScanner:
         self._t8_bass      = bass
         self._t8_bass_root = root
         self._restart("T-8")
+
+    def update_j6(self, pattern, program_change: int | None) -> None:
+        self._j6_pattern        = pattern
+        self._j6_program_change = program_change
+        self._restart("J-6")
 
     def update_bpm(self, bpm: int) -> None:
         self.bpm = bpm

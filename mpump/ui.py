@@ -14,6 +14,7 @@ from .devices import DEVICES
 from .keys import DEFAULT_KEY, DEFAULT_OCTAVE, OCTAVE_MAX, OCTAVE_MIN, parse_key, valid_key_names
 from .patterns import GENRE_NAMES, GENRES, get_pattern
 from .patterns_t8 import T8_DRUMS, T8_GENRE_NAMES, get_t8_bass_pattern, get_t8_drum_pattern
+from .patterns_j6 import J6_CHORD_SETS, J6_GENRE_NAMES, J6_GENRES, get_j6_chord_set, get_j6_pattern
 from .scanner import DeviceScanner
 
 KEY_NAMES = valid_key_names()
@@ -153,40 +154,40 @@ class DevicePanel(Widget):
         self.set_class(val, "focused")
 
 
-class BeatWidget(Static):
-    """4-beat quarter-note dot indicator showing playback position."""
+class BeatWidget(Widget):
+    """4-beat dot + 16-step waveform bar showing playback position."""
 
     current_step: reactive[int] = reactive(-1)
 
-    # One char per step — 16 steps = one bar
-    _WAVE = "▁▂▃▄▅▆▇█▇▆▅▄▃▂▁▂"
+    _WAVE = "▁▂▃▄▅▆▇█▇▆▅▄▃▂▁▂"   # 16 chars, one per step
 
     def render(self) -> Text:
-        t = Text()
         step = self.current_step
         beat = step // 4 if step >= 0 else -1
+        t = Text()
 
-        # 4 quarter-beat dots
+        # ── 4 quarter-beat dots ─────────────────────────────────────
         for i in range(4):
             if i > 0:
                 t.append("  ")
             if i == beat:
                 t.append("●", style="bold #58a6ff")
             else:
-                t.append("○", style="#2d333b")
+                t.append("○", style="#4a5060")
 
-        # waveform bar — one block per step, current step highlighted
+        # ── 16-step waveform bar ────────────────────────────────────
         t.append("    ")
-        for i, ch in enumerate(self._WAVE):
-            if i == step:
-                t.append(ch, style="bold #58a6ff")
-            elif step >= 0 and i < step:
-                t.append(ch, style="#2a4060")
-            else:
-                t.append(ch, style="#1a1f27")
-
         if step < 0:
-            t.append("  ○ stopped", style="#333")
+            t.append(self._WAVE, style="#2a2f38")
+            t.append("  ─ not playing", style="#4a5060")
+        else:
+            for i, ch in enumerate(self._WAVE):
+                if i == step:
+                    t.append(ch, style="bold #58a6ff")
+                elif i < step:
+                    t.append(ch, style="#2a4a6a")
+                else:
+                    t.append(ch, style="#2a2f38")
 
         return t
 
@@ -214,6 +215,17 @@ class T8Panel(DevicePanel):
         yield BeatWidget(id="t8-beat")
         yield Static("", id="t8-info")
         yield DrumGrid(id="t8-grid")
+
+
+class J6Panel(DevicePanel):
+    """Third panel: J-6 chord synthesizer."""
+
+    def compose(self) -> ComposeResult:
+        yield Static("", id="j6-header")
+        yield Static("", id="j6-now")
+        yield BeatWidget(id="j6-beat")
+        yield Static("", id="j6-info")
+        yield StepGrid(id="j6-grid")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -247,38 +259,37 @@ class MpumpApp(App):
         text-align: right;
     }
 
-    #s1-now, #t8-now {
+    #s1-now, #t8-now, #j6-now {
         margin-bottom: 0;
         padding: 0 0 0 0;
     }
 
     BeatWidget {
         height: 1;
+        margin-top: 1;
         margin-bottom: 1;
-        padding-bottom: 1;
-        border-bottom: solid #21262d;
     }
 
     #body {
         height: 1fr;
     }
 
-    S1Panel, T8Panel {
+    S1Panel, T8Panel, J6Panel {
         border: solid #21262d;
         padding: 1 2;
         width: 1fr;
     }
 
-    S1Panel.focused, T8Panel.focused {
+    S1Panel.focused, T8Panel.focused, J6Panel.focused {
         border: solid #58a6ff;
     }
 
-    #s1-header, #t8-header {
+    #s1-header, #t8-header, #j6-header {
         text-style: bold;
         margin-bottom: 1;
     }
 
-    #s1-info, #t8-info {
+    #s1-info, #t8-info, #j6-info {
         color: #8b949e;
         margin-bottom: 1;
     }
@@ -316,7 +327,7 @@ class MpumpApp(App):
     ]
 
     # ── Reactive state ──────────────────────────────────────────────────────
-    focused_panel: reactive[int] = reactive(0)   # 0 = S-1, 1 = T-8
+    focused_panel: reactive[int] = reactive(0)   # 0 = S-1, 1 = T-8, 2 = J-6
     bpm:           reactive[int] = reactive(120)
 
     s1_genre_idx:   reactive[int] = reactive(0)
@@ -333,11 +344,17 @@ class MpumpApp(App):
     t8_step:        reactive[int] = reactive(-1)
     t8_connected:   reactive[bool] = reactive(False)
 
+    j6_genre_idx:   reactive[int] = reactive(0)
+    j6_pattern_idx: reactive[int] = reactive(0)
+    j6_step:        reactive[int] = reactive(-1)
+    j6_connected:   reactive[bool] = reactive(False)
+
     def __init__(self, bpm: int = 120,
                  s1_genre: str = "techno",   s1_pattern: int = 1,
                  s1_key: str = DEFAULT_KEY,  s1_octave: int = DEFAULT_OCTAVE,
                  t8_genre: str = "techno",   t8_pattern: int = 1,
-                 t8_key: str = DEFAULT_KEY,  t8_octave: int = DEFAULT_OCTAVE):
+                 t8_key: str = DEFAULT_KEY,  t8_octave: int = DEFAULT_OCTAVE,
+                 j6_genre: str = "techno",   j6_pattern: int = 1):
         super().__init__()
         self.bpm          = bpm
         self.s1_genre_idx   = GENRE_NAMES.index(s1_genre) if s1_genre in GENRE_NAMES else 0
@@ -348,12 +365,15 @@ class MpumpApp(App):
         self.t8_pattern_idx = t8_pattern - 1
         self.t8_key_idx     = KEY_NAMES.index(t8_key) if t8_key in KEY_NAMES else KEY_NAMES.index(DEFAULT_KEY)
         self.t8_octave      = t8_octave
+        self.j6_genre_idx   = J6_GENRE_NAMES.index(j6_genre) if j6_genre in J6_GENRE_NAMES else 0
+        self.j6_pattern_idx = j6_pattern - 1
         self._scanner: DeviceScanner | None = None
         # Tracks what is actually playing (committed to scanner)
         self._s1_committed = dict(genre=self.s1_genre_idx, pattern=self.s1_pattern_idx,
                                   key=self.s1_key_idx, octave=self.s1_octave)
         self._t8_committed = dict(genre=self.t8_genre_idx, pattern=self.t8_pattern_idx,
                                   key=self.t8_key_idx, octave=self.t8_octave)
+        self._j6_committed = dict(genre=self.j6_genre_idx, pattern=self.j6_pattern_idx)
 
     # ── Helpers ─────────────────────────────────────────────────────────────
 
@@ -379,6 +399,15 @@ class MpumpApp(App):
         bass, _desc = get_t8_bass_pattern(self._t8_genre())
         return bass
 
+    def _j6_genre(self) -> str:
+        return J6_GENRE_NAMES[self.j6_genre_idx]
+
+    def _j6_pattern(self):
+        return get_j6_pattern(self._j6_genre(), self.j6_pattern_idx + 1)
+
+    def _j6_pc(self) -> int:
+        return get_j6_chord_set(self._j6_genre()) - 1
+
     # ── Lifecycle ────────────────────────────────────────────────────────────
 
     def compose(self) -> ComposeResult:
@@ -388,6 +417,7 @@ class MpumpApp(App):
         with Horizontal(id="body"):
             yield S1Panel(id="s1-panel")
             yield T8Panel(id="t8-panel")
+            yield J6Panel(id="j6-panel")
         yield Footer()
 
     def _refresh_topbar(self) -> None:
@@ -405,13 +435,17 @@ class MpumpApp(App):
             t8_drum_pattern=self._t8_drum(),
             t8_bass_pattern=self._t8_bass(),
             t8_bass_root=self._t8_root(),
+            j6_pattern=self._j6_pattern(),
+            j6_program_change=self._j6_pc(),
             s1_step_callback=lambda i: self.call_from_thread(self._on_s1_step, i),
             t8_step_callback=lambda i: self.call_from_thread(self._on_t8_step, i),
+            j6_step_callback=lambda i: self.call_from_thread(self._on_j6_step, i),
             connected_callback=self._on_connected,
         )
         self.call_after_refresh(self._refresh_topbar)
         self.call_after_refresh(self._refresh_s1_ui)
         self.call_after_refresh(self._refresh_t8_ui)
+        self.call_after_refresh(self._refresh_j6_ui)
         self.call_after_refresh(self._refresh_panel_focus)
         self.set_interval(0.5, self._poll)
 
@@ -425,6 +459,9 @@ class MpumpApp(App):
     def _on_t8_step(self, idx: int) -> None:
         self.t8_step = idx
 
+    def _on_j6_step(self, idx: int) -> None:
+        self.j6_step = idx
+
     def _on_connected(self, name: str, state: bool) -> None:
         if name == "S-1":
             self.s1_connected = state
@@ -434,8 +471,13 @@ class MpumpApp(App):
             self.t8_connected = state
             if not state:
                 self.t8_step = -1
+        elif name == "J-6":
+            self.j6_connected = state
+            if not state:
+                self.j6_step = -1
         self._refresh_s1_ui()
         self._refresh_t8_ui()
+        self._refresh_j6_ui()
 
     async def on_unmount(self) -> None:
         if self._scanner:
@@ -532,9 +574,47 @@ class MpumpApp(App):
         grid = self.query_one("#t8-grid", DrumGrid)
         grid.set_patterns(self._t8_drum(), self._t8_bass())
 
+    def _refresh_j6_ui(self) -> None:
+        # Committed (now playing)
+        c = self._j6_committed
+        c_genre  = J6_GENRE_NAMES[c["genre"]]
+        c_name, _c_desc, _ = J6_GENRES[c_genre][c["pattern"]]
+        c_cs = J6_CHORD_SETS[c_genre]
+        now = Text()
+        now.append("▶ ", style=f"bold {_NOTE}")
+        now.append(f"{c_genre}  ", style="white")
+        now.append(f"#{c['pattern'] + 1}  ", style=_DIM)
+        now.append(f"{c_name}  ", style="bold white")
+        now.append(f"·  set #{c_cs}", style=_DIM)
+        self.query_one("#j6-header", Static).update(
+            self._status_text(self.j6_connected, "J-6  chords")
+        )
+        self.query_one("#j6-now", Static).update(now)
+
+        # Selection (browsing)
+        genre   = self._j6_genre()
+        pat_idx = self.j6_pattern_idx
+        name, desc, pattern = J6_GENRES[genre][pat_idx]
+        cs = J6_CHORD_SETS[genre]
+        info = Text()
+        info.append(f"genre    ", style=_DIM)
+        info.append(f"{genre}\n", style="white")
+        info.append(f"pattern  ", style=_DIM)
+        info.append(f"#{pat_idx + 1}  ", style="white")
+        info.append(f"{name}\n", style="#58a6ff")
+        info.append(f'         "{desc}"\n', style=_DIM)
+        info.append(f"set      ", style=_DIM)
+        info.append(f"#{cs}", style="white")
+        if self._j6_pending():
+            info.append("   ↵ apply", style=f"bold {_ACCENT}")
+        self.query_one("#j6-info", Static).update(info)
+
+        self.query_one("#j6-grid", StepGrid).set_pattern(pattern)
+
     def _refresh_panel_focus(self) -> None:
         self.query_one("#s1-panel", S1Panel).focused_panel = (self.focused_panel == 0)
         self.query_one("#t8-panel", T8Panel).focused_panel = (self.focused_panel == 1)
+        self.query_one("#j6-panel", J6Panel).focused_panel = (self.focused_panel == 2)
 
     # ── Reactive watchers ────────────────────────────────────────────────────
 
@@ -545,6 +625,10 @@ class MpumpApp(App):
     def watch_t8_step(self, val: int) -> None:
         self.query_one("#t8-grid", DrumGrid).current_step = val
         self.query_one("#t8-beat", BeatWidget).current_step = val
+
+    def watch_j6_step(self, val: int) -> None:
+        self.query_one("#j6-grid", StepGrid).current_step = val
+        self.query_one("#j6-beat", BeatWidget).current_step = val
 
     def watch_focused_panel(self, _: int) -> None:
         self._refresh_panel_focus()
@@ -558,6 +642,10 @@ class MpumpApp(App):
     def _t8_pending(self) -> bool:
         c = self._t8_committed
         return c["pattern"] != self.t8_pattern_idx or c["genre"] != self.t8_genre_idx
+
+    def _j6_pending(self) -> bool:
+        c = self._j6_committed
+        return c["pattern"] != self.j6_pattern_idx or c["genre"] != self.j6_genre_idx
 
     def _push_s1(self) -> None:
         self._s1_committed = dict(genre=self.s1_genre_idx, pattern=self.s1_pattern_idx,
@@ -575,56 +663,75 @@ class MpumpApp(App):
         if self._scanner:
             self._scanner.update_t8(self._t8_drum(), self._t8_bass(), self._t8_root())
 
+    def _push_j6(self) -> None:
+        self._j6_committed = dict(genre=self.j6_genre_idx, pattern=self.j6_pattern_idx)
+        self._refresh_j6_ui()
+        if self._scanner:
+            self._scanner.update_j6(self._j6_pattern(), self._j6_pc())
+
     # ── Actions ──────────────────────────────────────────────────────────────
 
     def action_next_panel(self) -> None:
-        self.focused_panel = 1 - self.focused_panel
+        self.focused_panel = (self.focused_panel + 1) % 3
 
     def action_prev_genre(self) -> None:
         if self.focused_panel == 0:
             self.s1_genre_idx = (self.s1_genre_idx - 1) % len(GENRE_NAMES)
             self._refresh_s1_ui()
-        else:
+        elif self.focused_panel == 1:
             self.t8_genre_idx = (self.t8_genre_idx - 1) % len(T8_GENRE_NAMES)
             self._refresh_t8_ui()
+        else:
+            self.j6_genre_idx = (self.j6_genre_idx - 1) % len(J6_GENRE_NAMES)
+            self._refresh_j6_ui()
 
     def action_next_genre(self) -> None:
         if self.focused_panel == 0:
             self.s1_genre_idx = (self.s1_genre_idx + 1) % len(GENRE_NAMES)
             self._refresh_s1_ui()
-        else:
+        elif self.focused_panel == 1:
             self.t8_genre_idx = (self.t8_genre_idx + 1) % len(T8_GENRE_NAMES)
             self._refresh_t8_ui()
+        else:
+            self.j6_genre_idx = (self.j6_genre_idx + 1) % len(J6_GENRE_NAMES)
+            self._refresh_j6_ui()
 
     def action_prev_pattern(self) -> None:
         if self.focused_panel == 0:
             self.s1_pattern_idx = (self.s1_pattern_idx - 1) % 10
             self._refresh_s1_ui()
-        else:
+        elif self.focused_panel == 1:
             self.t8_pattern_idx = (self.t8_pattern_idx - 1) % 10
             self._refresh_t8_ui()
+        else:
+            self.j6_pattern_idx = (self.j6_pattern_idx - 1) % 10
+            self._refresh_j6_ui()
 
     def action_next_pattern(self) -> None:
         if self.focused_panel == 0:
             self.s1_pattern_idx = (self.s1_pattern_idx + 1) % 10
             self._refresh_s1_ui()
-        else:
+        elif self.focused_panel == 1:
             self.t8_pattern_idx = (self.t8_pattern_idx + 1) % 10
             self._refresh_t8_ui()
+        else:
+            self.j6_pattern_idx = (self.j6_pattern_idx + 1) % 10
+            self._refresh_j6_ui()
 
     def action_prev_key(self) -> None:
         if self.focused_panel == 0:
             self.s1_key_idx = (self.s1_key_idx - 1) % len(KEY_NAMES)
             self._push_s1()
-        else:
+        elif self.focused_panel == 1:
             self.t8_key_idx = (self.t8_key_idx - 1) % len(KEY_NAMES)
             self._push_t8()
+        # J-6: root is always C4=60, key/octave not applicable
 
     def action_next_key(self) -> None:
         if self.focused_panel == 0:
             self.s1_key_idx = (self.s1_key_idx + 1) % len(KEY_NAMES)
             self._push_s1()
-        else:
+        elif self.focused_panel == 1:
             self.t8_key_idx = (self.t8_key_idx + 1) % len(KEY_NAMES)
             self._push_t8()
 
@@ -632,7 +739,7 @@ class MpumpApp(App):
         if self.focused_panel == 0:
             self.s1_octave = max(OCTAVE_MIN, self.s1_octave - 1)
             self._push_s1()
-        else:
+        elif self.focused_panel == 1:
             self.t8_octave = max(OCTAVE_MIN, self.t8_octave - 1)
             self._push_t8()
 
@@ -640,15 +747,17 @@ class MpumpApp(App):
         if self.focused_panel == 0:
             self.s1_octave = min(OCTAVE_MAX, self.s1_octave + 1)
             self._push_s1()
-        else:
+        elif self.focused_panel == 1:
             self.t8_octave = min(OCTAVE_MAX, self.t8_octave + 1)
             self._push_t8()
 
     def action_commit(self) -> None:
         if self.focused_panel == 0:
             self._push_s1()
-        else:
+        elif self.focused_panel == 1:
             self._push_t8()
+        else:
+            self._push_j6()
 
     def on_key(self, event) -> None:
         """Catch = and + for BPM up regardless of terminal key naming."""
@@ -673,11 +782,13 @@ class MpumpApp(App):
 
 
 def run_ui(bpm=120, s1_genre="techno", s1_pattern=1, s1_key=DEFAULT_KEY, s1_octave=DEFAULT_OCTAVE,
-           t8_genre="techno", t8_pattern=1, t8_key=DEFAULT_KEY, t8_octave=DEFAULT_OCTAVE) -> None:
+           t8_genre="techno", t8_pattern=1, t8_key=DEFAULT_KEY, t8_octave=DEFAULT_OCTAVE,
+           j6_genre="techno", j6_pattern=1) -> None:
     app = MpumpApp(
         bpm=bpm,
         s1_genre=s1_genre, s1_pattern=s1_pattern, s1_key=s1_key, s1_octave=s1_octave,
         t8_genre=t8_genre, t8_pattern=t8_pattern, t8_key=t8_key, t8_octave=t8_octave,
+        j6_genre=j6_genre, j6_pattern=j6_pattern,
     )
     app.title = "mpump"
     app.sub_title = f"{bpm} BPM"

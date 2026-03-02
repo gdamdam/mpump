@@ -15,14 +15,6 @@ from .patterns import Step
 # Fixed patterns for J-6 and SP-404MK2
 # ---------------------------------------------------------------------------
 
-# J-6: MIDI Ch1, root C2 (36) = chord button 1.
-_J6_PATTERN: list[Step] = [
-    (0, 1.0, False), None, None, None,
-    (4, 1.0, False), None, None, None,
-    (0, 1.0, False), None, None, None,
-    (4, 1.0, False), None, None, None,
-]
-
 # SP-404MK2: MIDI Ch1, root=36 (Pad 1), offset 4 = Pad 5.
 _SP404_PATTERN: list[Step] = [
     (0, 1.0, False), None, None, (0, 1.0, False),
@@ -48,10 +40,10 @@ DEVICES: dict[str, dict] = {
     "J-6": {
         "port_match":    "J-6 MIDI IN",
         "channel":       0,
-        "root_note":     36,      # C2 — chord button 1
+        "root_note":     60,      # C4 — chord trigger root (Roland MIDI spec)
         "base_velocity": 100,
         "note_fraction": 0.8,
-        "pattern":       _J6_PATTERN,
+        "pattern":       None,    # set at runtime from --j6-genre/--j6-pattern
         "type":          "synth",
     },
     "T-8": {

@@ -77,6 +77,7 @@ class Sequencer(threading.Thread):
         note_fraction: float = 0.5,
         bpm: int = 120,
         step_callback=None,
+        program_change: int | None = None,
     ):
         super().__init__(daemon=True)
         self.name = name
@@ -88,6 +89,7 @@ class Sequencer(threading.Thread):
         self._note_fraction = note_fraction
         self._stop_flag = threading.Event()
         self._step_callback = step_callback
+        self._program_change = program_change
 
         # One step = one 16th note
         self._step_dur = 60.0 / (bpm * 4)
@@ -121,6 +123,12 @@ class Sequencer(threading.Thread):
         except OSError as e:
             print(f"[{self.name}] Could not open port: {e}")
             return
+
+        if self._program_change is not None:
+            port.send(mido.Message("program_change", channel=self._channel,
+                                   program=self._program_change))
+            print(f"[{self.name}] PC → {self._program_change} "
+                  f"(chord set #{self._program_change + 1})")
 
         print(f"[{self.name}] Started — ch{self._channel + 1} "
               f"root={self._root_note} steps={len(self._pattern)}")

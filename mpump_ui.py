@@ -7,6 +7,7 @@ import sys
 from mpump.keys import DEFAULT_KEY, DEFAULT_OCTAVE, OCTAVE_MIN, OCTAVE_MAX, valid_key_names
 from mpump.patterns import GENRE_NAMES
 from mpump.patterns_t8 import T8_GENRE_NAMES
+from mpump.patterns_j6 import J6_GENRE_NAMES
 from mpump.ui import run_ui
 
 DEFAULT_BPM        = 120
@@ -14,6 +15,8 @@ DEFAULT_GENRE      = "techno"
 DEFAULT_PATTERN    = 1
 DEFAULT_T8_GENRE   = "techno"
 DEFAULT_T8_PATTERN = 1
+DEFAULT_J6_GENRE   = "techno"
+DEFAULT_J6_PATTERN = 1
 
 
 def parse_args() -> argparse.Namespace:
@@ -24,9 +27,10 @@ def parse_args() -> argparse.Namespace:
         epilog=(
             "S-1 genres:  " + ", ".join(GENRE_NAMES) + "\n"
             "T-8 genres:  " + ", ".join(T8_GENRE_NAMES) + "\n"
+            "J-6 genres:  " + ", ".join(J6_GENRE_NAMES) + "\n"
             "Keys:        " + ", ".join(valid_key_names()) + "\n\n"
             "Key bindings in the UI:\n"
-            "  Tab          Switch focus between S-1 and T-8 panels\n"
+            "  Tab          Switch focus between S-1, T-8 and J-6 panels\n"
             "  ← / →        Previous / next genre\n"
             "  ↑ / ↓        Previous / next pattern\n"
             "  k / K        Key down / up\n"
@@ -76,6 +80,16 @@ def parse_args() -> argparse.Namespace:
         help=f"Root octave for T-8 bass ({OCTAVE_MIN}–{OCTAVE_MAX}, default {DEFAULT_OCTAVE})",
     )
 
+    j6 = parser.add_argument_group("J-6 (chord synthesizer)")
+    j6.add_argument(
+        "--j6-genre", default=DEFAULT_J6_GENRE, choices=J6_GENRE_NAMES, metavar="GENRE",
+        help=f"J-6 chord genre (default: {DEFAULT_J6_GENRE})",
+    )
+    j6.add_argument(
+        "--j6-pattern", type=int, default=DEFAULT_J6_PATTERN, metavar="N",
+        help=f"J-6 chord pattern 1–10 (default: {DEFAULT_J6_PATTERN})",
+    )
+
     return parser.parse_args()
 
 
@@ -92,6 +106,7 @@ def main() -> None:
         s1_key=args.key,          s1_octave=args.octave,
         t8_genre=args.t8_genre,   t8_pattern=args.t8_pattern,
         t8_key=args.t8_key,       t8_octave=args.t8_octave,
+        j6_genre=args.j6_genre,   j6_pattern=args.j6_pattern,
     )
 
 
