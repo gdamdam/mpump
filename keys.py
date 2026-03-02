@@ -22,24 +22,34 @@ _ROOT_NOTES: dict[str, int] = {
     "B":  47,
 }
 
-DEFAULT_KEY = "A"
+DEFAULT_KEY    = "A"
+DEFAULT_OCTAVE = 2
+OCTAVE_MIN     = 0
+OCTAVE_MAX     = 6
 
 
-def parse_key(name: str) -> int:
-    """Return the root MIDI note (octave 2) for a key name like 'A', 'F#', 'Bb'.
+def parse_key(name: str, octave: int = DEFAULT_OCTAVE) -> int:
+    """Return the root MIDI note for a key name at the given octave.
 
-    Raises ValueError if the name is not recognised.
+    octave=2 is the default bass register (A2 = MIDI 45).
+    octave=3 gives A3 = MIDI 57, useful for higher melodic lines.
+
+    Raises ValueError if the name or octave is not recognised.
     """
     normalised = name.strip().capitalize()
     # Handle e.g. "f#" → "F#", "bb" → "Bb"
     if len(normalised) == 2 and normalised[1] in ("#", "b"):
         normalised = normalised[0].upper() + normalised[1]
     if normalised not in _ROOT_NOTES:
-        valid = ", ".join(sorted({k for k in _ROOT_NOTES if "/" not in k}))
+        valid = ", ".join(sorted({k for k in _ROOT_NOTES}))
+        raise ValueError(f"Unknown key '{name}'. Valid keys: {valid}")
+    if not (OCTAVE_MIN <= octave <= OCTAVE_MAX):
         raise ValueError(
-            f"Unknown key '{name}'. Valid keys: {valid}"
+            f"Octave {octave} out of range ({OCTAVE_MIN}–{OCTAVE_MAX})"
         )
-    return _ROOT_NOTES[normalised]
+    base = _ROOT_NOTES[normalised]              # octave-2 anchor
+    root = base + (octave - DEFAULT_OCTAVE) * 12
+    return max(0, min(127, root))
 
 
 def valid_key_names() -> list[str]:

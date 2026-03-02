@@ -23,13 +23,14 @@ Options:
 import argparse
 import sys
 
-from keys import parse_key, valid_key_names, DEFAULT_KEY
+from keys import parse_key, valid_key_names, DEFAULT_KEY, DEFAULT_OCTAVE, OCTAVE_MIN, OCTAVE_MAX
 from patterns import get_pattern, list_patterns, GENRE_NAMES
 from scanner import DeviceScanner
 
 DEFAULT_GENRE   = "techno"
 DEFAULT_PATTERN = 1
 DEFAULT_BPM     = 120
+# DEFAULT_OCTAVE imported from keys
 
 
 def parse_args() -> argparse.Namespace:
@@ -63,6 +64,15 @@ def parse_args() -> argparse.Namespace:
         help=f"Root key for S-1, e.g. A, F#, Bb (default: {DEFAULT_KEY})",
     )
     parser.add_argument(
+        "--octave", type=int, default=DEFAULT_OCTAVE,
+        metavar="N",
+        help=(
+            f"Root octave for S-1 ({OCTAVE_MIN}–{OCTAVE_MAX}, "
+            f"default: {DEFAULT_OCTAVE}). "
+            "e.g. A2=45, A3=57, A1=33"
+        ),
+    )
+    parser.add_argument(
         "--list", action="store_true",
         help="Print all available patterns and exit",
     )
@@ -81,9 +91,9 @@ def main() -> None:
         print("Error: --bpm must be between 20 and 300", file=sys.stderr)
         sys.exit(1)
 
-    # Validate and resolve key → root MIDI note
+    # Validate and resolve key + octave → root MIDI note
     try:
-        root_note = parse_key(args.key)
+        root_note = parse_key(args.key, args.octave)
     except ValueError as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
@@ -99,7 +109,7 @@ def main() -> None:
     from patterns import GENRES
     pat_name, pat_desc, _ = GENRES[args.genre][args.pattern - 1]
     print(f"Roland AIRA sequencer — {args.bpm} BPM  (Ctrl-C to quit)")
-    print(f"S-1  key={args.key}  genre={args.genre}  pattern={args.pattern}: {pat_name}")
+    print(f"S-1  key={args.key}{args.octave}  genre={args.genre}  pattern={args.pattern}: {pat_name}")
     print(f'     "{pat_desc}"')
     print()
 
