@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from rich.style import Style as RichStyle
 from rich.text import Text
 from textual.app import App, ComposeResult
 from textual.binding import Binding
@@ -150,11 +151,19 @@ class DrumGrid(Static):
 class DevicePanel(Widget):
     """Abstract base — do not instantiate directly."""
 
+    class Focused(Message):
+        def __init__(self, panel_id: str) -> None:
+            super().__init__()
+            self.panel_id = panel_id
+
     COMPONENT_CLASSES = {"panel--focused"}
     focused_panel: reactive[bool] = reactive(False)
 
     def watch_focused_panel(self, val: bool) -> None:
         self.set_class(val, "focused")
+
+    def on_click(self, event) -> None:
+        self.post_message(DevicePanel.Focused(self.id or ""))
 
 
 class BeatWidget(Widget):
@@ -691,16 +700,17 @@ class MpumpApp(App):
         genre   = self._s1_genre()
         pat_idx = self.s1_pattern_idx
         name, desc, _ = GENRES[genre][pat_idx]
-        key_str = f"{KEY_NAMES[self.s1_key_idx]}{self.s1_octave}"
         info = Text()
-        info.append(f"genre    ", style=_DIM)
-        info.append(f"{genre}\n", style="white")
-        info.append(f"pattern  ", style=_DIM)
+        info.append("genre    ", style=_DIM)
+        info.append(f"{genre}\n", style=RichStyle(color="white", underline=True, meta={"@click": "pick_genre"}))
+        info.append("pattern  ", style=_DIM)
         info.append(f"#{pat_idx + 1}  ", style="white")
-        info.append(f"{name}\n", style="#58a6ff")
+        info.append(f"{name}\n", style=RichStyle(color="#58a6ff", underline=True, meta={"@click": "pick_pattern"}))
         info.append(f'         "{desc}"\n', style=_DIM)
-        info.append(f"key      ", style=_DIM)
-        info.append(key_str, style="white")
+        info.append("key      ", style=_DIM)
+        info.append(KEY_NAMES[self.s1_key_idx], style=RichStyle(color="white", underline=True, meta={"@click": "pick_key"}))
+        info.append("  ")
+        info.append(str(self.s1_octave), style=RichStyle(color="white", underline=True, meta={"@click": "pick_octave"}))
         if self._s1_pending():
             info.append("   ↵ apply", style=f"bold {_ACCENT}")
         self.query_one("#s1-info", Static).update(info)
@@ -737,20 +747,22 @@ class MpumpApp(App):
         b_name, b_desc, _ = T8_BASS[bg][b_idx]
         key_str = f"{KEY_NAMES[self.t8_key_idx]}{self.t8_octave}"
         info = Text()
-        info.append(f"drums ←/→", style=_DIM)
-        info.append(f" {dg}\n", style="white")
-        info.append(f"      ↑↓ ", style=_DIM)
+        info.append("drums    ", style=_DIM)
+        info.append(f"{dg}\n", style=RichStyle(color="white", underline=True, meta={"@click": "pick_genre"}))
+        info.append("      ↑↓ ", style=_DIM)
         info.append(f"#{d_idx + 1}  ", style="white")
-        info.append(f"{d_name}\n", style="#58a6ff")
+        info.append(f"{d_name}\n", style=RichStyle(color="#58a6ff", underline=True, meta={"@click": "pick_pattern"}))
         info.append(f'         "{d_desc}"\n', style=_DIM)
-        info.append(f"bass  ,/.", style=_DIM)
-        info.append(f" {bg}\n", style="white")
-        info.append(f"      b/B", style=_DIM)
+        info.append("bass     ", style=_DIM)
+        info.append(f"{bg}\n", style=RichStyle(color="white", underline=True, meta={"@click": "pick_bass_genre"}))
+        info.append("      b/B", style=_DIM)
         info.append(f" #{b_idx + 1}  ", style="white")
-        info.append(f"{b_name}\n", style="#58a6ff")
+        info.append(f"{b_name}\n", style=RichStyle(color="#58a6ff", underline=True, meta={"@click": "pick_bass_pattern"}))
         info.append(f'         "{b_desc}"\n', style=_DIM)
-        info.append(f"key      ", style=_DIM)
-        info.append(key_str, style="white")
+        info.append("key      ", style=_DIM)
+        info.append(KEY_NAMES[self.t8_key_idx], style=RichStyle(color="white", underline=True, meta={"@click": "pick_key"}))
+        info.append("  ")
+        info.append(str(self.t8_octave), style=RichStyle(color="white", underline=True, meta={"@click": "pick_octave"}))
         if self._t8_pending():
             info.append("   ↵ apply", style=f"bold {_ACCENT}")
         self.query_one("#t8-info", Static).update(info)
@@ -781,13 +793,13 @@ class MpumpApp(App):
         name, desc, pattern = J6_GENRES[genre][pat_idx]
         cs = J6_CHORD_SETS[genre]
         info = Text()
-        info.append(f"genre    ", style=_DIM)
-        info.append(f"{genre}\n", style="white")
-        info.append(f"pattern  ", style=_DIM)
+        info.append("genre    ", style=_DIM)
+        info.append(f"{genre}\n", style=RichStyle(color="white", underline=True, meta={"@click": "pick_genre"}))
+        info.append("pattern  ", style=_DIM)
         info.append(f"#{pat_idx + 1}  ", style="white")
-        info.append(f"{name}\n", style="#58a6ff")
+        info.append(f"{name}\n", style=RichStyle(color="#58a6ff", underline=True, meta={"@click": "pick_pattern"}))
         info.append(f'         "{desc}"\n', style=_DIM)
-        info.append(f"set      ", style=_DIM)
+        info.append("set      ", style=_DIM)
         info.append(f"#{cs}", style="white")
         if self._j6_pending():
             info.append("   ↵ apply", style=f"bold {_ACCENT}")
@@ -816,6 +828,11 @@ class MpumpApp(App):
 
     def watch_focused_panel(self, _: int) -> None:
         self._refresh_panel_focus()
+
+    def on_device_panel_focused(self, message: DevicePanel.Focused) -> None:
+        panel_map = {"s1-panel": 0, "t8-panel": 1, "j6-panel": 2}
+        if message.panel_id in panel_map:
+            self.focused_panel = panel_map[message.panel_id]
 
     # ── Scanner update helpers ───────────────────────────────────────────────
 
@@ -1066,6 +1083,78 @@ class MpumpApp(App):
                     self.j6_pattern_idx = idx
                     self._push_j6()
         self.push_screen(PickerScreen(title, items, current), _apply)
+
+    def action_pick_key(self) -> None:
+        p = self.focused_panel
+        if p == 0:
+            current = self.s1_key_idx
+            def _apply(idx):
+                if idx is not None:
+                    self.s1_key_idx = idx
+                    if self.keys_locked:
+                        self.t8_key_idx = idx
+                        self._push_t8()
+                    self._push_s1()
+        elif p == 1:
+            current = self.t8_key_idx
+            def _apply(idx):
+                if idx is not None:
+                    self.t8_key_idx = idx
+                    if self.keys_locked:
+                        self.s1_key_idx = idx
+                        self._push_s1()
+                    self._push_t8()
+        else:
+            return
+        self.push_screen(PickerScreen("Key", list(KEY_NAMES), current), _apply)
+
+    def action_pick_octave(self) -> None:
+        p = self.focused_panel
+        octaves = [str(o) for o in range(OCTAVE_MIN, OCTAVE_MAX + 1)]
+        if p == 0:
+            current = self.s1_octave - OCTAVE_MIN
+            def _apply(idx):
+                if idx is not None:
+                    self.s1_octave = OCTAVE_MIN + idx
+                    if self.keys_locked:
+                        self.t8_octave = self.s1_octave
+                        self._push_t8()
+                    self._push_s1()
+        elif p == 1:
+            current = self.t8_octave - OCTAVE_MIN
+            def _apply(idx):
+                if idx is not None:
+                    self.t8_octave = OCTAVE_MIN + idx
+                    if self.keys_locked:
+                        self.s1_octave = self.t8_octave
+                        self._push_s1()
+                    self._push_t8()
+        else:
+            return
+        self.push_screen(PickerScreen("Octave", octaves, current), _apply)
+
+    def action_pick_bass_genre(self) -> None:
+        if self.focused_panel != 1:
+            return
+        items   = list(T8_GENRE_NAMES)
+        current = self.t8_bass_genre_idx
+        def _apply(idx):
+            if idx is not None:
+                self.t8_bass_genre_idx = idx
+                self._push_t8()
+        self.push_screen(PickerScreen("T-8  bass genre", items, current), _apply)
+
+    def action_pick_bass_pattern(self) -> None:
+        if self.focused_panel != 1:
+            return
+        genre   = self._t8_bass_genre()
+        items   = [f"#{i+1}  {n}  —  {d}" for i, (n, d, _) in enumerate(T8_BASS[genre])]
+        current = self.t8_bass_pattern_idx
+        def _apply(idx):
+            if idx is not None:
+                self.t8_bass_pattern_idx = idx
+                self._push_t8()
+        self.push_screen(PickerScreen(f"T-8  bass pattern  [{genre}]", items, current), _apply)
 
     def on_key(self, event) -> None:
         """Catch = and + for BPM up regardless of terminal key naming."""
