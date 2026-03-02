@@ -2,7 +2,7 @@ import threading
 import time
 import mido
 
-from patterns import Step
+from .patterns import Step
 
 
 class Sequencer(threading.Thread):

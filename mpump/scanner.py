@@ -1,8 +1,8 @@
 import time
 import mido
 
-from devices import DEVICES
-from sequencer import Sequencer
+from .devices import DEVICES
+from .sequencer import Sequencer
 
 
 class DeviceScanner:

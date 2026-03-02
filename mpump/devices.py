@@ -9,7 +9,7 @@
 # The S-1 does NOT have a pattern here — it receives its pattern
 # dynamically from the CLI (genre + pattern index + key).
 
-from patterns import Step
+from .patterns import Step
 
 # ---------------------------------------------------------------------------
 # Fixed patterns for non-S-1 devices
