@@ -1,159 +1,181 @@
 # mpump
 
-Hot-plug MIDI sequencer for Roland AIRA devices. Plug in a device and it starts playing immediately. Unplug it and it stops cleanly. No configuration files, no drivers — just USB and sound.
+Hot-plug MIDI sequencer for Roland AIRA Compact devices. Plug in a device and it starts playing immediately. Unplug it and it stops cleanly. No configuration files, no drivers — just USB and sound.
+
+Multiple devices play in sync from a shared clock. Switching patterns or pausing a device waits for the next bar boundary so everything stays phase-locked.
 
 Built for live use: run it before the set, leave it going, connect and disconnect hardware as needed.
 
 ---
 
+## Install
+
+```bash
+pip install mpump
+```
+
+Requires Python 3.11+ and macOS (CoreMIDI). All supported devices are USB class-compliant — no extra drivers needed.
+
+---
+
+## Two interfaces
+
+### Terminal UI (recommended)
+
+```bash
+mpump-ui
+```
+
+Three-panel TUI showing S-1, T-8 and J-6 side by side. Browse and commit patterns live.
+
+### Headless CLI
+
+```bash
+mpump
+```
+
+Starts immediately with the given flags, no UI.
+
+---
+
 ## Supported devices
 
-| Device | Type | MIDI behaviour |
+| Device | Type | MIDI |
 |---|---|---|
 | **Roland S-1** | Monosynth (AIRA Compact) | Genre patterns — melodic/bass lines with slides and accents |
-| **Roland J-6** | Chord synth (AIRA Compact) | Fixed chord-button stab pattern on Ch 1 |
-| **Roland T-8** | Beat machine (AIRA Compact) | Fixed kick/snare pattern on Ch 10 (GM drums) |
+| **Roland T-8** | Drum machine (AIRA Compact) | Independent drum + bass patterns; drums on Ch 10, bass on Ch 2 |
+| **Roland J-6** | Chord synth (AIRA Compact) | Chord-stab progressions on Ch 1; auto-selects chord set via Program Change |
 | **Roland SP-404MK2** | Sampler | Fixed pad-trigger pattern on Ch 1 |
 
-All devices are USB class-compliant — no drivers needed on macOS.
+---
+
+## Terminal UI (`mpump-ui`)
+
+```bash
+mpump-ui                                        # defaults
+mpump-ui --bpm 133 --genre acid-techno --pattern 3
+mpump-ui --t8-genre dub-techno --t8-pattern 5 --t8-bass-pattern 2
+mpump-ui --j6-genre trance --j6-pattern 4
+```
+
+### Key bindings
+
+| Key | Action |
+|---|---|
+| `Tab` | Cycle focus: S-1 → T-8 → J-6 |
+| `← / →` | Previous / next genre |
+| `↑ / ↓` | Previous / next pattern (browse only) |
+| `Enter` | Commit browsed pattern/genre to device |
+| `b / B` | T-8 bass pattern down / up (browse only) |
+| `k / K` | Root key down / up (immediate, S-1 and T-8) |
+| `o / O` | Octave down / up (immediate, S-1 and T-8) |
+| `Space` | Pause / resume focused device |
+| `= / -` | BPM +5 / −5 |
+| `q` | Quit |
+
+Browse with `← → ↑ ↓` (and `b/B` for bass) then press `Enter` to apply. The now-playing strip always shows what is actually running.
 
 ---
 
-## Requirements
+## CLI flags (`mpump` and `mpump-ui`)
 
-- macOS (CoreMIDI)
-- Python 3.11+
-- `mido` + `python-rtmidi`
-
-```bash
-pip install -r requirements.txt
-```
-
----
-
-## Usage
-
-```bash
-# Defaults: 120 BPM, techno pattern 1, key A, octave 2
-python3 mpump.py
-
-# Choose genre and pattern
-python3 mpump.py --genre acid-techno --pattern 3
-
-# Set key and octave
-python3 mpump.py --genre trance --pattern 9 --key F# --octave 3
-
-# Full example
-python3 mpump.py --bpm 133 --genre acid-techno --pattern 1 --key A --octave 2
-
-# List all 40 patterns with descriptions
-python3 mpump.py --list
-```
-
-### Options
+### S-1
 
 | Flag | Default | Description |
 |---|---|---|
 | `--bpm N` | `120` | Tempo (20–300) |
-| `--genre GENRE` | `techno` | S-1 pattern genre (see below) |
-| `--pattern N` | `1` | Pattern number within genre (1–10) |
-| `--key KEY` | `A` | Root key: A, A#, Bb, B, C, C#, Db, D, D#, Eb, E, F, F#, Gb, G, G#, Ab |
-| `--octave N` | `2` | Root octave (0–6). A2=45, A3=57, A1=33 |
-| `--list` | — | Print all patterns and exit |
+| `--genre GENRE` | `techno` | S-1 genre: `techno`, `acid-techno`, `trance`, `dub-techno`, `idm`, `edm` |
+| `--pattern N` | `1` | Pattern 1–10 within genre |
+| `--key KEY` | `A` | Root key: `A A# Bb B C C# Db D D# Eb E F F# Gb G G# Ab` |
+| `--octave N` | `2` | Root octave 0–6 (A2 = MIDI 45) |
+| `--list` | — | Print all S-1 patterns and exit |
+
+### T-8
+
+| Flag | Default | Description |
+|---|---|---|
+| `--t8-genre GENRE` | `techno` | Drum/bass genre |
+| `--t8-pattern N` | `1` | Drum pattern 1–10 |
+| `--t8-bass-pattern N` | `1` | Bass pattern 1–10, independent of drums |
+| `--t8-key KEY` | `A` | Root key for bass |
+| `--t8-octave N` | `2` | Root octave for bass |
+| `--list-t8` | — | Print all T-8 drum patterns and exit |
+| `--list-t8-bass` | — | Print all T-8 bass patterns and exit |
+
+### J-6
+
+| Flag | Default | Description |
+|---|---|---|
+| `--j6-genre GENRE` | `techno` | Chord genre |
+| `--j6-pattern N` | `1` | Chord pattern 1–10 |
+| `--list-j6` | — | Print all J-6 patterns and exit |
 
 ---
 
-## Pattern library (S-1 only)
+## Pattern library
 
-The S-1 has 40 patterns across 4 genres. All patterns are expressed as semitone offsets from the root note, so `--key` and `--octave` transpose them freely.
+### S-1 — 60 patterns, 6 genres × 10
 
-Run `python3 mpump.py --list` to see the full catalogue with descriptions.
+Genres: `techno`, `acid-techno`, `trance`, `dub-techno`, `idm`, `edm`
 
-### Techno
-Driving 4/4, mechanical, no slides. Root in octave 2.
+All patterns are expressed as semitone offsets from the root, so `--key` and `--octave` transpose them freely.
 
-| # | Name | Character |
-|---|---|---|
-| 1 | Iron Grid | 8th-note root pulse |
-| 2 | Pump | Syncopated root hits |
-| 3 | Fifth Power | Root + perfect 5th alternating |
-| 4 | Octave Driver | Root + octave on every 16th |
-| 5 | Detroit Classic | Minor pentatonic groove |
-| 6 | Minor Walk | Stepwise minor motion |
-| 7 | Sub Pulse | One octave down, very sparse |
-| 8 | Three-Note Groove | Root–b3–5 repeating cell |
-| 9 | Dark Descent | Falling minor scale from octave |
-| 10 | Industrial Pulse | Irregular accent cluster |
+```bash
+mpump --list           # full catalogue with descriptions
+```
 
-### Acid Techno
-TB-303 style. Slides create monosynth legato; accents push velocity. Chromatic passing tones freely used.
+### T-8 — 60 drum + 60 bass patterns, 6 genres × 10 each
 
-| # | Name | Character |
-|---|---|---|
-| 1 | Classic 303 | Root–octave–b7, the definitive acid line |
-| 2 | Squelch Pump | Accent root into octave leaps |
-| 3 | Chromatic Crawl | Semitone passing tones into root |
-| 4 | Resonant Bounce | Root accents with falling 5th–4th–b3 fill |
-| 5 | Acid Roll | Busy 16th-note non-stop squelch |
-| 6 | Dark Acid | Sub-octave with rare octave stabs |
-| 7 | 303 Minor | Sliding minor triad arpeggio |
-| 8 | Hyper Acid | Full 16th density, wide intervals |
-| 9 | 303 Bounce | Accent–rest–slide rubbery pattern |
-| 10 | Acid Ostinato | Sliding root with upper note fills |
+Drum and bass patterns are selected independently. The bass runs on Ch 2; drums on Ch 10 (GM).
 
-### Trance
-Melodic, arpeggiated. Patterns reach 2+ octaves. Works well with `--octave 3`.
+```bash
+mpump --list-t8        # drum patterns
+mpump --list-t8-bass   # bass patterns
+```
 
-| # | Name | Character |
-|---|---|---|
-| 1 | Arp Up | Full two-octave ascending + descending |
-| 2 | Power Arp | Root–5th–octave–5th with bar twist |
-| 3 | Trance Gate | Gated 8ths descending i–VII–V |
-| 4 | Melodic Run | Full natural-minor scale up and back |
-| 5 | Anthem | i–V–iv–III–i peak-time progression |
-| 6 | Minor Uplift | i–III–V–VII arch into iv–VI–i |
-| 7 | Stab Sequence | Low root alternating with upper stabs |
-| 8 | Trance Bass | Root 16th drive with 5th pickup |
-| 9 | Suspended Build | i–iv–III–VII modal shift |
-| 10 | Trance Climax | Wide sweep with chromatic passing |
+### J-6 — 60 chord progressions, 6 genres × 10
 
-### Dub Techno
-Sparse, deep, dark. Lots of space. Works well with `--octave 1`.
+Root is always C (MIDI 60). On connect, mpump sends a Program Change to auto-select the matching chord set on the J-6.
 
-| # | Name | Character |
-|---|---|---|
-| 1 | Deep Pulse | Single root every 8 steps |
-| 2 | Dub Groove | Root with occasional 5th dip |
-| 3 | Underwater | Sub-octave with rare root breath |
-| 4 | Minimal Dub | Sparse dotted hits |
-| 5 | Dark Root | Sub-octave with rare jump to root |
-| 6 | Dub Minor | Slow descending i–VII–VI–V |
-| 7 | Echospace | Paired hits with long gaps |
-| 8 | Sub Walk | Ascending i–III–V–VII from sub |
-| 9 | Berlin Dub | Root with 5th and b7 ornaments |
-| 10 | Deep Resolve | Sub to root to b7 resolution |
+```bash
+mpump --list-j6
+```
+
+---
+
+## Sync model
+
+All devices share a single step-grid anchored to a global `t0`. Every sequencer starts at the next **bar boundary** (16 steps from `t0`), so:
+
+- Devices that connect at different times are always phase-locked within one bar
+- Pattern changes and pause/resume introduce at most one bar of delay, then re-enter on the beat
+- BPM changes reset `t0` and batch-restart all devices at the same boundary
+
+MIDI clock (24 PPQN) is sent to each device for BPM-synced effects (LFO, delay, arpeggiator). No MIDI Start/Stop messages are sent, so the devices' internal sequencers are not triggered.
 
 ---
 
 ## How slides work
 
-On acid patterns, steps marked `slide=True` send the next note-on *before* the previous note-off. On a monosynth like the S-1 this triggers legato/portamento — the pitch glides if portamento is enabled on the device.
+On acid patterns, steps marked `slide=True` send the next `note_on` before the previous `note_off`. On a monosynth like the S-1, this triggers legato / portamento if portamento is enabled on the device.
 
 ---
 
-## Project structure
+## Project layout
 
 ```
-mpump.py              # entry point: python3 mpump.py
+pyproject.toml
 mpump/
-  __init__.py
-  cli.py              # argument parsing and main()
-  scanner.py          # hot-plug: polls MIDI ports, spawns threads
-  sequencer.py        # per-device 16-step loop thread
-  devices.py          # device profiles and fixed patterns (J-6, T-8, SP-404MK2)
-  patterns.py         # 40-pattern library + genre registry
-  keys.py             # key name → root MIDI note
-requirements.txt
+  cli.py          # mpump entry point (headless)
+  ui_cli.py       # mpump-ui entry point (terminal UI)
+  ui.py           # Textual TUI application
+  scanner.py      # hot-plug: polls MIDI ports every 0.5 s, spawns threads
+  sequencer.py    # per-device 16-step loop thread (Sequencer + T8Sequencer)
+  devices.py      # device profiles
+  patterns.py     # S-1: 60 patterns
+  patterns_t8.py  # T-8: 60 drum + 60 bass patterns
+  patterns_j6.py  # J-6: 60 chord progressions
+  keys.py         # key name → root MIDI note
 ```
 
 ---
@@ -161,5 +183,5 @@ requirements.txt
 ## Tested on
 
 - macOS Sequoia 15, Python 3.11
-- Roland S-1 (confirmed working)
-- J-6, T-8, SP-404MK2 — hot-plug detection confirmed; pattern playback pending hardware test
+- Roland S-1, T-8, J-6 (hot-plug + playback confirmed)
+- Roland SP-404MK2 (hot-plug confirmed; pattern playback not yet hardware-tested)
