@@ -158,6 +158,7 @@ class S1Panel(DevicePanel):
 
     def compose(self) -> ComposeResult:
         yield Static("", id="s1-header")
+        yield Static("", id="s1-now")
         yield Static("", id="s1-info")
         yield StepGrid(id="s1-grid")
 
@@ -167,6 +168,7 @@ class T8Panel(DevicePanel):
 
     def compose(self) -> ComposeResult:
         yield Static("", id="t8-header")
+        yield Static("", id="t8-now")
         yield Static("", id="t8-info")
         yield DrumGrid(id="t8-grid")
 
@@ -188,8 +190,24 @@ class MpumpApp(App):
         height: 3;
         background: #161b22;
         border-bottom: solid #21262d;
+        layout: horizontal;
+    }
+
+    #topbar-title {
+        width: 1fr;
         padding: 1 2;
-        text-align: center;
+    }
+
+    #topbar-bpm {
+        width: auto;
+        padding: 1 2;
+        text-align: right;
+    }
+
+    #s1-now, #t8-now {
+        margin-bottom: 1;
+        padding: 0 0 1 0;
+        border-bottom: solid #21262d;
     }
 
     #body {
@@ -315,29 +333,20 @@ class MpumpApp(App):
     # ── Lifecycle ────────────────────────────────────────────────────────────
 
     def compose(self) -> ComposeResult:
-        yield Static("", id="topbar")
+        with Horizontal(id="topbar"):
+            yield Static("mpump", id="topbar-title")
+            yield Static("", id="topbar-bpm")
         with Horizontal(id="body"):
             yield S1Panel(id="s1-panel")
             yield T8Panel(id="t8-panel")
         yield Footer()
 
     def _refresh_topbar(self) -> None:
-        s1_key = f"{KEY_NAMES[self.s1_key_idx]}{self.s1_octave}"
-        t8_key = f"{KEY_NAMES[self.t8_key_idx]}{self.t8_octave}"
         t = Text()
-        t.append("mpump", style="bold white")
-        t.append("   │   ", style=_DIM)
         t.append("♩ ", style=_DIM)
         t.append(f"{self.bpm}", style="bold #58a6ff")
         t.append(" BPM", style=_DIM)
-        t.append("  - +", style=f"dim {_DIM}")
-        t.append("   │   ", style=_DIM)
-        t.append("S-1 ", style=_DIM)
-        t.append(s1_key, style="bold white")
-        t.append("   │   ", style=_DIM)
-        t.append("T-8 ", style=_DIM)
-        t.append(t8_key, style="bold white")
-        self.query_one("#topbar", Static).update(t)
+        self.query_one("#topbar-bpm", Static).update(t)
 
     def on_mount(self) -> None:
         self._scanner = DeviceScanner(
@@ -395,14 +404,27 @@ class MpumpApp(App):
         return t
 
     def _refresh_s1_ui(self) -> None:
+        # Committed (now playing)
+        c = self._s1_committed
+        c_genre   = GENRE_NAMES[c["genre"]]
+        c_name, _c_desc, _ = GENRES[c_genre][c["pattern"]]
+        c_key = f"{KEY_NAMES[c['key']]}{c['octave']}"
+        now = Text()
+        now.append("▶ ", style=f"bold {_NOTE}")
+        now.append(f"{c_genre}  ", style="white")
+        now.append(f"#{c['pattern'] + 1}  ", style=_DIM)
+        now.append(f"{c_name}  ", style="bold white")
+        now.append(f"·  {c_key}", style=_DIM)
+        self.query_one("#s1-header", Static).update(
+            self._status_text(self.s1_connected, "S-1  synth")
+        )
+        self.query_one("#s1-now", Static).update(now)
+
+        # Selection (browsing)
         genre   = self._s1_genre()
         pat_idx = self.s1_pattern_idx
         name, desc, _ = GENRES[genre][pat_idx]
         key_str = f"{KEY_NAMES[self.s1_key_idx]}{self.s1_octave}"
-
-        self.query_one("#s1-header", Static).update(
-            self._status_text(self.s1_connected, "S-1  synth")
-        )
         info = Text()
         info.append(f"genre    ", style=_DIM)
         info.append(f"{genre}\n", style="white")
@@ -420,15 +442,29 @@ class MpumpApp(App):
         grid.set_pattern(self._s1_pattern())
 
     def _refresh_t8_ui(self) -> None:
+        # Committed (now playing)
+        c = self._t8_committed
+        c_genre   = T8_GENRE_NAMES[c["genre"]]
+        c_dname, _c_ddesc, _ = T8_DRUMS[c_genre][c["pattern"]]
+        _c_bass, c_bdesc = get_t8_bass_pattern(c_genre)
+        c_key = f"{KEY_NAMES[c['key']]}{c['octave']}"
+        now = Text()
+        now.append("▶ ", style=f"bold {_NOTE}")
+        now.append(f"{c_genre}  ", style="white")
+        now.append(f"#{c['pattern'] + 1}  ", style=_DIM)
+        now.append(f"{c_dname}  ", style="bold white")
+        now.append(f"·  {c_key}", style=_DIM)
+        self.query_one("#t8-header", Static).update(
+            self._status_text(self.t8_connected, "T-8  drums+bass")
+        )
+        self.query_one("#t8-now", Static).update(now)
+
+        # Selection (browsing)
         genre   = self._t8_genre()
         pat_idx = self.t8_pattern_idx
         d_name, d_desc, _ = T8_DRUMS[genre][pat_idx]
         _bass, b_desc = get_t8_bass_pattern(genre)
         key_str = f"{KEY_NAMES[self.t8_key_idx]}{self.t8_octave}"
-
-        self.query_one("#t8-header", Static).update(
-            self._status_text(self.t8_connected, "T-8  drums+bass")
-        )
         info = Text()
         info.append(f"genre    ", style=_DIM)
         info.append(f"{genre}\n", style="white")
@@ -465,14 +501,10 @@ class MpumpApp(App):
     # ── Scanner update helpers ───────────────────────────────────────────────
 
     def _s1_pending(self) -> bool:
-        c = self._s1_committed
-        return (c["genre"] != self.s1_genre_idx or c["pattern"] != self.s1_pattern_idx
-                or c["key"] != self.s1_key_idx or c["octave"] != self.s1_octave)
+        return self._s1_committed["pattern"] != self.s1_pattern_idx
 
     def _t8_pending(self) -> bool:
-        c = self._t8_committed
-        return (c["genre"] != self.t8_genre_idx or c["pattern"] != self.t8_pattern_idx
-                or c["key"] != self.t8_key_idx or c["octave"] != self.t8_octave)
+        return self._t8_committed["pattern"] != self.t8_pattern_idx
 
     def _push_s1(self) -> None:
         self._s1_committed = dict(genre=self.s1_genre_idx, pattern=self.s1_pattern_idx,
@@ -498,18 +530,18 @@ class MpumpApp(App):
     def action_prev_genre(self) -> None:
         if self.focused_panel == 0:
             self.s1_genre_idx = (self.s1_genre_idx - 1) % len(GENRE_NAMES)
-            self._refresh_s1_ui()
+            self._push_s1()
         else:
             self.t8_genre_idx = (self.t8_genre_idx - 1) % len(T8_GENRE_NAMES)
-            self._refresh_t8_ui()
+            self._push_t8()
 
     def action_next_genre(self) -> None:
         if self.focused_panel == 0:
             self.s1_genre_idx = (self.s1_genre_idx + 1) % len(GENRE_NAMES)
-            self._refresh_s1_ui()
+            self._push_s1()
         else:
             self.t8_genre_idx = (self.t8_genre_idx + 1) % len(T8_GENRE_NAMES)
-            self._refresh_t8_ui()
+            self._push_t8()
 
     def action_prev_pattern(self) -> None:
         if self.focused_panel == 0:
@@ -530,34 +562,34 @@ class MpumpApp(App):
     def action_prev_key(self) -> None:
         if self.focused_panel == 0:
             self.s1_key_idx = (self.s1_key_idx - 1) % len(KEY_NAMES)
-            self._refresh_s1_ui()
+            self._push_s1()
         else:
             self.t8_key_idx = (self.t8_key_idx - 1) % len(KEY_NAMES)
-            self._refresh_t8_ui()
+            self._push_t8()
 
     def action_next_key(self) -> None:
         if self.focused_panel == 0:
             self.s1_key_idx = (self.s1_key_idx + 1) % len(KEY_NAMES)
-            self._refresh_s1_ui()
+            self._push_s1()
         else:
             self.t8_key_idx = (self.t8_key_idx + 1) % len(KEY_NAMES)
-            self._refresh_t8_ui()
+            self._push_t8()
 
     def action_prev_octave(self) -> None:
         if self.focused_panel == 0:
             self.s1_octave = max(OCTAVE_MIN, self.s1_octave - 1)
-            self._refresh_s1_ui()
+            self._push_s1()
         else:
             self.t8_octave = max(OCTAVE_MIN, self.t8_octave - 1)
-            self._refresh_t8_ui()
+            self._push_t8()
 
     def action_next_octave(self) -> None:
         if self.focused_panel == 0:
             self.s1_octave = min(OCTAVE_MAX, self.s1_octave + 1)
-            self._refresh_s1_ui()
+            self._push_s1()
         else:
             self.t8_octave = min(OCTAVE_MAX, self.t8_octave + 1)
-            self._refresh_t8_ui()
+            self._push_t8()
 
     def action_commit(self) -> None:
         if self.focused_panel == 0:
