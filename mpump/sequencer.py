@@ -3,6 +3,7 @@ import time
 import mido
 
 from .patterns import Step
+from .patterns_t8 import DrumStep
 
 
 class Sequencer(threading.Thread):
@@ -123,3 +124,149 @@ class Sequencer(threading.Thread):
             self._all_notes_off(port)
             port.close()
             print(f"[{self.name}] Stopped.")
+
+
+class T8Sequencer(threading.Thread):
+    """Combined drum + bass sequencer for the Roland T-8.
+
+    Opens a single port and drives two MIDI channels per step:
+      - Ch 10 (index 9): drum hits  — DrumStep (list of note/vel pairs)
+      - Ch  2 (index 1): bass synth — Step (semitone offset from root)
+
+    Gate lengths are independent: drums fire very short (10% of step)
+    while bass uses a longer gate (50%). Bass supports slide/accent
+    using the same logic as Sequencer.
+    """
+
+    DRUM_CH  = 9   # MIDI channel 10 (0-indexed)
+    BASS_CH  = 1   # MIDI channel 2  (0-indexed)
+
+    DRUM_GATE_FRAC = 0.10
+    BASS_GATE_FRAC = 0.50
+
+    def __init__(
+        self,
+        port_match: str,
+        drum_pattern: list[DrumStep],
+        bass_pattern: list[Step],
+        bass_root: int = 45,
+        base_velocity: int = 100,
+        bpm: int = 120,
+    ):
+        super().__init__(daemon=True)
+        self.name = "T-8"
+        self._port_match  = port_match
+        self._drum_pattern = drum_pattern
+        self._bass_pattern = bass_pattern
+        self._bass_root    = bass_root
+        self._base_vel     = base_velocity
+        self._stop_flag    = threading.Event()
+        self._step_dur     = 60.0 / (bpm * 4)
+
+    # ------------------------------------------------------------------
+    # MIDI helpers
+    # ------------------------------------------------------------------
+
+    def _send(self, port, ch: int, note: int, vel: int, on: bool) -> None:
+        msg_type = "note_on" if on else "note_off"
+        port.send(mido.Message(msg_type, channel=ch, note=note,
+                               velocity=vel if on else 0))
+
+    def _all_off(self, port, ch: int) -> None:
+        port.send(mido.Message("control_change", channel=ch,
+                               control=123, value=0))
+
+    # ------------------------------------------------------------------
+    # Per-step logic
+    # ------------------------------------------------------------------
+
+    def _fire_drums(self, port, step: DrumStep) -> list[int]:
+        """Send all drum note_ons; return list of notes to turn off later."""
+        notes = []
+        for note, vel in step:
+            self._send(port, self.DRUM_CH, note, vel, on=True)
+            notes.append(note)
+        return notes
+
+    def _release_drums(self, port, notes: list[int]) -> None:
+        for note in notes:
+            self._send(port, self.DRUM_CH, note, 0, on=False)
+
+    # ------------------------------------------------------------------
+    # Thread entry point
+    # ------------------------------------------------------------------
+
+    def stop(self) -> None:
+        self._stop_flag.set()
+
+    def run(self) -> None:
+        try:
+            port = mido.open_output(self._port_match)
+        except OSError as e:
+            print(f"[T-8] Could not open port: {e}")
+            return
+
+        drum_gate = self._step_dur * self.DRUM_GATE_FRAC
+        bass_gate = self._step_dur * self.BASS_GATE_FRAC
+        bass_rest = self._step_dur - bass_gate
+
+        print(f"[T-8] Started — drums Ch10 / bass Ch2 "
+              f"root={self._bass_root} @ {round(60/(self._step_dur*4))} BPM")
+
+        step_idx    = 0
+        pending_bass_off: int | None = None
+        pending_bass_slide = False
+
+        try:
+            while not self._stop_flag.is_set():
+                d_step: DrumStep  = self._drum_pattern[step_idx]
+                b_step: Step      = self._bass_pattern[step_idx]
+
+                # ── Drums ────────────────────────────────────────────
+                pending_drum_notes = self._fire_drums(port, d_step)
+
+                # ── Bass note_on (with slide carry logic) ────────────
+                if b_step is None:
+                    if pending_bass_off is not None:
+                        self._send(port, self.BASS_CH, pending_bass_off, 0, False)
+                        pending_bass_off = None
+                    pending_bass_slide = False
+                else:
+                    semitones, vel_factor, slide = b_step
+                    b_note = max(0, min(127, self._bass_root + semitones))
+                    b_vel  = min(127, int(self._base_vel * vel_factor))
+
+                    if pending_bass_off is not None and pending_bass_off != b_note:
+                        self._send(port, self.BASS_CH, b_note, b_vel, True)
+                        self._send(port, self.BASS_CH, pending_bass_off, 0, False)
+                    else:
+                        self._send(port, self.BASS_CH, b_note, b_vel, True)
+
+                    pending_bass_off   = b_note
+                    pending_bass_slide = slide
+
+                # ── Wait drum gate, then release drums ───────────────
+                self._stop_flag.wait(timeout=drum_gate)
+                self._release_drums(port, pending_drum_notes)
+
+                # ── Wait remainder up to bass gate ───────────────────
+                bass_remaining = bass_gate - drum_gate
+                self._stop_flag.wait(timeout=bass_remaining)
+
+                # ── Release bass if not sliding ──────────────────────
+                if b_step is not None and not pending_bass_slide:
+                    self._send(port, self.BASS_CH, pending_bass_off, 0, False)
+                    pending_bass_off = None
+
+                # ── Wait rest of step ─────────────────────────────────
+                self._stop_flag.wait(timeout=bass_rest)
+
+                step_idx = (step_idx + 1) % len(self._drum_pattern)
+
+        finally:
+            if pending_bass_off is not None:
+                self._send(port, self.BASS_CH, pending_bass_off, 0, False)
+            self._all_off(port, self.DRUM_CH)
+            self._all_off(port, self.BASS_CH)
+            port.close()
+            print("[T-8] Stopped.")
