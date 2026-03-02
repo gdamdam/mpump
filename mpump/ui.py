@@ -317,8 +317,7 @@ class MpumpApp(App):
         Binding("right",  "next_genre",   "→ genre",        priority=True),
         Binding("up",     "next_pattern", "↑ pattern",      priority=True),
         Binding("down",   "prev_pattern", "↓ pattern",      priority=True),
-        Binding("shift+up",   "bass_next", "⇧↑ bass",       priority=True),
-        Binding("shift+down", "bass_prev", "⇧↓ bass",       priority=True),
+        Binding("space",  "toggle_device", "Space ▶/■",      priority=True),
         Binding("k",      "prev_key",     "k key ↓"),
         Binding("K",      "next_key",     "K key ↑"),
         Binding("o",      "prev_octave",  "o oct ↓"),
@@ -332,25 +331,28 @@ class MpumpApp(App):
     focused_panel: reactive[int] = reactive(0)   # 0 = S-1, 1 = T-8, 2 = J-6
     bpm:           reactive[int] = reactive(120)
 
-    s1_genre_idx:   reactive[int] = reactive(0)
-    s1_pattern_idx: reactive[int] = reactive(0)
-    s1_key_idx:     reactive[int] = reactive(KEY_NAMES.index(DEFAULT_KEY))
-    s1_octave:      reactive[int] = reactive(DEFAULT_OCTAVE)
-    s1_step:        reactive[int] = reactive(-1)
+    s1_genre_idx:   reactive[int]  = reactive(0)
+    s1_pattern_idx: reactive[int]  = reactive(0)
+    s1_key_idx:     reactive[int]  = reactive(KEY_NAMES.index(DEFAULT_KEY))
+    s1_octave:      reactive[int]  = reactive(DEFAULT_OCTAVE)
+    s1_step:        reactive[int]  = reactive(-1)
     s1_connected:   reactive[bool] = reactive(False)
+    s1_paused:      reactive[bool] = reactive(False)
 
-    t8_genre_idx:        reactive[int] = reactive(0)
-    t8_pattern_idx:      reactive[int] = reactive(0)
-    t8_bass_pattern_idx: reactive[int] = reactive(0)
-    t8_key_idx:          reactive[int] = reactive(KEY_NAMES.index(DEFAULT_KEY))
-    t8_octave:           reactive[int] = reactive(DEFAULT_OCTAVE)
-    t8_step:        reactive[int] = reactive(-1)
-    t8_connected:   reactive[bool] = reactive(False)
+    t8_genre_idx:        reactive[int]  = reactive(0)
+    t8_pattern_idx:      reactive[int]  = reactive(0)
+    t8_bass_pattern_idx: reactive[int]  = reactive(0)
+    t8_key_idx:          reactive[int]  = reactive(KEY_NAMES.index(DEFAULT_KEY))
+    t8_octave:           reactive[int]  = reactive(DEFAULT_OCTAVE)
+    t8_step:             reactive[int]  = reactive(-1)
+    t8_connected:        reactive[bool] = reactive(False)
+    t8_paused:           reactive[bool] = reactive(False)
 
-    j6_genre_idx:   reactive[int] = reactive(0)
-    j6_pattern_idx: reactive[int] = reactive(0)
-    j6_step:        reactive[int] = reactive(-1)
+    j6_genre_idx:   reactive[int]  = reactive(0)
+    j6_pattern_idx: reactive[int]  = reactive(0)
+    j6_step:        reactive[int]  = reactive(-1)
     j6_connected:   reactive[bool] = reactive(False)
+    j6_paused:      reactive[bool] = reactive(False)
 
     def __init__(self, bpm: int = 120,
                  s1_genre: str = "techno",   s1_pattern: int = 1,
@@ -472,14 +474,17 @@ class MpumpApp(App):
             self.s1_connected = state
             if not state:
                 self.s1_step = -1
+                self.s1_paused = False
         elif name == "T-8":
             self.t8_connected = state
             if not state:
                 self.t8_step = -1
+                self.t8_paused = False
         elif name == "J-6":
             self.j6_connected = state
             if not state:
                 self.j6_step = -1
+                self.j6_paused = False
         self._refresh_s1_ui()
         self._refresh_t8_ui()
         self._refresh_j6_ui()
@@ -490,10 +495,12 @@ class MpumpApp(App):
 
     # ── UI refresh ───────────────────────────────────────────────────────────
 
-    def _status_text(self, connected: bool, label: str) -> Text:
+    def _status_text(self, connected: bool, label: str, paused: bool = False) -> Text:
         t = Text()
         t.append(f"{label}  ", style="bold white")
-        if connected:
+        if paused:
+            t.append("■ paused", style=f"bold {_ACCENT}")
+        elif connected:
             t.append("● CONNECTED", style="bold #3fb950")
         else:
             t.append("○ not connected", style=_DIM)
@@ -506,13 +513,13 @@ class MpumpApp(App):
         c_name, _c_desc, _ = GENRES[c_genre][c["pattern"]]
         c_key = f"{KEY_NAMES[c['key']]}{c['octave']}"
         now = Text()
-        now.append("▶ ", style=f"bold {_NOTE}")
+        now.append("■ " if self.s1_paused else "▶ ", style=f"bold {_ACCENT if self.s1_paused else _NOTE}")
         now.append(f"{c_genre}  ", style="white")
         now.append(f"#{c['pattern'] + 1}  ", style=_DIM)
         now.append(f"{c_name}  ", style="bold white")
         now.append(f"·  {c_key}", style=_DIM)
         self.query_one("#s1-header", Static).update(
-            self._status_text(self.s1_connected, "S-1  synth")
+            self._status_text(self.s1_connected, "S-1  synth", paused=self.s1_paused)
         )
         self.query_one("#s1-now", Static).update(now)
 
@@ -545,13 +552,13 @@ class MpumpApp(App):
         c_bname  = T8_BASS[c_genre][c["bass_pattern"]][0]
         c_key    = f"{KEY_NAMES[c['key']]}{c['octave']}"
         now = Text()
-        now.append("▶ ", style=f"bold {_NOTE}")
+        now.append("■ " if self.t8_paused else "▶ ", style=f"bold {_ACCENT if self.t8_paused else _NOTE}")
         now.append(f"{c_genre}  ", style="white")
         now.append(f"drums #{c['drum_pattern'] + 1} {c_dname}  ", style="bold white")
         now.append(f"·  bass #{c['bass_pattern'] + 1} {c_bname}  ", style="bold white")
         now.append(f"·  {c_key}", style=_DIM)
         self.query_one("#t8-header", Static).update(
-            self._status_text(self.t8_connected, "T-8  drums+bass")
+            self._status_text(self.t8_connected, "T-8  drums+bass", paused=self.t8_paused)
         )
         self.query_one("#t8-now", Static).update(now)
 
@@ -589,13 +596,13 @@ class MpumpApp(App):
         c_name, _c_desc, _ = J6_GENRES[c_genre][c["pattern"]]
         c_cs = J6_CHORD_SETS[c_genre]
         now = Text()
-        now.append("▶ ", style=f"bold {_NOTE}")
+        now.append("■ " if self.j6_paused else "▶ ", style=f"bold {_ACCENT if self.j6_paused else _NOTE}")
         now.append(f"{c_genre}  ", style="white")
         now.append(f"#{c['pattern'] + 1}  ", style=_DIM)
         now.append(f"{c_name}  ", style="bold white")
         now.append(f"·  set #{c_cs}", style=_DIM)
         self.query_one("#j6-header", Static).update(
-            self._status_text(self.j6_connected, "J-6  chords")
+            self._status_text(self.j6_connected, "J-6  chords", paused=self.j6_paused)
         )
         self.query_one("#j6-now", Static).update(now)
 
@@ -781,9 +788,32 @@ class MpumpApp(App):
             self._push_j6()
 
     def on_key(self, event) -> None:
-        """Catch = and + for BPM up regardless of terminal key naming."""
+        """Catch keys that need special handling across terminal emulators."""
         if event.character in ("=", "+"):
             self.action_bpm_up()
+        elif event.key in ("shift+up", "shift+up"):
+            self.action_bass_next()
+            event.prevent_default()
+        elif event.key == "shift+down":
+            self.action_bass_prev()
+            event.prevent_default()
+
+    def action_toggle_device(self) -> None:
+        panel_device = {0: ("S-1", "s1_paused"), 1: ("T-8", "t8_paused"), 2: ("J-6", "j6_paused")}
+        name, attr = panel_device[self.focused_panel]
+        if self._scanner:
+            now_playing = self._scanner.toggle_device(name)
+            setattr(self, attr, not now_playing)
+            if not now_playing:
+                # Clear step indicator when stopped
+                step_attr = {"S-1": "s1_step", "T-8": "t8_step", "J-6": "j6_step"}[name]
+                setattr(self, step_attr, -1)
+        if self.focused_panel == 0:
+            self._refresh_s1_ui()
+        elif self.focused_panel == 1:
+            self._refresh_t8_ui()
+        else:
+            self._refresh_j6_ui()
 
     def action_bpm_up(self) -> None:
         new = min(300, self.bpm + 5)

@@ -1,3 +1,4 @@
+import math
 import threading
 import time
 import mido
@@ -77,6 +78,7 @@ class Sequencer(threading.Thread):
         bpm: int = 120,
         step_callback=None,
         program_change: int | None = None,
+        t_start: float | None = None,
     ):
         super().__init__(daemon=True)
         self.name = name
@@ -89,6 +91,7 @@ class Sequencer(threading.Thread):
         self._stop_flag = threading.Event()
         self._step_callback = step_callback
         self._program_change = program_change
+        self._t_start = t_start
 
         # One step = one 16th note
         self._step_dur = 60.0 / (bpm * 4)
@@ -138,8 +141,14 @@ class Sequencer(threading.Thread):
         step_idx = 0
         pending_off: int | None = None   # note awaiting note_off (slide carry)
 
-        # Use absolute time targets to avoid drift accumulation
-        t_next = time.perf_counter()
+        # Align first step to global clock grid
+        if self._t_start is not None:
+            delay = self._t_start - time.perf_counter()
+            if delay > 0:
+                self._stop_flag.wait(timeout=delay)
+            t_next = self._t_start
+        else:
+            t_next = time.perf_counter()
 
         try:
             while not self._stop_flag.is_set():
@@ -227,6 +236,7 @@ class T8Sequencer(threading.Thread):
         base_velocity: int = 100,
         bpm: int = 120,
         step_callback=None,
+        t_start: float | None = None,
     ):
         super().__init__(daemon=True)
         self.name = "T-8"
@@ -238,6 +248,7 @@ class T8Sequencer(threading.Thread):
         self._stop_flag    = threading.Event()
         self._step_dur     = 60.0 / (bpm * 4)
         self._step_callback = step_callback
+        self._t_start      = t_start
 
     # ------------------------------------------------------------------
     # MIDI helpers
@@ -293,8 +304,14 @@ class T8Sequencer(threading.Thread):
         pending_bass_off: int | None = None
         pending_bass_slide = False
 
-        # Use absolute time targets to avoid drift accumulation
-        t_next = time.perf_counter()
+        # Align first step to global clock grid
+        if self._t_start is not None:
+            delay = self._t_start - time.perf_counter()
+            if delay > 0:
+                self._stop_flag.wait(timeout=delay)
+            t_next = self._t_start
+        else:
+            t_next = time.perf_counter()
 
         try:
             while not self._stop_flag.is_set():

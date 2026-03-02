@@ -1,3 +1,4 @@
+import math
 import time
 import mido
 
@@ -45,11 +46,22 @@ class DeviceScanner:
         self._connected_cb     = connected_callback
         self._active: dict[str, Sequencer | T8Sequencer] = {}
         self._clocks: dict[str, MidiClock] = {}
+        self._stopped: set[str] = set()          # manually paused by user
+        self._t0: float = time.perf_counter()    # global step-grid origin
 
     def _available_ports(self) -> set[str]:
         return set(mido.get_output_names())
 
-    def _build(self, name: str, profile: dict) -> Sequencer | T8Sequencer | None:
+    def _next_step_boundary(self) -> float:
+        """Return the next step boundary on the global grid, guaranteed future."""
+        step_dur = 60.0 / (self.bpm * 4)
+        elapsed  = time.perf_counter() - self._t0
+        # +1 ensures we're always at least one full step ahead (thread-startup margin)
+        n = math.ceil(elapsed / step_dur) + 1
+        return self._t0 + n * step_dur
+
+    def _build(self, name: str, profile: dict,
+               t_start: float | None = None) -> Sequencer | T8Sequencer | None:
         if profile["type"] == "t8":
             if self._t8_drum is None:
                 return None
@@ -61,6 +73,7 @@ class DeviceScanner:
                 base_velocity=profile["base_velocity"],
                 bpm=self.bpm,
                 step_callback=self._t8_step_cb,
+                t_start=t_start,
             )
 
         # synth devices
@@ -94,14 +107,18 @@ class DeviceScanner:
             bpm=self.bpm,
             step_callback=cb,
             program_change=pc,
+            t_start=t_start,
         )
 
     def tick(self) -> None:
         available = self._available_ports()
 
         for name, profile in DEVICES.items():
-            if profile["port_match"] in available and name not in self._active:
-                seq = self._build(name, profile)
+            if (profile["port_match"] in available
+                    and name not in self._active
+                    and name not in self._stopped):
+                t_start = self._next_step_boundary()
+                seq = self._build(name, profile, t_start=t_start)
                 if seq is None:
                     continue
                 print(f"[scanner] {name} connected → launching sequencer + clock")
@@ -119,6 +136,7 @@ class DeviceScanner:
             self._active[name].stop()
             self._active[name].join(timeout=2)
             del self._active[name]
+            self._stopped.discard(name)   # physical disconnect clears paused state
             if name in self._clocks:
                 self._clocks[name].stop()
                 self._clocks[name].join(timeout=2)
@@ -154,19 +172,42 @@ class DeviceScanner:
         return set(self._active.keys())
 
     def _restart(self, name: str) -> None:
-        """Stop and restart sequencer for *name* if it is currently active."""
+        """Stop and restart sequencer for *name* aligned to the global step grid."""
         if name not in self._active:
             return
         old = self._active.pop(name)
         old.stop()
         old.join(timeout=1)
-        seq = self._build(name, DEVICES[name])
+        t_start = self._next_step_boundary()
+        seq = self._build(name, DEVICES[name], t_start=t_start)
         if seq:
             self._active[name] = seq
             seq.start()
         # Clock keeps running through restarts — only update its BPM
         if name in self._clocks:
             self._clocks[name].set_bpm(self.bpm)
+
+    def is_paused(self, name: str) -> bool:
+        return name in self._stopped
+
+    def toggle_device(self, name: str) -> bool:
+        """Stop or restart the named device in sync. Returns True if now playing."""
+        if name in self._active:
+            old = self._active.pop(name)
+            old.stop()
+            old.join(timeout=1)
+            self._stopped.add(name)
+            return False
+        elif name in self._stopped:
+            self._stopped.discard(name)
+            if DEVICES[name]["port_match"] in self._available_ports():
+                t_start = self._next_step_boundary()
+                seq = self._build(name, DEVICES[name], t_start=t_start)
+                if seq:
+                    self._active[name] = seq
+                    seq.start()
+                    return True
+        return False
 
     def update_s1(self, pattern, root: int) -> None:
         self._s1_pattern = pattern
@@ -186,7 +227,19 @@ class DeviceScanner:
 
     def update_bpm(self, bpm: int) -> None:
         self.bpm = bpm
+        self._t0 = time.perf_counter()   # new tempo grid starts now
         for clk in self._clocks.values():
             clk.set_bpm(bpm)
-        for name in list(self._active):
-            self._restart(name)
+        # Batch-restart: stop all first, then start all at the same boundary
+        names = list(self._active)
+        old_seqs = {n: self._active.pop(n) for n in names}
+        for seq in old_seqs.values():
+            seq.stop()
+        for seq in old_seqs.values():
+            seq.join(timeout=1)
+        t_start = self._next_step_boundary()
+        for name in names:
+            seq = self._build(name, DEVICES[name], t_start=t_start)
+            if seq:
+                self._active[name] = seq
+                seq.start()
