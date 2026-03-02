@@ -323,7 +323,6 @@ class PickerScreen(ModalScreen):
         background: #161b22;
         border: round #58a6ff;
         padding: 1 2;
-        width: 52;
         height: auto;
         max-height: 24;
     }
@@ -352,6 +351,11 @@ class PickerScreen(ModalScreen):
             yield PickerList(self._items, self._current)
 
     def on_mount(self) -> None:
+        # Size the dialog to fit the widest item without wrapping.
+        # item text has a 3-char "▶  " / "   " prefix; add padding(4) + border(2).
+        max_item = max((len(s) for s in self._items), default=0) + 3
+        width = max(max_item, len(self._title)) + 4 + 2
+        self.query_one(Vertical).styles.width = width
         self.query_one(PickerList).focus()
 
     def on_picker_list_selected(self, event: PickerList.Selected) -> None:
