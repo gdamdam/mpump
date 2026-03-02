@@ -6,6 +6,57 @@ from .patterns import Step
 from .patterns_t8 import DrumStep
 
 
+class MidiClock(threading.Thread):
+    """Sends MIDI clock (24 PPQN) + Start/Stop to one device port.
+
+    Opens its own connection to the port so the sequencer thread is
+    not affected.  On macOS CoreMIDI multiple opens of the same
+    virtual endpoint are allowed.
+    """
+
+    PPQN = 24  # clocks per quarter note
+
+    def __init__(self, port_match: str, bpm: int):
+        super().__init__(daemon=True)
+        self.name = f"clock:{port_match}"
+        self._port_match = port_match
+        self._bpm       = bpm
+        self._stop_flag = threading.Event()
+        self._lock      = threading.Lock()
+
+    def set_bpm(self, bpm: int) -> None:
+        with self._lock:
+            self._bpm = bpm
+
+    def stop(self) -> None:
+        self._stop_flag.set()
+
+    def run(self) -> None:
+        try:
+            port = mido.open_output(self._port_match)
+        except OSError as e:
+            print(f"[clock:{self._port_match}] Cannot open port: {e}")
+            return
+
+        clock = mido.Message("clock")
+        port.send(mido.Message("start"))
+        print(f"[clock:{self._port_match}] Started")
+
+        try:
+            while not self._stop_flag.is_set():
+                with self._lock:
+                    bpm = self._bpm
+                port.send(clock)
+                self._stop_flag.wait(timeout=60.0 / (bpm * self.PPQN))
+        finally:
+            try:
+                port.send(mido.Message("stop"))
+            except Exception:
+                pass
+            port.close()
+            print(f"[clock:{self._port_match}] Stopped.")
+
+
 class Sequencer(threading.Thread):
     """Runs a 16-step MIDI sequencer loop for one device in its own thread.
 

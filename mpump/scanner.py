@@ -2,7 +2,7 @@ import time
 import mido
 
 from .devices import DEVICES
-from .sequencer import Sequencer, T8Sequencer
+from .sequencer import MidiClock, Sequencer, T8Sequencer
 
 
 class DeviceScanner:
@@ -38,6 +38,7 @@ class DeviceScanner:
         self._t8_step_cb     = t8_step_callback
         self._connected_cb   = connected_callback
         self._active: dict[str, Sequencer | T8Sequencer] = {}
+        self._clocks: dict[str, MidiClock] = {}
 
     def _available_ports(self) -> set[str]:
         return set(mido.get_output_names())
@@ -87,18 +88,25 @@ class DeviceScanner:
                 seq = self._build(name, profile)
                 if seq is None:
                     continue
-                print(f"[scanner] {name} connected → launching sequencer")
+                print(f"[scanner] {name} connected → launching sequencer + clock")
                 self._active[name] = seq
                 seq.start()
+                clk = MidiClock(profile["port_match"], self.bpm)
+                self._clocks[name] = clk
+                clk.start()
                 if self._connected_cb:
                     self._connected_cb(name, True)
 
         gone = [n for n in self._active if DEVICES[n]["port_match"] not in available]
         for name in gone:
-            print(f"[scanner] {name} disconnected → stopping sequencer")
+            print(f"[scanner] {name} disconnected → stopping sequencer + clock")
             self._active[name].stop()
             self._active[name].join(timeout=2)
             del self._active[name]
+            if name in self._clocks:
+                self._clocks[name].stop()
+                self._clocks[name].join(timeout=2)
+                del self._clocks[name]
             if self._connected_cb:
                 self._connected_cb(name, False)
 
@@ -116,6 +124,10 @@ class DeviceScanner:
 
     def shutdown(self) -> None:
         print("\n[scanner] Shutting down...")
+        for clk in self._clocks.values():
+            clk.stop()
+            clk.join(timeout=2)
+        self._clocks.clear()
         for seq in self._active.values():
             seq.stop()
             seq.join(timeout=2)
@@ -136,6 +148,9 @@ class DeviceScanner:
         if seq:
             self._active[name] = seq
             seq.start()
+        # Clock keeps running through restarts — only update its BPM
+        if name in self._clocks:
+            self._clocks[name].set_bpm(self.bpm)
 
     def update_s1(self, pattern, root: int) -> None:
         self._s1_pattern = pattern
@@ -150,5 +165,7 @@ class DeviceScanner:
 
     def update_bpm(self, bpm: int) -> None:
         self.bpm = bpm
+        for clk in self._clocks.values():
+            clk.set_bpm(bpm)
         for name in list(self._active):
             self._restart(name)

@@ -208,6 +208,11 @@ class MpumpApp(App):
         margin-bottom: 1;
         padding: 0 0 1 0;
         border-bottom: solid #21262d;
+        transition: background 100ms;
+    }
+
+    #s1-now.beat, #t8-now.beat {
+        background: #0f2d4a;
     }
 
     #body {
@@ -491,9 +496,17 @@ class MpumpApp(App):
 
     def watch_s1_step(self, val: int) -> None:
         self.query_one("#s1-grid", StepGrid).current_step = val
+        if val >= 0 and val % 4 == 0:
+            w = self.query_one("#s1-now", Static)
+            w.add_class("beat")
+            self.set_timer(0.08, lambda: w.remove_class("beat"))
 
     def watch_t8_step(self, val: int) -> None:
         self.query_one("#t8-grid", DrumGrid).current_step = val
+        if val >= 0 and val % 4 == 0:
+            w = self.query_one("#t8-now", Static)
+            w.add_class("beat")
+            self.set_timer(0.08, lambda: w.remove_class("beat"))
 
     def watch_focused_panel(self, _: int) -> None:
         self._refresh_panel_focus()
@@ -598,6 +611,11 @@ class MpumpApp(App):
             self._push_s1()
         else:
             self._push_t8()
+
+    def on_key(self, event) -> None:
+        """Catch = and + for BPM up regardless of terminal key naming."""
+        if event.character in ("=", "+"):
+            self.action_bpm_up()
 
     def action_bpm_up(self) -> None:
         new = min(300, self.bpm + 5)
