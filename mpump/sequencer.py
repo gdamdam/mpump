@@ -25,6 +25,7 @@ class Sequencer(threading.Thread):
         base_velocity: int = 100,
         note_fraction: float = 0.5,
         bpm: int = 120,
+        step_callback=None,
     ):
         super().__init__(daemon=True)
         self.name = name
@@ -35,6 +36,7 @@ class Sequencer(threading.Thread):
         self._base_velocity = base_velocity
         self._note_fraction = note_fraction
         self._stop_flag = threading.Event()
+        self._step_callback = step_callback
 
         # One step = one 16th note
         self._step_dur = 60.0 / (bpm * 4)
@@ -80,6 +82,8 @@ class Sequencer(threading.Thread):
 
         try:
             while not self._stop_flag.is_set():
+                if self._step_callback:
+                    self._step_callback(step_idx)
                 step: Step = self._pattern[step_idx]
 
                 if step is None:
@@ -152,6 +156,7 @@ class T8Sequencer(threading.Thread):
         bass_root: int = 45,
         base_velocity: int = 100,
         bpm: int = 120,
+        step_callback=None,
     ):
         super().__init__(daemon=True)
         self.name = "T-8"
@@ -162,6 +167,7 @@ class T8Sequencer(threading.Thread):
         self._base_vel     = base_velocity
         self._stop_flag    = threading.Event()
         self._step_dur     = 60.0 / (bpm * 4)
+        self._step_callback = step_callback
 
     # ------------------------------------------------------------------
     # MIDI helpers
@@ -219,6 +225,8 @@ class T8Sequencer(threading.Thread):
 
         try:
             while not self._stop_flag.is_set():
+                if self._step_callback:
+                    self._step_callback(step_idx)
                 d_step: DrumStep  = self._drum_pattern[step_idx]
                 b_step: Step      = self._bass_pattern[step_idx]
 
