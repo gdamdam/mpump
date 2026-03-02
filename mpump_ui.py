@@ -13,8 +13,9 @@ from mpump.ui import run_ui
 DEFAULT_BPM        = 120
 DEFAULT_GENRE      = "techno"
 DEFAULT_PATTERN    = 1
-DEFAULT_T8_GENRE   = "techno"
-DEFAULT_T8_PATTERN = 1
+DEFAULT_T8_GENRE        = "techno"
+DEFAULT_T8_PATTERN      = 1
+DEFAULT_T8_BASS_PATTERN = 1
 DEFAULT_J6_GENRE   = "techno"
 DEFAULT_J6_PATTERN = 1
 
@@ -32,7 +33,8 @@ def parse_args() -> argparse.Namespace:
             "Key bindings in the UI:\n"
             "  Tab          Switch focus between S-1, T-8 and J-6 panels\n"
             "  ← / →        Previous / next genre\n"
-            "  ↑ / ↓        Previous / next pattern\n"
+            "  ↑ / ↓        Previous / next drum pattern (T-8: drums)\n"
+            "  ⇧↑ / ⇧↓      Previous / next bass pattern (T-8 only)\n"
             "  k / K        Key down / up\n"
             "  o / O        Octave down / up\n"
             "  = / -        BPM +5 / -5\n"
@@ -72,6 +74,10 @@ def parse_args() -> argparse.Namespace:
         help=f"T-8 drum pattern 1–10 (default: {DEFAULT_T8_PATTERN})",
     )
     t8.add_argument(
+        "--t8-bass-pattern", type=int, default=DEFAULT_T8_BASS_PATTERN, metavar="N",
+        help=f"T-8 bass pattern 1–10, independent of drums (default: {DEFAULT_T8_BASS_PATTERN})",
+    )
+    t8.add_argument(
         "--t8-key", default=DEFAULT_KEY, metavar="KEY",
         help=f"Root key for T-8 bass (default: {DEFAULT_KEY})",
     )
@@ -104,7 +110,7 @@ def main() -> None:
         bpm=args.bpm,
         s1_genre=args.genre,      s1_pattern=args.pattern,
         s1_key=args.key,          s1_octave=args.octave,
-        t8_genre=args.t8_genre,   t8_pattern=args.t8_pattern,
+        t8_genre=args.t8_genre,   t8_pattern=args.t8_pattern,  t8_bass_pattern=args.t8_bass_pattern,
         t8_key=args.t8_key,       t8_octave=args.t8_octave,
         j6_genre=args.j6_genre,   j6_pattern=args.j6_pattern,
     )

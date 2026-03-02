@@ -692,55 +692,212 @@ T8_EDM_DRUMS: list[tuple[str, str, list[DrumStep]]] = [
 ]
 
 # ---------------------------------------------------------------------------
-# T-8 BASS PATTERNS (Ch 2)  —  one per genre, Step format
+# T-8 BASS PATTERNS (Ch 2)  —  10 per genre, Step format
 # Root defaults to A2 (MIDI 45). Semitone offsets same as S-1.
+# Semitones: 0=root 3=m3 5=4th 7=5th 10=b7 12=oct -12=oct↓
 # ---------------------------------------------------------------------------
 
-T8_TECHNO_BASS = (
-    "Techno Root Drive",
-    "8th-note root pulse with b7 resolution",
-    [st(0), N, st(0), N, st(0), N, st(0), N,
-     st(0), N, st(0), N, st(0), N, st(10), N],
-)
+T8_TECHNO_BASS_PATTERNS: list[tuple[str, str, list[Step]]] = [
+    ("Techno Root Drive",  "8th-note root pulse with b7 resolution",
+     [st(0), N, st(0), N, st(0), N, st(0), N,
+      st(0), N, st(0), N, st(0), N, st(10), N]),
+    ("Quarter Sub",        "Quarter-note root — pure sub-bass weight",
+     [st(0,A), N, N, N, st(0), N, N, N,
+      st(0,A), N, N, N, st(0), N, N, N]),
+    ("Octave Pulse",       "Root–octave alternation — classic techno hook",
+     [st(0,A), N, N, N, st(12), N, N, N,
+      st(0,A), N, N, N, st(12), N, st(10), N]),
+    ("Fifth Drive",        "Root–5th alternation — dark harmonic pulse",
+     [st(0), N, st(7), N, st(0), N, st(7), N,
+      st(0), N, st(7), N, st(5), N, st(7), N]),
+    ("Slide 8ths",         "Sliding 8ths root–b7 — monosynth glide",
+     [st(0,A,S), N, st(7,R,S), N, st(0,A,S), N, st(10,R,S), N,
+      st(0,A,S), N, st(7,R,S), N, st(0,A,S), N, st(5,R,S),  N]),
+    ("Minimal Root",       "One hit per bar — maximum space and weight",
+     [st(0,A), N, N, N, N, N, N, N,
+      N,       N, N, N, N, N, N, N]),
+    ("Chromatic Down",     "Chromatic descent from root — tension builder",
+     [st(0,A), N, N, N, st(-1), N, N, N,
+      st(-2),  N, N, N, st(-3), N, N, N]),
+    ("Dark Pump",          "Root with tritone accent — dark sidechain feel",
+     [st(0,A), N, N, st(6), st(0), N, N, N,
+      st(0,A), N, N, st(6), st(0), N, N, N]),
+    ("Root Walk",          "Walking root through 4th and 5th — techno groove",
+     [st(0,A), N, st(3), N, st(5), N, st(7), N,
+      st(0,A), N, st(7), N, st(5), N, st(3), N]),
+    ("Dark Run",           "Descending minor run — Berlin warehouse floor",
+     [st(0,A), N, st(0), st(10), st(7), N, st(5), N,
+      st(0,A), N, st(0), N,      st(10), N, st(7), N]),
+]
 
-T8_ACID_BASS = (
-    "Acid 303 Line",
-    "Sliding root–octave–b7 with accents — classic acid bass",
-    [st(0, R, S), st(12), st(-2), N,
-     st(0, A),   st(3),  N,      st(0, R, S),
-     st(12),     N,      st(-2), st(-5),
-     st(3, A),   N,      st(0),  N],
-)
+T8_ACID_BASS_PATTERNS: list[tuple[str, str, list[Step]]] = [
+    ("Acid 303 Line",      "Sliding root–octave–b7 — classic acid bass",
+     [st(0,R,S), st(12),    st(-2), N,
+      st(0,A),   st(3),     N,      st(0,R,S),
+      st(12),    N,         st(-2), st(-5),
+      st(3,A),   N,         st(0),  N]),
+    ("303 Stutter",        "Rapid root repetition with accents — filter workout",
+     [st(0,A), st(0), st(0,A), N,  st(0), st(0), st(0,A), N,
+      st(0,A), N,     st(3),   N,  st(0,A), N,   N,       N]),
+    ("Acid Ascent",        "Rising chromatic from root — squelchy climb",
+     [st(0,A), N, st(1), N, st(2),  N, st(3),  N,
+      st(4,A), N, st(3), N, st(0,A), N, N,     N]),
+    ("Octave Squeal",      "Root–octave squelch — resonant acid spike",
+     [st(0,A), N, st(12,A), N, st(0),   N, st(12), N,
+      st(0,A), N, st(14,A), N, st(0),   N, st(12), N]),
+    ("Minor Acid",         "Root + m3 + 5th acid movement",
+     [st(0,A), N, st(3), st(5), N,     N, st(0,A), N,
+      st(3),   N, st(5), st(7), N,     N, st(0,A), N]),
+    ("Full 303",           "16th-note acid run — maximum squelch density",
+     [st(0,A), st(0), st(3,R,S), st(5), st(7,A), st(5), st(3),    st(0),
+      st(0,A), st(0), st(3,R,S), st(0), st(7,A), st(5), st(3,R,S), st(0)]),
+    ("303 Slide",          "Long legato slides root–4th–5th — elastic acid",
+     [st(0,A,S), N, N, N, st(5,R,S), N, N, N,
+      st(7,A,S), N, N, N, st(0,A,S), N, N, N]),
+    ("Stab Bass",          "Staccato root stabs with 5th accent — punchy acid",
+     [st(0,A), N, st(0,A), N, N,      st(0), N, N,
+      st(0,A), N, N,       st(7,A),   N,     N, st(0,A), N]),
+    ("303 Bounce",         "Octave bounce with slide — classic 303 trick",
+     [st(0,A), N,          st(12),  N, st(0,A), N, st(12), N,
+      st(0,A), st(12,R,S), st(7),   N, st(0,A), N, N,      N]),
+    ("Acid Descent",       "Chromatic fall from octave — pressure release",
+     [st(12,A,S), N, st(11,R,S), N, st(10,R,S), N, st(9,R,S), N,
+      st(7,A,S),  N, st(5,R,S),  N, st(3,R,S),  N, st(0,A),   N]),
+]
 
-T8_TRANCE_BASS = (
-    "Trance Fifth Arp",
-    "Root–5th–octave movement — driving trance sub",
-    [st(0), N, st(7), N, st(0), N, st(12), N,
-     st(0), N, st(7), N, st(5), N, st(7),  N],
-)
+T8_TRANCE_BASS_PATTERNS: list[tuple[str, str, list[Step]]] = [
+    ("Trance Fifth Arp",   "Root–5th–octave movement — driving trance sub",
+     [st(0), N, st(7), N, st(0), N, st(12), N,
+      st(0), N, st(7), N, st(5), N, st(7),  N]),
+    ("Trance Quarter",     "Quarter-note root — solid trance foundation",
+     [st(0,A), N, N, N, st(0), N, N, N,
+      st(0,A), N, N, N, st(0), N, N, N]),
+    ("Octave Arp",         "Root–octave alternation — euphoric lift",
+     [st(0,A), N, N, N, st(12), N, N, N,
+      st(0,A), N, N, N, st(12), N, st(7), N]),
+    ("Trance Walk",        "8th bass through root–m3–5th–b7",
+     [st(0,A), N, st(3), N, st(5),  N, st(7),  N,
+      st(10),  N, st(12), N, st(10), N, st(7),  N]),
+    ("Anthem Sub",         "Pedal root with octave leap — anthem feel",
+     [st(0,A), N, N, N, st(0),  N, st(12), N,
+      st(0,A), N, N, N, st(0),  N, st(7),  N]),
+    ("Uplift Bass",        "Rising 5th–octave — emotional lift",
+     [st(0,A),    N, st(7,R,S),  N, st(12,A,S), N, N, N,
+      st(0,A),    N, st(5,R,S),  N, st(7,A,S),  N, N, N]),
+    ("Trance Slide",       "Smooth slides between root and 5th — legato sub",
+     [st(0,A,S),  N, N, N, st(7,R,S),  N, N, N,
+      st(12,A,S), N, N, N, st(5,R,S),  N, N, N]),
+    ("Sub Pulse",          "16th root with accents — pulsing sub",
+     [st(0,A), N, st(0), N, st(0), N, st(0), N,
+      st(0,A), N, st(0), N, st(5), N, st(7), N]),
+    ("Major Run",          "Major scale bass run — uplifting feel",
+     [st(0,A), N, st(2), N, st(4),   N, st(5),    N,
+      st(7,A), N, st(9), N, st(11),  N, st(12,A),  N]),
+    ("Trance Rise",        "2-bar ascending line — pre-drop tension",
+     [st(0,A),    N, st(3,R,S),  N, st(5,R,S),  N, st(7,R,S), N,
+      st(10,R,S), N, st(12,A,S), N, N,           N, st(0),     N]),
+]
 
-T8_DUB_BASS = (
-    "Dub Sub Walk",
-    "Sub-octave with slow ascent — deep pressure bass",
-    [st(-12), N, N, N, N, N, st(-12), N,
-     N, N, N, st(-5), N, N, N, N],
-)
+T8_DUB_BASS_PATTERNS: list[tuple[str, str, list[Step]]] = [
+    ("Dub Sub Walk",       "Sub-octave with slow ascent — deep pressure bass",
+     [st(-12), N, N, N, N, N, st(-12), N,
+      N, N, N, st(-5), N, N, N, N]),
+    ("Deep One Hit",       "One sub hit per two bars — absolute minimum",
+     [st(0,A), N, N, N, N, N, N, N,
+      N,       N, N, N, N, N, N, N]),
+    ("Dub Octave",         "Sparse root + octave echo — reverb-implied",
+     [st(0,A), N, N, N, N, N, N,     N,
+      N,       N, N, N, st(12), N, N, N]),
+    ("Echo Bass",          "Root then ghost repeats — tape-delay feel",
+     [st(0,A), N, N, st(0), N, N, st(0), N,
+      N,       N, N, N,     N, N, N,     N]),
+    ("Sub Pressure",       "Two root hits per bar — deep pressure pulse",
+     [st(0,A), N, N, N, N, N, N, N,
+      st(0),   N, N, N, st(7), N, N, N]),
+    ("Dub Slide",          "Very slow legato movement — reverb sub",
+     [st(0,A,S), N, N, N, N, N, N, N,
+      st(5,R,S), N, N, N, N, N, N, N]),
+    ("Reverb Bass",        "Three sparse hits — maximum reverb space",
+     [st(0,A), N, N, N, N, N, st(5), N,
+      N,       N, N, N, st(7), N, N, N]),
+    ("Dub Fourth",         "Root + 4th movement — reggae-dub anchor",
+     [st(0,A), N, N, N, N, N, N, N,
+      st(5),   N, N, N, st(0), N, N, N]),
+    ("Sub Tape",           "Descending sub — tape-style deceleration",
+     [st(5,A), N, N, N, st(3),  N, N, N,
+      st(0,A), N, N, N, st(-2), N, N, N]),
+    ("Berlin Sub",         "Root plus echo fill — Berlin club depth",
+     [st(0,A), N, N, N, st(0), N, st(7), N,
+      N,       N, N, N, st(0), N, N,     N]),
+]
 
-T8_IDM_BASS = (
-    "IDM Stutter Bass",
-    "Irregular 303-style with chromatic dips — glitchy sub",
-    [st(0), st(0, R, S), st(3), N,
-     st(7, R, S), st(5), N, st(0),
-     N, st(-2, R, S), st(0), N,
-     st(3), N, st(7), N],
-)
+T8_IDM_BASS_PATTERNS: list[tuple[str, str, list[Step]]] = [
+    ("IDM Stutter Bass",   "Irregular 303-style with chromatic dips — glitchy sub",
+     [st(0),     st(0,R,S), st(3),  N,
+      st(7,R,S), st(5),     N,      st(0),
+      N,         st(-2,R,S),st(0),  N,
+      st(3),     N,         st(7),  N]),
+    ("Glitch Sub",         "Irregular trigger — unpredictable IDM pulse",
+     [st(0,A), N, N,    st(0), N,      st(0,A), N, N,
+      N,       st(0), N, N,    st(7,A), N,       N, N]),
+    ("Micro Bass",         "Dense micro-rhythm — Squarepusher sub",
+     [st(0,A), st(0), N,     st(0), st(0,A), st(0), N,     N,
+      st(0,A), N,     st(7), st(0), N,       st(0), N,     st(0,A)]),
+    ("Poly Bass",          "3-against-4 cell — metric ambiguity",
+     [st(0,A), N, N,    st(7), N,    N,    st(0,A), N,
+      N,       st(7), N, N,    st(0,A), N, N,       N]),
+    ("Algorithm",          "Chromatic step pattern — Autechre feel",
+     [st(0,A), N, st(1),  N, st(0,A), N, st(2),  N,
+      st(0,A), N, st(-1), N, st(3),   N, st(0),  N]),
+    ("Broken Bass",        "Kick-synced broken rhythm — anti-groove IDM",
+     [st(0,A), N, N, N, N,      st(0,A), N,       N,
+      st(0,A), N, N, st(7), N,  N,       st(0,A), N]),
+    ("Neural",             "Irregular accent density — neural-net feel",
+     [st(0,A), st(0,R,S), N,     st(3), st(0,A), N, st(5), N,
+      N,       st(7,A),   N,     N,     st(0,A), N, N,     N]),
+    ("Recursive",          "Repeating 3-step cell — additive IDM",
+     [st(0,A), st(7), st(3), st(0,A), st(7), st(3), st(0,A), st(7),
+      st(3),   st(0,A), st(7), st(3), st(0,A), st(7), st(3), N]),
+    ("Clock Bass",         "Clock-division accents — metric IDM structure",
+     [st(0,A), N, N,       N, st(7,A), N, N, N,
+      st(0,A), N, st(3,A), N, N,       st(7), N, N]),
+    ("Bit Bass",           "Dense chromatic sub — bit-crushed feel",
+     [st(0,A), st(0), st(1), st(0), st(3,A), st(2), st(0), N,
+      st(0,A), N,     st(1), N,     st(5,A), N,     st(3), N]),
+]
 
-T8_EDM_BASS = (
-    "EDM Pump Bass",
-    "Sidechain-feel octave pump — big room sub",
-    [st(0), N, N, N, st(0), N, N, N,
-     st(0), N, st(12), N, st(0), N, N, N],
-)
+T8_EDM_BASS_PATTERNS: list[tuple[str, str, list[Step]]] = [
+    ("EDM Pump Bass",      "Sidechain-feel octave pump — big room sub",
+     [st(0), N, N, N, st(0),  N,     N,  N,
+      st(0), N, st(12), N, st(0), N, N,  N]),
+    ("Stadium Sub",        "Quarter root with 5th accent — stadium anthem",
+     [st(0,A), N, N, N, st(0), N, N, N,
+      st(0,A), N, N, N, st(7), N, N, N]),
+    ("Festival Root",      "8th-note root energy — festival floor foundation",
+     [st(0,A), N, st(0), N, st(0,A), N, st(0), N,
+      st(0,A), N, st(0), N, st(0),   N, st(7), N]),
+    ("Drop Bass",          "Accented root stabs — drop section power",
+     [st(0,A), N, N, N, N,       N, st(0,A), N,
+      N,       N, st(7,A), N,    N, N,       st(0,A), N]),
+    ("Progressive",        "8th bass walk — progressive house build",
+     [st(0,A),  N, st(5),  N, st(7),  N, st(10), N,
+      st(12,A), N, st(10), N, st(7),  N, st(5),  N]),
+    ("House Funk",         "Funky 16th root with 5th accent — house groove",
+     [st(0,A), N, st(0), st(0), N,     st(0,A), N, N,
+      st(0,A), N, st(7), N,    N,      st(0,A), N, N]),
+    ("Pluck Bass",         "Short staccato plucks — festival pluck feel",
+     [st(0,A), N, N, st(0), N,      N, st(0),   N,
+      st(0,A), N, N, N,     st(7,A), N, N,       N]),
+    ("Euphoric",           "Root–5th–octave movement — main-room lift",
+     [st(0,A),  N, N, N, st(7,A),  N, N, N,
+      st(12,A), N, N, N, st(7,A),  N, st(5), N]),
+    ("Big Room Pump",      "Big room sidechain-pump — festival main stage",
+     [st(0,A), N, N, N, st(0), N, st(7), N,
+      st(0,A), N, N, N, st(0), N, N,     N]),
+    ("Mainroom",           "Classic mainroom bass — root with 4th and 5th",
+     [st(0,A), N, st(5), N, st(0,A), N, st(7), N,
+      st(0,A), N, st(5), N, st(0,A), N, st(7), N]),
+]
 
 # ---------------------------------------------------------------------------
 # T-8 Genre registries
@@ -755,13 +912,13 @@ T8_DRUMS: dict[str, list[tuple]] = {
     "edm":          T8_EDM_DRUMS,
 }
 
-T8_BASS: dict[str, tuple] = {
-    "techno":       T8_TECHNO_BASS,
-    "acid-techno":  T8_ACID_BASS,
-    "trance":       T8_TRANCE_BASS,
-    "dub-techno":   T8_DUB_BASS,
-    "idm":          T8_IDM_BASS,
-    "edm":          T8_EDM_BASS,
+T8_BASS: dict[str, list[tuple]] = {
+    "techno":       T8_TECHNO_BASS_PATTERNS,
+    "acid-techno":  T8_ACID_BASS_PATTERNS,
+    "trance":       T8_TRANCE_BASS_PATTERNS,
+    "dub-techno":   T8_DUB_BASS_PATTERNS,
+    "idm":          T8_IDM_BASS_PATTERNS,
+    "edm":          T8_EDM_BASS_PATTERNS,
 }
 
 T8_GENRE_NAMES = list(T8_DRUMS.keys())
@@ -777,11 +934,14 @@ def get_t8_drum_pattern(genre: str, index: int) -> list[DrumStep]:
     return patterns[index - 1][2]
 
 
-def get_t8_bass_pattern(genre: str) -> tuple[list[Step], str]:
-    """Return (bass_steps, description) for the genre's auto bass line."""
+def get_t8_bass_pattern(genre: str, index: int = 1) -> tuple[list[Step], str]:
+    """Return (bass_steps, description) for genre and 1-based index."""
     if genre not in T8_BASS:
         raise ValueError(f"Unknown genre '{genre}'.")
-    entry = T8_BASS[genre]
+    patterns = T8_BASS[genre]
+    if not (1 <= index <= len(patterns)):
+        raise ValueError(f"Bass pattern index must be 1–{len(patterns)}, got {index}")
+    entry = patterns[index - 1]
     return entry[2], entry[1]
 
 
@@ -789,8 +949,18 @@ def list_t8_patterns() -> str:
     """Return a formatted listing of all T-8 drum patterns."""
     lines = []
     for genre, entries in T8_DRUMS.items():
-        bass_name = T8_BASS[genre][0]
-        lines.append(f"\n  {genre.upper()} (bass: {bass_name})")
+        lines.append(f"\n  {genre.upper()} DRUMS")
+        lines.append(f"  {'─' * 64}")
+        for i, (name, desc, _) in enumerate(entries, 1):
+            lines.append(f"  {i:2d}. {name:<24s}  {desc}")
+    return "\n".join(lines)
+
+
+def list_t8_bass_patterns() -> str:
+    """Return a formatted listing of all T-8 bass patterns."""
+    lines = []
+    for genre, entries in T8_BASS.items():
+        lines.append(f"\n  {genre.upper()} BASS")
         lines.append(f"  {'─' * 64}")
         for i, (name, desc, _) in enumerate(entries, 1):
             lines.append(f"  {i:2d}. {name:<24s}  {desc}")

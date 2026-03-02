@@ -18,7 +18,7 @@ from .keys import parse_key, valid_key_names, DEFAULT_KEY, DEFAULT_OCTAVE, OCTAV
 from .patterns import get_pattern, list_patterns, GENRE_NAMES, GENRES
 from .patterns_t8 import (
     get_t8_drum_pattern, get_t8_bass_pattern,
-    list_t8_patterns, T8_GENRE_NAMES,
+    list_t8_patterns, list_t8_bass_patterns, T8_GENRE_NAMES, T8_BASS,
 )
 from .patterns_j6 import (
     get_j6_pattern, get_j6_chord_set, list_j6_patterns, J6_GENRE_NAMES, J6_GENRES,
@@ -28,8 +28,9 @@ from .scanner import DeviceScanner
 DEFAULT_GENRE      = "techno"
 DEFAULT_PATTERN    = 1
 DEFAULT_BPM        = 120
-DEFAULT_T8_GENRE   = "techno"
-DEFAULT_T8_PATTERN = 1
+DEFAULT_T8_GENRE        = "techno"
+DEFAULT_T8_PATTERN      = 1
+DEFAULT_T8_BASS_PATTERN = 1
 DEFAULT_J6_GENRE   = "techno"
 DEFAULT_J6_PATTERN = 1
 
@@ -82,7 +83,11 @@ def parse_args() -> argparse.Namespace:
     )
     t8.add_argument(
         "--t8-pattern", type=int, default=DEFAULT_T8_PATTERN, metavar="N",
-        help=f"T-8 drum pattern 1–10 (default: {DEFAULT_T8_PATTERN}). Bass auto-follows genre.",
+        help=f"T-8 drum pattern 1–10 (default: {DEFAULT_T8_PATTERN})",
+    )
+    t8.add_argument(
+        "--t8-bass-pattern", type=int, default=DEFAULT_T8_BASS_PATTERN, metavar="N",
+        help=f"T-8 bass pattern 1–10, independent of drums (default: {DEFAULT_T8_BASS_PATTERN})",
     )
     t8.add_argument(
         "--t8-key", default=DEFAULT_KEY, metavar="KEY",
@@ -106,7 +111,8 @@ def parse_args() -> argparse.Namespace:
 
     # Listing
     parser.add_argument("--list",    action="store_true", help="List all S-1 patterns and exit")
-    parser.add_argument("--list-t8", action="store_true", help="List all T-8 drum patterns and exit")
+    parser.add_argument("--list-t8",      action="store_true", help="List all T-8 drum patterns and exit")
+    parser.add_argument("--list-t8-bass", action="store_true", help="List all T-8 bass patterns and exit")
     parser.add_argument("--list-j6", action="store_true", help="List all J-6 chord patterns and exit")
 
     return parser.parse_args()
@@ -121,6 +127,10 @@ def main() -> None:
 
     if args.list_t8:
         print(list_t8_patterns())
+        return
+
+    if args.list_t8_bass:
+        print(list_t8_bass_patterns())
         return
 
     if args.list_j6:
@@ -157,7 +167,13 @@ def main() -> None:
         print(f"Error (T-8 pattern): {e}", file=sys.stderr)
         sys.exit(1)
 
-    t8_bass, t8_bass_desc = get_t8_bass_pattern(args.t8_genre)
+    try:
+        t8_bass, t8_bass_desc = get_t8_bass_pattern(args.t8_genre, args.t8_bass_pattern)
+    except ValueError as e:
+        print(f"Error (T-8 bass pattern): {e}", file=sys.stderr)
+        sys.exit(1)
+
+    t8_bass_name = T8_BASS[args.t8_genre][args.t8_bass_pattern - 1][0]
 
     # J-6 ----------------------------------------------------------------
     try:
@@ -178,9 +194,9 @@ def main() -> None:
     print(f"mpump — {args.bpm} BPM  (Ctrl-C to quit)")
     print(f"S-1  key={args.key}{args.octave}  {args.genre}  #{args.pattern}: {s1_name}")
     print(f'     "{s1_desc}"')
-    print(f"T-8  key={args.t8_key}{args.t8_octave}  {args.t8_genre}  #{args.t8_pattern}: {t8_name}")
-    print(f'     drums: "{t8_desc}"')
-    print(f'     bass:  "{t8_bass_desc}"')
+    print(f"T-8  key={args.t8_key}{args.t8_octave}  {args.t8_genre}")
+    print(f"     drums #{args.t8_pattern}: {t8_name}  —  {t8_desc}")
+    print(f"     bass  #{args.t8_bass_pattern}: {t8_bass_name}  —  {t8_bass_desc}")
     print(f"J-6  {args.j6_genre}  #{args.j6_pattern}: {j6_name}  (chord set #{j6_chord_set})")
     print(f'     "{j6_desc}"')
     print()

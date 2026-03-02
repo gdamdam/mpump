@@ -13,7 +13,7 @@ from textual.widgets import Footer, Static
 from .devices import DEVICES
 from .keys import DEFAULT_KEY, DEFAULT_OCTAVE, OCTAVE_MAX, OCTAVE_MIN, parse_key, valid_key_names
 from .patterns import GENRE_NAMES, GENRES, get_pattern
-from .patterns_t8 import T8_DRUMS, T8_GENRE_NAMES, get_t8_bass_pattern, get_t8_drum_pattern
+from .patterns_t8 import T8_BASS, T8_DRUMS, T8_GENRE_NAMES, get_t8_bass_pattern, get_t8_drum_pattern
 from .patterns_j6 import J6_CHORD_SETS, J6_GENRE_NAMES, J6_GENRES, get_j6_chord_set, get_j6_pattern
 from .scanner import DeviceScanner
 
@@ -317,6 +317,8 @@ class MpumpApp(App):
         Binding("right",  "next_genre",   "→ genre",        priority=True),
         Binding("up",     "next_pattern", "↑ pattern",      priority=True),
         Binding("down",   "prev_pattern", "↓ pattern",      priority=True),
+        Binding("shift+up",   "bass_next", "⇧↑ bass",       priority=True),
+        Binding("shift+down", "bass_prev", "⇧↓ bass",       priority=True),
         Binding("k",      "prev_key",     "k key ↓"),
         Binding("K",      "next_key",     "K key ↑"),
         Binding("o",      "prev_octave",  "o oct ↓"),
@@ -337,10 +339,11 @@ class MpumpApp(App):
     s1_step:        reactive[int] = reactive(-1)
     s1_connected:   reactive[bool] = reactive(False)
 
-    t8_genre_idx:   reactive[int] = reactive(0)
-    t8_pattern_idx: reactive[int] = reactive(0)
-    t8_key_idx:     reactive[int] = reactive(KEY_NAMES.index(DEFAULT_KEY))
-    t8_octave:      reactive[int] = reactive(DEFAULT_OCTAVE)
+    t8_genre_idx:        reactive[int] = reactive(0)
+    t8_pattern_idx:      reactive[int] = reactive(0)
+    t8_bass_pattern_idx: reactive[int] = reactive(0)
+    t8_key_idx:          reactive[int] = reactive(KEY_NAMES.index(DEFAULT_KEY))
+    t8_octave:           reactive[int] = reactive(DEFAULT_OCTAVE)
     t8_step:        reactive[int] = reactive(-1)
     t8_connected:   reactive[bool] = reactive(False)
 
@@ -352,26 +355,28 @@ class MpumpApp(App):
     def __init__(self, bpm: int = 120,
                  s1_genre: str = "techno",   s1_pattern: int = 1,
                  s1_key: str = DEFAULT_KEY,  s1_octave: int = DEFAULT_OCTAVE,
-                 t8_genre: str = "techno",   t8_pattern: int = 1,
+                 t8_genre: str = "techno",   t8_pattern: int = 1,  t8_bass_pattern: int = 1,
                  t8_key: str = DEFAULT_KEY,  t8_octave: int = DEFAULT_OCTAVE,
                  j6_genre: str = "techno",   j6_pattern: int = 1):
         super().__init__()
-        self.bpm          = bpm
-        self.s1_genre_idx   = GENRE_NAMES.index(s1_genre) if s1_genre in GENRE_NAMES else 0
-        self.s1_pattern_idx = s1_pattern - 1
-        self.s1_key_idx     = KEY_NAMES.index(s1_key) if s1_key in KEY_NAMES else KEY_NAMES.index(DEFAULT_KEY)
-        self.s1_octave      = s1_octave
-        self.t8_genre_idx   = T8_GENRE_NAMES.index(t8_genre) if t8_genre in T8_GENRE_NAMES else 0
-        self.t8_pattern_idx = t8_pattern - 1
-        self.t8_key_idx     = KEY_NAMES.index(t8_key) if t8_key in KEY_NAMES else KEY_NAMES.index(DEFAULT_KEY)
-        self.t8_octave      = t8_octave
-        self.j6_genre_idx   = J6_GENRE_NAMES.index(j6_genre) if j6_genre in J6_GENRE_NAMES else 0
-        self.j6_pattern_idx = j6_pattern - 1
+        self.bpm                 = bpm
+        self.s1_genre_idx        = GENRE_NAMES.index(s1_genre) if s1_genre in GENRE_NAMES else 0
+        self.s1_pattern_idx      = s1_pattern - 1
+        self.s1_key_idx          = KEY_NAMES.index(s1_key) if s1_key in KEY_NAMES else KEY_NAMES.index(DEFAULT_KEY)
+        self.s1_octave           = s1_octave
+        self.t8_genre_idx        = T8_GENRE_NAMES.index(t8_genre) if t8_genre in T8_GENRE_NAMES else 0
+        self.t8_pattern_idx      = t8_pattern - 1
+        self.t8_bass_pattern_idx = t8_bass_pattern - 1
+        self.t8_key_idx          = KEY_NAMES.index(t8_key) if t8_key in KEY_NAMES else KEY_NAMES.index(DEFAULT_KEY)
+        self.t8_octave           = t8_octave
+        self.j6_genre_idx        = J6_GENRE_NAMES.index(j6_genre) if j6_genre in J6_GENRE_NAMES else 0
+        self.j6_pattern_idx      = j6_pattern - 1
         self._scanner: DeviceScanner | None = None
         # Tracks what is actually playing (committed to scanner)
         self._s1_committed = dict(genre=self.s1_genre_idx, pattern=self.s1_pattern_idx,
                                   key=self.s1_key_idx, octave=self.s1_octave)
-        self._t8_committed = dict(genre=self.t8_genre_idx, pattern=self.t8_pattern_idx,
+        self._t8_committed = dict(genre=self.t8_genre_idx, drum_pattern=self.t8_pattern_idx,
+                                  bass_pattern=self.t8_bass_pattern_idx,
                                   key=self.t8_key_idx, octave=self.t8_octave)
         self._j6_committed = dict(genre=self.j6_genre_idx, pattern=self.j6_pattern_idx)
 
@@ -396,7 +401,7 @@ class MpumpApp(App):
         return get_t8_drum_pattern(self._t8_genre(), self.t8_pattern_idx + 1)
 
     def _t8_bass(self):
-        bass, _desc = get_t8_bass_pattern(self._t8_genre())
+        bass, _desc = get_t8_bass_pattern(self._t8_genre(), self.t8_bass_pattern_idx + 1)
         return bass
 
     def _j6_genre(self) -> str:
@@ -535,15 +540,15 @@ class MpumpApp(App):
     def _refresh_t8_ui(self) -> None:
         # Committed (now playing)
         c = self._t8_committed
-        c_genre   = T8_GENRE_NAMES[c["genre"]]
-        c_dname, _c_ddesc, _ = T8_DRUMS[c_genre][c["pattern"]]
-        _c_bass, c_bdesc = get_t8_bass_pattern(c_genre)
-        c_key = f"{KEY_NAMES[c['key']]}{c['octave']}"
+        c_genre  = T8_GENRE_NAMES[c["genre"]]
+        c_dname, _c_ddesc, _ = T8_DRUMS[c_genre][c["drum_pattern"]]
+        c_bname  = T8_BASS[c_genre][c["bass_pattern"]][0]
+        c_key    = f"{KEY_NAMES[c['key']]}{c['octave']}"
         now = Text()
         now.append("▶ ", style=f"bold {_NOTE}")
         now.append(f"{c_genre}  ", style="white")
-        now.append(f"#{c['pattern'] + 1}  ", style=_DIM)
-        now.append(f"{c_dname}  ", style="bold white")
+        now.append(f"drums #{c['drum_pattern'] + 1} {c_dname}  ", style="bold white")
+        now.append(f"·  bass #{c['bass_pattern'] + 1} {c_bname}  ", style="bold white")
         now.append(f"·  {c_key}", style=_DIM)
         self.query_one("#t8-header", Static).update(
             self._status_text(self.t8_connected, "T-8  drums+bass")
@@ -551,20 +556,23 @@ class MpumpApp(App):
         self.query_one("#t8-now", Static).update(now)
 
         # Selection (browsing)
-        genre   = self._t8_genre()
-        pat_idx = self.t8_pattern_idx
-        d_name, d_desc, _ = T8_DRUMS[genre][pat_idx]
-        _bass, b_desc = get_t8_bass_pattern(genre)
-        key_str = f"{KEY_NAMES[self.t8_key_idx]}{self.t8_octave}"
+        genre       = self._t8_genre()
+        d_idx       = self.t8_pattern_idx
+        b_idx       = self.t8_bass_pattern_idx
+        d_name, d_desc, _ = T8_DRUMS[genre][d_idx]
+        b_name, b_desc, _ = T8_BASS[genre][b_idx]
+        key_str     = f"{KEY_NAMES[self.t8_key_idx]}{self.t8_octave}"
         info = Text()
         info.append(f"genre    ", style=_DIM)
         info.append(f"{genre}\n", style="white")
-        info.append(f"drums    ", style=_DIM)
-        info.append(f"#{pat_idx + 1}  ", style="white")
+        info.append(f"drums ↑↓ ", style=_DIM)
+        info.append(f"#{d_idx + 1}  ", style="white")
         info.append(f"{d_name}\n", style="#58a6ff")
         info.append(f'         "{d_desc}"\n', style=_DIM)
-        info.append(f"bass     ", style=_DIM)
-        info.append(f'"{b_desc}"\n', style=_DIM)
+        info.append(f"bass  ⇧↑↓", style=_DIM)
+        info.append(f" #{b_idx + 1}  ", style="white")
+        info.append(f"{b_name}\n", style="#58a6ff")
+        info.append(f'         "{b_desc}"\n', style=_DIM)
         info.append(f"key      ", style=_DIM)
         info.append(key_str, style="white")
         if self._t8_pending():
@@ -641,7 +649,9 @@ class MpumpApp(App):
 
     def _t8_pending(self) -> bool:
         c = self._t8_committed
-        return c["pattern"] != self.t8_pattern_idx or c["genre"] != self.t8_genre_idx
+        return (c["drum_pattern"] != self.t8_pattern_idx
+                or c["bass_pattern"] != self.t8_bass_pattern_idx
+                or c["genre"] != self.t8_genre_idx)
 
     def _j6_pending(self) -> bool:
         c = self._j6_committed
@@ -656,7 +666,8 @@ class MpumpApp(App):
             self._scanner.update_s1(self._s1_pattern(), self._s1_root())
 
     def _push_t8(self) -> None:
-        self._t8_committed = dict(genre=self.t8_genre_idx, pattern=self.t8_pattern_idx,
+        self._t8_committed = dict(genre=self.t8_genre_idx, drum_pattern=self.t8_pattern_idx,
+                                  bass_pattern=self.t8_bass_pattern_idx,
                                   key=self.t8_key_idx, octave=self.t8_octave)
         self._refresh_topbar()
         self._refresh_t8_ui()
@@ -717,6 +728,16 @@ class MpumpApp(App):
         else:
             self.j6_pattern_idx = (self.j6_pattern_idx + 1) % 10
             self._refresh_j6_ui()
+
+    def action_bass_next(self) -> None:
+        if self.focused_panel == 1:
+            self.t8_bass_pattern_idx = (self.t8_bass_pattern_idx + 1) % 10
+            self._refresh_t8_ui()
+
+    def action_bass_prev(self) -> None:
+        if self.focused_panel == 1:
+            self.t8_bass_pattern_idx = (self.t8_bass_pattern_idx - 1) % 10
+            self._refresh_t8_ui()
 
     def action_prev_key(self) -> None:
         if self.focused_panel == 0:
@@ -782,12 +803,13 @@ class MpumpApp(App):
 
 
 def run_ui(bpm=120, s1_genre="techno", s1_pattern=1, s1_key=DEFAULT_KEY, s1_octave=DEFAULT_OCTAVE,
-           t8_genre="techno", t8_pattern=1, t8_key=DEFAULT_KEY, t8_octave=DEFAULT_OCTAVE,
+           t8_genre="techno", t8_pattern=1, t8_bass_pattern=1, t8_key=DEFAULT_KEY, t8_octave=DEFAULT_OCTAVE,
            j6_genre="techno", j6_pattern=1) -> None:
     app = MpumpApp(
         bpm=bpm,
         s1_genre=s1_genre, s1_pattern=s1_pattern, s1_key=s1_key, s1_octave=s1_octave,
-        t8_genre=t8_genre, t8_pattern=t8_pattern, t8_key=t8_key, t8_octave=t8_octave,
+        t8_genre=t8_genre, t8_pattern=t8_pattern, t8_bass_pattern=t8_bass_pattern,
+        t8_key=t8_key, t8_octave=t8_octave,
         j6_genre=j6_genre, j6_pattern=j6_pattern,
     )
     app.title = "mpump"
