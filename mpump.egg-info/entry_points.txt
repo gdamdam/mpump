@@ -1,3 +1,0 @@
-[console_scripts]
-mpump = mpump.cli:main
-mpump-ui = mpump.ui_cli:main
