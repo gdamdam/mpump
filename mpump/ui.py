@@ -20,6 +20,7 @@ from .patterns import GENRE_NAMES, GENRES, get_pattern
 from .patterns_t8 import T8_BASS, T8_DRUMS, T8_GENRE_NAMES, get_t8_bass_pattern, get_t8_drum_pattern
 from .patterns_j6 import J6_CHORD_SETS, J6_GENRE_NAMES, J6_GENRES, get_j6_chord_set, get_j6_pattern
 from .scanner import DeviceScanner
+from . import extras as _extras  # noqa: F401 — injects "extras" genre
 
 KEY_NAMES = valid_key_names()
 DRUM_ROWS = [(36, "BD"), (38, "SD"), (42, "CH"), (46, "OH"), (50, "CP"), (49, "CY")]

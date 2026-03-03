@@ -21,6 +21,7 @@ export interface S1State {
   step: number;
   connected: boolean;
   paused: boolean;
+  editing: boolean;
   pattern_data: (StepData | null)[];
 }
 
@@ -34,6 +35,7 @@ export interface T8State {
   step: number;
   connected: boolean;
   paused: boolean;
+  editing: boolean;
   drum_data: DrumHit[][];
   bass_data: (StepData | null)[];
 }
@@ -44,6 +46,7 @@ export interface J6State {
   step: number;
   connected: boolean;
   paused: boolean;
+  editing: boolean;
   pattern_data: (StepData | null)[];
 }
 
@@ -79,7 +82,8 @@ export interface Catalog {
 
 export type ServerMessage =
   | { type: "state"; data: EngineState }
-  | { type: "step"; device: string; step: number };
+  | { type: "step"; device: string; step: number }
+  | { type: "catalog"; data: Catalog };
 
 export type ClientMessage =
   | { type: "set_genre"; device: string; idx: number }
@@ -87,4 +91,9 @@ export type ClientMessage =
   | { type: "set_key"; device: string; idx: number }
   | { type: "set_octave"; device: string; octave: number }
   | { type: "set_bpm"; bpm: number }
-  | { type: "toggle_pause"; device: string };
+  | { type: "toggle_pause"; device: string }
+  | { type: "edit_step"; device: string; step: number; data: StepData | null }
+  | { type: "edit_drum_step"; step: number; hits: DrumHit[] }
+  | { type: "discard_edit"; device: string }
+  | { type: "save_pattern"; device: string; name: string; desc: string }
+  | { type: "delete_pattern"; device: string; idx: number };

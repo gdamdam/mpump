@@ -8,16 +8,16 @@ const INITIAL: EngineState = {
   bpm: 120,
   s1: {
     genre_idx: 0, pattern_idx: 0, key_idx: 0, octave: 2,
-    step: -1, connected: false, paused: false, pattern_data: [],
+    step: -1, connected: false, paused: false, editing: false, pattern_data: [],
   },
   t8: {
     drum_genre_idx: 0, bass_genre_idx: 0, pattern_idx: 0, bass_pattern_idx: 0,
-    key_idx: 0, octave: 2, step: -1, connected: false, paused: false,
+    key_idx: 0, octave: 2, step: -1, connected: false, paused: false, editing: false,
     drum_data: [], bass_data: [],
   },
   j6: {
     genre_idx: 0, pattern_idx: 0,
-    step: -1, connected: false, paused: false, pattern_data: [],
+    step: -1, connected: false, paused: false, editing: false, pattern_data: [],
   },
 };
 
@@ -53,13 +53,15 @@ export function useEngine() {
       dispatch({ type: "full_state", data: msg.data });
     } else if (msg.type === "step") {
       dispatch({ type: "step", device: msg.device, step: msg.step });
+    } else if (msg.type === "catalog") {
+      setCatalog(msg.data);
     }
   }, []);
 
   const send = useWebSocket(onMessage);
   sendRef.current = send;
 
-  // Fetch catalog once
+  // Fetch catalog once (also pushed on WS connect, but this is a fallback)
   useEffect(() => {
     fetch("/api/catalog")
       .then((r) => r.json())

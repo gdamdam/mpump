@@ -110,7 +110,19 @@ async def catalog():
 
 # ── WebSocket ─────────────────────────────────────────────────────────────
 
-def _handle_command(msg: dict):
+def _deser_step(d):
+    """Convert JSON step → tuple or None."""
+    if d is None:
+        return None
+    return (d["semi"], d["vel"], d["slide"])
+
+
+def _deser_drum_hits(hits):
+    return [(h["note"], h["vel"]) for h in hits]
+
+
+def _handle_command(msg: dict) -> str | None:
+    """Handle a client command.  Returns 'catalog' if catalog changed."""
     t = msg.get("type")
     if t == "set_genre":
         engine.set_genre(msg["device"], msg["idx"])
@@ -124,6 +136,23 @@ def _handle_command(msg: dict):
         engine.set_bpm(msg["bpm"])
     elif t == "toggle_pause":
         engine.toggle_pause(msg["device"])
+    elif t == "edit_step":
+        engine.edit_step(msg["device"], msg["step"], _deser_step(msg.get("data")))
+    elif t == "edit_drum_step":
+        engine.edit_drum_step(msg["step"], _deser_drum_hits(msg.get("hits", [])))
+    elif t == "discard_edit":
+        engine.discard_edit(msg["device"])
+    elif t == "save_pattern":
+        engine.save_to_extras(msg["device"], msg["name"], msg.get("desc", ""))
+        return "catalog"
+    elif t == "delete_pattern":
+        engine.delete_extra(msg["device"], msg["idx"])
+        return "catalog"
+    return None
+
+
+async def _broadcast_catalog():
+    await _broadcast(json.dumps({"type": "catalog", "data": engine.get_catalog()}))
 
 
 @app.websocket("/ws")
@@ -132,10 +161,13 @@ async def websocket_endpoint(ws: WebSocket):
     clients.add(ws)
     try:
         await ws.send_json({"type": "state", "data": engine.get_state()})
+        await ws.send_json({"type": "catalog", "data": engine.get_catalog()})
         while True:
             msg = await ws.receive_json()
-            _handle_command(msg)
+            result = _handle_command(msg)
             await _broadcast_state()
+            if result == "catalog":
+                await _broadcast_catalog()
     except WebSocketDisconnect:
         pass
     finally:

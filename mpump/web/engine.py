@@ -28,6 +28,7 @@ from ..patterns_t8 import (
     get_t8_drum_pattern,
 )
 from ..scanner import DeviceScanner
+from .. import extras as _extras  # noqa: F401 — injects "extras" genre
 
 KEY_NAMES = valid_key_names()
 
@@ -72,6 +73,12 @@ class WebEngine:
         self.j6_connected = False
         self.j6_paused = False
 
+        # Editing: mutable working copies (None = not editing, list = live edit)
+        self._s1_edit: list | None = None
+        self._t8_drum_edit: list | None = None
+        self._t8_bass_edit: list | None = None
+        self._j6_edit: list | None = None
+
         # Scanner
         self._scanner = DeviceScanner(
             bpm=self.bpm,
@@ -97,17 +104,23 @@ class WebEngine:
     # ── Pattern / root helpers (mirrors ui.py) ────────────────────────────
 
     def _s1_pattern(self):
+        if self._s1_edit is not None:
+            return self._s1_edit
         return get_pattern(GENRE_NAMES[self.s1_genre_idx], self.s1_pattern_idx + 1)
 
     def _s1_root(self) -> int:
         return parse_key(KEY_NAMES[self.s1_key_idx], self.s1_octave)
 
     def _t8_drum(self):
+        if self._t8_drum_edit is not None:
+            return self._t8_drum_edit
         return get_t8_drum_pattern(
             T8_GENRE_NAMES[self.t8_drum_genre_idx], self.t8_pattern_idx + 1
         )
 
     def _t8_bass(self):
+        if self._t8_bass_edit is not None:
+            return self._t8_bass_edit
         bass, _ = get_t8_bass_pattern(
             T8_GENRE_NAMES[self.t8_bass_genre_idx], self.t8_bass_pattern_idx + 1
         )
@@ -117,6 +130,8 @@ class WebEngine:
         return parse_key(KEY_NAMES[self.t8_key_idx], self.t8_octave)
 
     def _j6_pattern(self):
+        if self._j6_edit is not None:
+            return self._j6_edit
         return get_j6_pattern(
             J6_GENRE_NAMES[self.j6_genre_idx], self.j6_pattern_idx + 1
         )
@@ -168,6 +183,7 @@ class WebEngine:
                 "step": self.s1_step,
                 "connected": self.s1_connected,
                 "paused": self.s1_paused,
+                "editing": self._s1_edit is not None,
                 "pattern_data": self._ser_pattern(self._s1_pattern()),
             },
             "t8": {
@@ -180,6 +196,7 @@ class WebEngine:
                 "step": self.t8_step,
                 "connected": self.t8_connected,
                 "paused": self.t8_paused,
+                "editing": self._t8_drum_edit is not None or self._t8_bass_edit is not None,
                 "drum_data": self._ser_drums(self._t8_drum()),
                 "bass_data": self._ser_pattern(self._t8_bass()),
             },
@@ -189,6 +206,7 @@ class WebEngine:
                 "step": self.j6_step,
                 "connected": self.j6_connected,
                 "paused": self.j6_paused,
+                "editing": self._j6_edit is not None,
                 "pattern_data": self._ser_pattern(self._j6_pattern()),
             },
         }
@@ -228,6 +246,7 @@ class WebEngine:
                 return False
             self.s1_genre_idx = idx
             self.s1_pattern_idx = 0
+            self._s1_edit = None
             self._scanner.update_s1(self._s1_pattern(), self._s1_root())
         elif device == "t8":
             idx %= len(T8_GENRE_NAMES)
@@ -235,6 +254,7 @@ class WebEngine:
                 return False
             self.t8_drum_genre_idx = idx
             self.t8_pattern_idx = 0
+            self._t8_drum_edit = None
             self._scanner.update_t8(self._t8_drum(), self._t8_bass(), self._t8_root())
         elif device == "t8_bass":
             idx %= len(T8_GENRE_NAMES)
@@ -242,6 +262,7 @@ class WebEngine:
                 return False
             self.t8_bass_genre_idx = idx
             self.t8_bass_pattern_idx = 0
+            self._t8_bass_edit = None
             self._scanner.update_t8(self._t8_drum(), self._t8_bass(), self._t8_root())
         elif device == "j6":
             idx %= len(J6_GENRE_NAMES)
@@ -249,6 +270,7 @@ class WebEngine:
                 return False
             self.j6_genre_idx = idx
             self.j6_pattern_idx = 0
+            self._j6_edit = None
             self._scanner.update_j6(self._j6_pattern(), self._j6_pc())
         else:
             return False
@@ -261,6 +283,7 @@ class WebEngine:
             if idx == self.s1_pattern_idx:
                 return False
             self.s1_pattern_idx = idx
+            self._s1_edit = None
             self._scanner.update_s1(self._s1_pattern(), self._s1_root())
         elif device == "t8":
             g = T8_GENRE_NAMES[self.t8_drum_genre_idx]
@@ -268,6 +291,7 @@ class WebEngine:
             if idx == self.t8_pattern_idx:
                 return False
             self.t8_pattern_idx = idx
+            self._t8_drum_edit = None
             self._scanner.update_t8(self._t8_drum(), self._t8_bass(), self._t8_root())
         elif device == "t8_bass":
             g = T8_GENRE_NAMES[self.t8_bass_genre_idx]
@@ -275,6 +299,7 @@ class WebEngine:
             if idx == self.t8_bass_pattern_idx:
                 return False
             self.t8_bass_pattern_idx = idx
+            self._t8_bass_edit = None
             self._scanner.update_t8(self._t8_drum(), self._t8_bass(), self._t8_root())
         elif device == "j6":
             g = J6_GENRE_NAMES[self.j6_genre_idx]
@@ -282,6 +307,7 @@ class WebEngine:
             if idx == self.j6_pattern_idx:
                 return False
             self.j6_pattern_idx = idx
+            self._j6_edit = None
             self._scanner.update_j6(self._j6_pattern(), self._j6_pc())
         else:
             return False
@@ -346,3 +372,81 @@ class WebEngine:
             if self.j6_paused:
                 self.j6_step = -1
         return True
+
+    # ── Live pattern editing ──────────────────────────────────────────────
+
+    def edit_step(self, device: str, step_idx: int, step_data) -> bool:
+        """Edit a single step.  *step_data* is None (rest) or (semi, vel, slide)."""
+        if not (0 <= step_idx < 16):
+            return False
+
+        if device == "s1":
+            if self._s1_edit is None:
+                self._s1_edit = list(self._s1_pattern())
+            self._s1_edit[step_idx] = step_data
+            self._scanner.update_s1(self._s1_edit, self._s1_root())
+        elif device == "t8_bass":
+            if self._t8_bass_edit is None:
+                self._t8_bass_edit = list(self._t8_bass())
+            self._t8_bass_edit[step_idx] = step_data
+            self._scanner.update_t8(self._t8_drum(), self._t8_bass_edit, self._t8_root())
+        elif device == "j6":
+            if self._j6_edit is None:
+                self._j6_edit = list(self._j6_pattern())
+            self._j6_edit[step_idx] = step_data
+            self._scanner.update_j6(self._j6_edit, self._j6_pc())
+        else:
+            return False
+        return True
+
+    def edit_drum_step(self, step_idx: int, hits: list) -> bool:
+        """Edit a single drum step.  *hits* is a list of (note, vel) tuples."""
+        if not (0 <= step_idx < 16):
+            return False
+        if self._t8_drum_edit is None:
+            self._t8_drum_edit = list(self._t8_drum())
+        self._t8_drum_edit[step_idx] = hits
+        self._scanner.update_t8(self._t8_drum_edit, self._t8_bass(), self._t8_root())
+        return True
+
+    def discard_edit(self, device: str) -> bool:
+        """Discard edits and revert to the genre/pattern source."""
+        if device == "s1":
+            self._s1_edit = None
+            self._scanner.update_s1(self._s1_pattern(), self._s1_root())
+        elif device == "t8":
+            self._t8_drum_edit = None
+            self._t8_bass_edit = None
+            self._scanner.update_t8(self._t8_drum(), self._t8_bass(), self._t8_root())
+        elif device == "j6":
+            self._j6_edit = None
+            self._scanner.update_j6(self._j6_pattern(), self._j6_pc())
+        else:
+            return False
+        return True
+
+    def save_to_extras(self, device: str, name: str, desc: str) -> bool:
+        """Persist the current (possibly edited) pattern to the extras genre."""
+        from ..extras import reload as _reload, save_pattern as _save
+
+        if device == "s1":
+            ok = _save("s1", name, desc, list(self._s1_pattern()))
+            self._s1_edit = None
+        elif device == "t8":
+            _save("t8", name, desc, list(self._t8_drum()))
+            ok = _save("t8_bass", name, desc, list(self._t8_bass()))
+            self._t8_drum_edit = None
+            self._t8_bass_edit = None
+        elif device == "t8_bass":
+            ok = _save("t8_bass", name, desc, list(self._t8_bass()))
+            self._t8_bass_edit = None
+        elif device == "j6":
+            ok = _save("j6", name, desc, list(self._j6_pattern()))
+            self._j6_edit = None
+        else:
+            return False
+        return ok
+
+    def delete_extra(self, device: str, idx: int) -> bool:
+        from ..extras import delete_pattern as _delete
+        return _delete(device, idx)

@@ -17,6 +17,7 @@ from .patterns_t8 import (
     get_t8_drum_pattern, get_t8_bass_pattern,
     list_t8_patterns, list_t8_bass_patterns, T8_GENRE_NAMES, T8_BASS,
 )
+from . import extras as _extras  # noqa: F401 — injects "extras" genre
 from .patterns_j6 import (
     get_j6_pattern, get_j6_chord_set, list_j6_patterns, J6_GENRE_NAMES, J6_GENRES,
 )

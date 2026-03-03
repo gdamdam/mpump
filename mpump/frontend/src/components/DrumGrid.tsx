@@ -4,6 +4,7 @@ interface Props {
   drumData: DrumHit[][];
   currentStep: number;
   accent: string;
+  onToggle?: (stepIdx: number, note: number, vel: number) => void;
 }
 
 const DRUM_ROWS: [number, string][] = [
@@ -15,7 +16,9 @@ const DRUM_ROWS: [number, string][] = [
   [49, "CY"],
 ];
 
-export function DrumGrid({ drumData, currentStep, accent }: Props) {
+const DEFAULT_VEL = 100;
+
+export function DrumGrid({ drumData, currentStep, accent, onToggle }: Props) {
   return (
     <div className="drum-grid">
       {DRUM_ROWS.map(([note, label]) => (
@@ -30,7 +33,7 @@ export function DrumGrid({ drumData, currentStep, accent }: Props) {
               return (
                 <div
                   key={i}
-                  className={`drum-cell ${active ? "active" : ""} ${barStart ? "bar-start" : ""} ${hit ? "hit" : ""}`}
+                  className={`drum-cell ${active ? "active" : ""} ${barStart ? "bar-start" : ""} ${hit ? "hit" : ""} ${onToggle ? "editable" : ""}`}
                   style={
                     hit
                       ? {
@@ -39,6 +42,7 @@ export function DrumGrid({ drumData, currentStep, accent }: Props) {
                         }
                       : undefined
                   }
+                  onClick={() => onToggle?.(i, note, DEFAULT_VEL)}
                 />
               );
             })}

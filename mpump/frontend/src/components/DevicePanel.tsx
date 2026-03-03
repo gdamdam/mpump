@@ -1,11 +1,13 @@
-import { useState, useRef } from "react";
-import type { Catalog, ClientMessage, GenreInfo, PatternInfo, S1State, T8State, J6State } from "../types";
+import { useState, useRef, useCallback } from "react";
+import type { Catalog, ClientMessage, DrumHit, GenreInfo, PatternInfo, S1State, T8State, J6State, StepData } from "../types";
 import { StepGrid } from "./StepGrid";
 import { DrumGrid } from "./DrumGrid";
 import { BassGrid } from "./BassGrid";
 import { BeatIndicator } from "./BeatIndicator";
 import { Transport } from "./Transport";
 import { Picker } from "./Picker";
+import { StepEditor } from "./StepEditor";
+import { SaveDialog } from "./SaveDialog";
 
 type PickerMode = null | "genre" | "pattern" | "key" | "octave" | "bass_genre" | "bass_pattern";
 
@@ -38,6 +40,9 @@ export function DevicePanel({
   command,
 }: Props) {
   const [picker, setPicker] = useState<PickerMode>(null);
+  const [editingStep, setEditingStep] = useState<number | null>(null);
+  const [editingBassStep, setEditingBassStep] = useState<number | null>(null);
+  const [showSave, setShowSave] = useState(false);
 
   // Swipe handling
   const touchStart = useRef<{ x: number; y: number } | null>(null);
@@ -56,14 +61,12 @@ export function DevicePanel({
 
     const MIN_SWIPE = 50;
     if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > MIN_SWIPE) {
-      // Horizontal swipe → genre
       const delta = dx > 0 ? -1 : 1;
       const genres = genreList ?? [];
       if (genres.length) {
         command({ type: "set_genre", device, idx: (genreIdx + delta + genres.length) % genres.length });
       }
     } else if (Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > MIN_SWIPE) {
-      // Vertical swipe → pattern
       const delta = dy > 0 ? -1 : 1;
       const patterns = patternList ?? [];
       const pidx = "pattern_idx" in state ? (state as any).pattern_idx : 0;
@@ -76,6 +79,7 @@ export function DevicePanel({
   const genreName = genreList?.[genreIdx]?.name ?? "---";
   const patIdx = "pattern_idx" in state ? (state as any).pattern_idx : 0;
   const patInfo = patternList?.[patIdx];
+  const editing = state.editing;
 
   // T-8 specific
   const isT8 = device === "t8";
@@ -83,6 +87,66 @@ export function DevicePanel({
 
   // J-6 has no key/octave
   const hasKey = device !== "j6";
+
+  // ── Melodic step editing (S-1, J-6) ────────────────────────────────────
+
+  const handleStepTap = useCallback((idx: number) => {
+    const pat = "pattern_data" in state ? (state as S1State | J6State).pattern_data : [];
+    const step = pat[idx];
+    const newData: StepData | null = step ? null : { semi: 0, vel: 1.0, slide: false };
+    command({ type: "edit_step", device, step: idx, data: newData });
+  }, [state, device, command]);
+
+  const handleStepLongPress = useCallback((idx: number) => {
+    setEditingStep(idx);
+  }, []);
+
+  const handleStepEditorSave = useCallback((data: StepData | null) => {
+    if (editingStep !== null) {
+      command({ type: "edit_step", device, step: editingStep, data });
+    }
+  }, [editingStep, device, command]);
+
+  // ── Drum step editing (T-8) ────────────────────────────────────────────
+
+  const handleDrumToggle = useCallback((stepIdx: number, note: number, vel: number) => {
+    if (!t8) return;
+    const existing = t8.drum_data[stepIdx] ?? [];
+    const hasHit = existing.some((h) => h.note === note);
+    const newHits: DrumHit[] = hasHit
+      ? existing.filter((h) => h.note !== note)
+      : [...existing, { note, vel }];
+    command({ type: "edit_drum_step", step: stepIdx, hits: newHits });
+  }, [t8, command]);
+
+  // ── Bass step editing (T-8 bass) ──────────────────────────────────────
+
+  const handleBassTap = useCallback((idx: number) => {
+    if (!t8) return;
+    const step = t8.bass_data[idx];
+    const newData: StepData | null = step ? null : { semi: 0, vel: 1.0, slide: false };
+    command({ type: "edit_step", device: "t8_bass", step: idx, data: newData });
+  }, [t8, command]);
+
+  const handleBassLongPress = useCallback((idx: number) => {
+    setEditingBassStep(idx);
+  }, []);
+
+  const handleBassEditorSave = useCallback((data: StepData | null) => {
+    if (editingBassStep !== null) {
+      command({ type: "edit_step", device: "t8_bass", step: editingBassStep, data });
+    }
+  }, [editingBassStep, command]);
+
+  // ── Save / discard ─────────────────────────────────────────────────────
+
+  const handleSave = useCallback((name: string, desc: string) => {
+    command({ type: "save_pattern", device, name, desc });
+  }, [device, command]);
+
+  const handleDiscard = useCallback(() => {
+    command({ type: "discard_edit", device });
+  }, [device, command]);
 
   return (
     <div
@@ -93,7 +157,10 @@ export function DevicePanel({
     >
       {/* Header row */}
       <div className="panel-header">
-        <span className="panel-label" style={{ color: accent }}>{label}</span>
+        <span className="panel-label" style={{ color: accent }}>
+          {label}
+          {editing && <span className="editing-badge">EDIT</span>}
+        </span>
         <Transport device={device} paused={state.paused} command={command} />
       </div>
 
@@ -145,21 +212,51 @@ export function DevicePanel({
       {/* Beat indicator */}
       <BeatIndicator step={state.step} accent={accent} />
 
-      {/* Grids */}
+      {/* Grids (now interactive) */}
       {isT8 && t8 ? (
         <>
-          <DrumGrid drumData={t8.drum_data} currentStep={state.step} accent={accent} />
-          <BassGrid steps={t8.bass_data} currentStep={state.step} accent={accent} />
+          <DrumGrid
+            drumData={t8.drum_data}
+            currentStep={state.step}
+            accent={accent}
+            onToggle={handleDrumToggle}
+          />
+          <BassGrid
+            steps={t8.bass_data}
+            currentStep={state.step}
+            accent={accent}
+            onTap={handleBassTap}
+            onLongPress={handleBassLongPress}
+          />
         </>
       ) : (
         <StepGrid
           steps={"pattern_data" in state ? (state as S1State | J6State).pattern_data : []}
           currentStep={state.step}
           accent={accent}
+          onTap={handleStepTap}
+          onLongPress={handleStepLongPress}
         />
       )}
 
-      {/* Pickers */}
+      {/* Edit actions bar */}
+      {editing && (
+        <div className="edit-actions">
+          <button className="edit-btn discard" onClick={handleDiscard}>
+            Discard
+          </button>
+          <button
+            className="edit-btn save"
+            style={{ background: accent, color: "#000" }}
+            onClick={() => setShowSave(true)}
+          >
+            Save to Extras
+          </button>
+        </div>
+      )}
+
+      {/* ── Modals ──────────────────────────────────────────────────────── */}
+
       {picker === "genre" && genreList && (
         <Picker
           title={`${label} Genre`}
@@ -220,6 +317,40 @@ export function DevicePanel({
           onSelect={(i) => command({ type: "set_pattern", device: "t8_bass", idx: i })}
           onClose={() => setPicker(null)}
           accent={accent}
+        />
+      )}
+
+      {/* Step editor modal (melodic) */}
+      {editingStep !== null && (
+        <StepEditor
+          initial={
+            "pattern_data" in state
+              ? (state as S1State | J6State).pattern_data[editingStep] ?? null
+              : null
+          }
+          accent={accent}
+          onSave={handleStepEditorSave}
+          onClose={() => setEditingStep(null)}
+        />
+      )}
+
+      {/* Step editor modal (T-8 bass) */}
+      {editingBassStep !== null && t8 && (
+        <StepEditor
+          initial={t8.bass_data[editingBassStep] ?? null}
+          accent={accent}
+          onSave={handleBassEditorSave}
+          onClose={() => setEditingBassStep(null)}
+        />
+      )}
+
+      {/* Save dialog */}
+      {showSave && (
+        <SaveDialog
+          accent={accent}
+          deviceLabel={label}
+          onSave={handleSave}
+          onClose={() => setShowSave(false)}
         />
       )}
     </div>
