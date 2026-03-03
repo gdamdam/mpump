@@ -205,7 +205,8 @@ button:active {
 .info-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
+  gap: 8px;
   width: 100%;
   padding: 8px 0;
   min-height: 44px;
@@ -226,6 +227,7 @@ button:active {
   color: var(--text-dim);
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  min-width: 52px;
 }
 
 .info-val {
