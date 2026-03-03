@@ -3,7 +3,13 @@ import time
 import mido
 
 from .devices import DeviceConfig, DEVICE_REGISTRY, find_device, get_device
+from .patterns import get_pattern
+from .patterns_t8 import get_t8_drum_pattern, get_t8_bass_pattern
+from .patterns_j6 import get_j6_pattern, get_j6_chord_set
 from .sequencer import MidiClock, Sequencer, T8Sequencer
+
+DEFAULT_GENRE = "techno"
+DEFAULT_PATTERN = 1
 
 
 class DeviceScanner:
@@ -55,7 +61,32 @@ class DeviceScanner:
         return t_bar
 
     def _get_state(self, device_id: str) -> dict:
+        if device_id not in self._device_states:
+            self._auto_assign(device_id)
         return self._device_states.get(device_id, {})
+
+    def _auto_assign(self, device_id: str) -> None:
+        """Auto-assign default patterns for a device based on its mode."""
+        cfg = get_device(device_id)
+        if cfg is None:
+            return
+        state: dict = {}
+        if cfg.mode == "synth":
+            if cfg.use_program_change:
+                # J-6 style: chord patterns + program change
+                state["pattern"] = get_j6_pattern(DEFAULT_GENRE, DEFAULT_PATTERN)
+                state["program_change"] = get_j6_chord_set(DEFAULT_GENRE) - 1
+            else:
+                state["pattern"] = get_pattern(DEFAULT_GENRE, DEFAULT_PATTERN)
+                state["root"] = cfg.root_note
+        elif cfg.mode == "drums":
+            state["drum_pattern"] = get_t8_drum_pattern(DEFAULT_GENRE, DEFAULT_PATTERN)
+        elif cfg.mode == "drums+bass":
+            state["drum_pattern"] = get_t8_drum_pattern(DEFAULT_GENRE, DEFAULT_PATTERN)
+            bass, _ = get_t8_bass_pattern(DEFAULT_GENRE, DEFAULT_PATTERN)
+            state["bass_pattern"] = bass
+            state["bass_root"] = cfg.root_note
+        self._device_states[device_id] = state
 
     def _build(self, cfg: DeviceConfig, port_name: str,
                t_start: float | None = None) -> Sequencer | T8Sequencer | None:
