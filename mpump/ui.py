@@ -880,6 +880,21 @@ class MpumpApp(App):
         self.query_one("#j6-grid", StepGrid).current_step = val
         self.query_one("#j6-beat", BeatWidget).current_step = val
 
+    def watch_s1_connected(self, val: bool) -> None:
+        self.query_one("#s1-panel").display = val
+        if not val and self.focused_panel == 0:
+            self.action_next_panel()
+
+    def watch_t8_connected(self, val: bool) -> None:
+        self.query_one("#t8-panel").display = val
+        if not val and self.focused_panel == 1:
+            self.action_next_panel()
+
+    def watch_j6_connected(self, val: bool) -> None:
+        self.query_one("#j6-panel").display = val
+        if not val and self.focused_panel == 2:
+            self.action_next_panel()
+
     def watch_focused_panel(self, _: int) -> None:
         self._refresh_panel_focus()
 
@@ -931,7 +946,13 @@ class MpumpApp(App):
     # ── Actions ──────────────────────────────────────────────────────────────
 
     def action_next_panel(self) -> None:
-        self.focused_panel = (self.focused_panel + 1) % 3
+        connected = [self.s1_connected, self.t8_connected, self.j6_connected]
+        if not any(connected):
+            return
+        nxt = (self.focused_panel + 1) % 3
+        while not connected[nxt]:
+            nxt = (nxt + 1) % 3
+        self.focused_panel = nxt
 
     def action_prev_genre(self) -> None:
         if self.focused_panel == 0:
