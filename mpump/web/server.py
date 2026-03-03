@@ -206,7 +206,9 @@ def main():
             "  - Browse and switch genres, patterns, keys, octaves\n"
             "  - Tap steps to edit patterns in real time\n"
             "  - Save edited patterns to the EXTRAS genre (~/.mpump/extras.json)\n"
-            "  - Multiple simultaneous browser clients\n"
+            "  - Multiple simultaneous browser clients\n\n"
+            "For a standalone browser sequencer (no Mac/server required), see\n"
+            "mpump/server/ — uses Web MIDI API, deploy to any HTTPS host.\n"
         ),
     )
     parser.add_argument("--bpm", type=int, default=120, metavar="N", help="initial tempo in BPM, 20–300 (default: 120)")

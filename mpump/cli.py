@@ -54,7 +54,10 @@ def parse_args() -> argparse.Namespace:
             "  Space      Pause / resume focused device\n"
             "  = / -      BPM +5 / -5\n"
             "  Enter      Commit browsed pattern / genre\n"
-            "  q          Quit\n"
+            "  q          Quit\n\n"
+            "Other interfaces:\n"
+            "  mpump-web         Web UI (Mac + Python, control from any browser)\n"
+            "  mpump/server/     Browser sequencer (standalone, Web MIDI, no server)\n"
         ),
     )
     parser.add_argument(

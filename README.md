@@ -18,9 +18,26 @@ Requires Python 3.11+ and macOS (CoreMIDI). All supported devices are USB class-
 
 ---
 
-## Three interfaces
+## Four interfaces
 
-### Web UI
+### Browser sequencer (standalone)
+
+Open `https://your-host/` in Chrome, Edge, or Opera — no install, no server, no Mac required. The sequencer runs entirely in the browser using the Web MIDI API. Connect your AIRA devices via USB, grant MIDI permission, and play.
+
+Firefox works with a Web MIDI add-on. Safari and iOS are not supported (no Web MIDI).
+
+To build and serve locally:
+
+```bash
+cd mpump/server
+python3 scripts/export_patterns.py
+npm install && npm run build
+npm run preview
+```
+
+Deploy `mpump/server/dist/` to any HTTPS host (GitHub Pages, Netlify, Vercel) for zero-install access from any computer with USB MIDI.
+
+### Web UI (Mac + Python)
 
 ```bash
 mpump-web
@@ -172,7 +189,7 @@ mpump --list-j6
 
 ### EXTRAS — user-created patterns
 
-Patterns edited and saved via the web UI or TUI are stored in `~/.mpump/extras.json` and appear as the **extras** genre in all interfaces.
+Patterns edited and saved via the web UI or TUI are stored in `~/.mpump/extras.json` and appear as the **extras** genre in all interfaces. In the browser sequencer, extras are stored in localStorage and are independent of the file-based extras.
 
 ---
 
@@ -213,8 +230,13 @@ mpump/
     engine.py     # WebEngine: async state manager wrapping DeviceScanner
     server.py     # FastAPI + WebSocket + static SPA serving
   frontend/
-    src/           # React + TypeScript SPA (Vite)
-    dist/          # built output (served by mpump-web)
+    src/           # React + TypeScript SPA (Vite, served by mpump-web)
+    dist/          # built output
+  server/
+    scripts/       # export_patterns.py — Python → JSON converter
+    src/           # React + TypeScript standalone SPA (Web MIDI)
+    public/data/   # generated pattern JSON files
+    dist/          # built output — deploy to any HTTPS host
 ```
 
 ---
