@@ -71,20 +71,24 @@ button:active {
 
 .title {
   display: flex;
-  align-items: baseline;
-  gap: 6px;
+  align-items: flex-end;
+  gap: 8px;
 }
 
-.title-text {
-  font-size: 20px;
+.title-art {
+  margin: 0;
+  font-family: inherit;
+  font-size: 10px;
+  line-height: 1.15;
   font-weight: 700;
   color: var(--s1);
-  letter-spacing: 1px;
+  letter-spacing: 0;
 }
 
 .title-version {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text-dim);
+  padding-bottom: 1px;
 }
 
 .panels {
