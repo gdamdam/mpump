@@ -9,6 +9,7 @@ export function MidiGate({ midiState, onRetry }: Props) {
   return (
     <div className="midi-gate">
       <pre className="midi-gate-logo">{"█▀▄▀█ █▀█ █ █ █▀▄▀█ █▀█\n█ ▀ █ █▀▀ ▀▄▀ █ ▀ █ █▀▀"}</pre>
+      <span className="title-version">v1.2.2</span>
 
       {midiState === "unsupported" && (
         <>
@@ -42,6 +43,11 @@ export function MidiGate({ midiState, onRetry }: Props) {
           </button>
         </>
       )}
+      <div className="midi-gate-footer">
+        <a href="https://github.com/maddomtom/mpump#supported-devices" target="_blank" rel="noopener noreferrer">
+          supported devices
+        </a>
+      </div>
     </div>
   );
 }
