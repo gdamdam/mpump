@@ -57,7 +57,7 @@ def parse_args() -> argparse.Namespace:
             "  q          Quit\n\n"
             "Other interfaces:\n"
             "  mpump-web         Web UI (Mac + Python, control from any browser)\n"
-            "  mpump/server/     Browser sequencer (standalone, Web MIDI, no server)\n"
+            "  mpump/server/     Browser sequencer (standalone, Web MIDI, 50 devices)\n"
         ),
     )
     parser.add_argument(

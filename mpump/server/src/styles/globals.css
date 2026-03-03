@@ -122,8 +122,8 @@ button:active {
   border-bottom: 1px solid var(--border);
   position: sticky;
   top: 0;
-  background: var(--bg);
   z-index: 10;
+  background: var(--bg);
 }
 
 .title {

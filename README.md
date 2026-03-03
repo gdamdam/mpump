@@ -26,6 +26,8 @@ Open `https://your-host/` in Chrome, Edge, or Opera — no install, no server, n
 
 Firefox works with a Web MIDI add-on. Safari and iOS are not supported (no Web MIDI).
 
+Features: auto-detection of 50 USB MIDI devices, live step-grid visualization, genre/pattern/key/octave switching, tap-to-edit patterns, shuffle button to randomize genre + pattern globally or per-device, save edited patterns to the EXTRAS genre.
+
 To build and serve locally:
 
 ```bash
@@ -67,34 +69,94 @@ Starts immediately with the given flags, no UI.
 
 ## Supported devices
 
-### Roland AIRA Compact
+The browser sequencer auto-detects 50 USB MIDI devices. Devices are recognized by their USB MIDI port name and start playing automatically when plugged in.
 
-| Device | Type | MIDI |
+### Roland
+
+| Device | Type | Mode |
 |---|---|---|
-| **Roland S-1** | Monosynth | Genre patterns — melodic/bass lines with slides and accents |
-| **Roland T-8** | Drum machine + bass | Independent drum + bass patterns; drums on Ch 10, bass on Ch 2 |
-| **Roland J-6** | Chord synth | Chord-stab progressions on Ch 1; auto-selects chord set via Program Change |
+| S-1 | AIRA Compact monosynth | synth |
+| T-8 | AIRA Compact drum machine | drums+bass |
+| J-6 | AIRA Compact chord synth | synth |
+| SP-404MK2 | Sampler | synth |
+| TR-6S | Drum machine | drums |
+| TR-8S | Drum machine | drums |
+| MC-101 | Groovebox | drums+bass |
+| MC-707 | Groovebox | drums+bass |
+| SH-4d | Polysynth | synth |
+| TB-3 | Bass synth (303-style) | synth |
+| TB-03 | Bass synth (303 clone, Boutique) | synth |
+| JD-Xi | Crossover synth | synth |
+| JU-06A | Juno clone (Boutique) | synth |
+| SE-02 | Analog mono (Boutique) | synth |
+| GAIA 2 | Wavetable/VA polysynth | synth |
 
-### Other Roland
+### Korg
 
-| Device | Type | MIDI |
+| Device | Type | Mode |
 |---|---|---|
-| **Roland SP-404MK2** | Sampler | Fixed pad-trigger pattern on Ch 1 |
+| minilogue xd | 4-voice analog poly | synth |
+| minilogue | 4-voice analog poly | synth |
+| monologue | Analog monosynth | synth |
+| NTS-1 | Programmable synth | synth |
+| drumlogue | Hybrid drum machine | drums+bass |
+| wavestate | Wave sequencing synth | synth |
+| opsix | FM synth | synth |
+| modwave | Wavetable synth | synth |
+
+### Novation
+
+| Device | Type | Mode |
+|---|---|---|
+| Circuit Tracks | Groovebox | drums+bass |
+| Circuit Rhythm | Sample groovebox | drums |
+| Bass Station II | Analog monosynth | synth |
+| Peak | 8-voice hybrid poly | synth |
+
+### Arturia
+
+| Device | Type | Mode |
+|---|---|---|
+| MicroFreak | Digital/hybrid synth | synth |
+| DrumBrute Impact | Analog drum machine | drums |
+
+### Behringer
+
+| Device | Type | Mode |
+|---|---|---|
+| TD-3 | 303 clone | synth |
+| RD-6 | 606 clone | drums |
+| Crave | Semi-modular mono | synth |
+| Model D | Minimoog clone | synth |
+| Neutron | Semi-modular | synth |
+| Poly D | 4-voice analog poly | synth |
+| K-2 | MS-20 clone | synth |
+| MS-1 | SH-101 clone | synth |
+| DeepMind 12 | 12-voice analog poly | synth |
+| Wasp Deluxe | EDP Wasp clone | synth |
 
 ### Elektron
 
-| Device | Type | MIDI |
+| Device | Type | Mode |
 |---|---|---|
-| **Elektron Syntakt** | Drum machine + synth | Drum patterns on Ch 1 |
-| **Elektron Digitakt** | Sampler / drums | Drum patterns on Ch 1 (notes 24-31) |
+| Syntakt | Drum machine + synth | drums |
+| Digitakt | Sampler / drums | drums |
+| Model:Cycles | FM groovebox | drums+bass |
+| Model:Samples | Sample groovebox | drums |
+| Analog Rytm MKII | Analog drums + sampler | drums |
+| Analog Four MKII | 4-voice analog poly | synth |
 
-### Teenage Engineering
+### Other
 
-| Device | Type | MIDI |
+| Device | Type | Mode |
 |---|---|---|
-| **TE OP-Z** | Multi-track synth | Melodic patterns on Ch 5 (bass track) |
+| TE OP-Z | Multi-track synth | synth |
+| TE EP-133 K.O. II | Sampler / drums | drums+bass |
+| Sequential Take 5 | 5-voice analog poly | synth |
+| IK UNO Drum | Analog/PCM drum machine | drums |
+| IK UNO Synth | Analog monosynth | synth |
 
-The browser sequencer (Web MIDI) auto-detects all devices listed above. The Python CLI/TUI currently supports S-1, T-8, J-6, and SP-404MK2.
+The Python CLI/TUI currently supports S-1, T-8, J-6, and SP-404MK2.
 
 ---
 
@@ -186,7 +248,7 @@ Browse with arrow keys (and `b/B` for bass) then press `Enter` to apply. The now
 
 Genres: `techno`, `acid-techno`, `trance`, `dub-techno`, `idm`, `edm`, `drum-and-bass`, `house`, `breakbeat`, `jungle`, `garage`, `ambient`, `glitch`, `electro`, `downtempo`
 
-All patterns are expressed as semitone offsets from the root, so `--key` and `--octave` transpose them freely.
+All patterns are expressed as semitone offsets from the root, so `--key` and `--octave` transpose them freely. All synth-mode devices in the browser sequencer share these patterns.
 
 ```bash
 mpump --list           # full catalogue with descriptions
@@ -194,7 +256,7 @@ mpump --list           # full catalogue with descriptions
 
 ### T-8 — 150 drum + 150 bass patterns, 15 genres x 10 each
 
-Drum and bass patterns are selected independently. The bass runs on Ch 2; drums on Ch 10 (GM).
+Drum and bass patterns are selected independently. All drums-mode and drums+bass-mode devices in the browser sequencer share these patterns.
 
 ```bash
 mpump --list-t8        # drum patterns
@@ -223,13 +285,13 @@ All devices share a single step-grid anchored to a global `t0`. Every sequencer 
 - Pattern changes and pause/resume introduce at most one bar of delay, then re-enter on the beat
 - BPM changes reset `t0` and batch-restart all devices at the same boundary
 
-MIDI clock (24 PPQN) is sent to each device for BPM-synced effects (LFO, delay, arpeggiator). No MIDI Start/Stop messages are sent, so the devices' internal sequencers are not triggered.
+MIDI clock (24 PPQN) is sent to devices that support it for BPM-synced effects (LFO, delay, arpeggiator). No MIDI Start/Stop messages are sent, so the devices' internal sequencers are not triggered.
 
 ---
 
 ## How slides work
 
-On acid patterns, steps marked `slide=True` send the next `note_on` before the previous `note_off`. On a monosynth like the S-1, this triggers legato / portamento if portamento is enabled on the device.
+On acid patterns, steps marked `slide=True` send the next `note_on` before the previous `note_off`. On a monosynth like the S-1 or TD-3, this triggers legato / portamento if portamento is enabled on the device.
 
 ---
 
@@ -256,7 +318,7 @@ mpump/
     dist/          # built output
   server/
     scripts/       # export_patterns.py — Python -> JSON converter
-    src/           # React + TypeScript standalone SPA (Web MIDI)
+    src/           # React + TypeScript standalone SPA (Web MIDI, 50 devices)
     public/data/   # generated pattern JSON files
     dist/          # built output — deploy to any HTTPS host
 ```
@@ -268,4 +330,4 @@ mpump/
 - macOS Sequoia 15, Python 3.11
 - Roland S-1, T-8, J-6 (hot-plug + playback confirmed)
 - Roland SP-404MK2 (hot-plug confirmed; pattern playback not yet hardware-tested)
-- Elektron Syntakt, Digitakt, OP-Z (browser sequencer — port names need hardware verification)
+- Browser sequencer: all 50 devices in registry (port names for non-Roland devices need hardware verification)
