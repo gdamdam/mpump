@@ -164,79 +164,99 @@ export function DevicePanel({
         <Transport device={device} paused={state.paused} command={command} />
       </div>
 
-      {/* Genre */}
-      <button className="info-row" onClick={() => setPicker("genre")}>
-        <span className="info-key">genre</span>
-        <span className="info-val" style={{ color: accent }}>{genreName}</span>
-      </button>
-
-      {/* Pattern */}
-      <button className="info-row" onClick={() => setPicker("pattern")}>
-        <span className="info-key">pattern</span>
-        <span className="info-val">{patInfo?.name ?? "---"}</span>
-      </button>
-      {patInfo?.desc && <div className="info-desc">{patInfo.desc}</div>}
-
-      {/* Key + Octave (not for J-6) */}
-      {hasKey && keys && (
-        <div className="key-octave-row">
-          <button className="info-row half" onClick={() => setPicker("key")}>
-            <span className="info-key">key</span>
-            <span className="info-val">{keys[keyIdx ?? 0]}</span>
-          </button>
-          <button className="info-row half" onClick={() => setPicker("octave")}>
-            <span className="info-key">oct</span>
-            <span className="info-val">{octave}</span>
-          </button>
-        </div>
-      )}
-
-      {/* T-8 bass genre + pattern */}
-      {isT8 && t8 && (
-        <>
-          <button className="info-row" onClick={() => setPicker("bass_genre")}>
-            <span className="info-key">bass genre</span>
-            <span className="info-val" style={{ color: accent }}>
-              {bassGenreList?.[t8.bass_genre_idx]?.name ?? "---"}
-            </span>
-          </button>
-          <button className="info-row" onClick={() => setPicker("bass_pattern")}>
-            <span className="info-key">bass pat</span>
-            <span className="info-val">
-              {bassPatternList?.[t8.bass_pattern_idx]?.name ?? "---"}
-            </span>
-          </button>
-        </>
-      )}
-
-      {/* Beat indicator */}
-      <BeatIndicator step={state.step} accent={accent} />
-
-      {/* Grids (now interactive) */}
+      {/* ── T-8: two subsections (drums + bass) ─────────────────────── */}
       {isT8 && t8 ? (
         <>
-          <DrumGrid
-            drumData={t8.drum_data}
-            currentStep={state.step}
-            accent={accent}
-            onToggle={handleDrumToggle}
-          />
-          <BassGrid
-            steps={t8.bass_data}
-            currentStep={state.step}
-            accent={accent}
-            onTap={handleBassTap}
-            onLongPress={handleBassLongPress}
-          />
+          {/* DRUMS section */}
+          <div className="t8-section">
+            <div className="t8-section-label" style={{ color: accent }}>drums</div>
+            <button className="info-row" onClick={() => setPicker("genre")}>
+              <span className="info-key">genre</span>
+              <span className="info-val" style={{ color: accent }}>{genreName}</span>
+            </button>
+            <button className="info-row" onClick={() => setPicker("pattern")}>
+              <span className="info-key">pattern</span>
+              <span className="info-val">{patInfo?.name ?? "---"}</span>
+            </button>
+            {patInfo?.desc && <div className="info-desc">{patInfo.desc}</div>}
+            <BeatIndicator step={state.step} accent={accent} />
+            <DrumGrid
+              drumData={t8.drum_data}
+              currentStep={state.step}
+              accent={accent}
+              onToggle={handleDrumToggle}
+            />
+          </div>
+
+          {/* BASS section */}
+          <div className="t8-section">
+            <div className="t8-section-label" style={{ color: accent }}>bass</div>
+            <button className="info-row" onClick={() => setPicker("bass_genre")}>
+              <span className="info-key">genre</span>
+              <span className="info-val" style={{ color: accent }}>
+                {bassGenreList?.[t8.bass_genre_idx]?.name ?? "---"}
+              </span>
+            </button>
+            <button className="info-row" onClick={() => setPicker("bass_pattern")}>
+              <span className="info-key">pattern</span>
+              <span className="info-val">
+                {bassPatternList?.[t8.bass_pattern_idx]?.name ?? "---"}
+              </span>
+            </button>
+            {keys && (
+              <div className="key-octave-row">
+                <button className="info-row half" onClick={() => setPicker("key")}>
+                  <span className="info-key">key</span>
+                  <span className="info-val">{keys[keyIdx ?? 0]}</span>
+                </button>
+                <button className="info-row half" onClick={() => setPicker("octave")}>
+                  <span className="info-key">oct</span>
+                  <span className="info-val">{octave}</span>
+                </button>
+              </div>
+            )}
+            <BassGrid
+              steps={t8.bass_data}
+              currentStep={state.step}
+              accent={accent}
+              onTap={handleBassTap}
+              onLongPress={handleBassLongPress}
+            />
+          </div>
         </>
       ) : (
-        <StepGrid
-          steps={"pattern_data" in state ? (state as S1State | J6State).pattern_data : []}
-          currentStep={state.step}
-          accent={accent}
-          onTap={handleStepTap}
-          onLongPress={handleStepLongPress}
-        />
+        /* ── S-1 / J-6: single section ─────────────────────────────── */
+        <>
+          <button className="info-row" onClick={() => setPicker("genre")}>
+            <span className="info-key">genre</span>
+            <span className="info-val" style={{ color: accent }}>{genreName}</span>
+          </button>
+          <button className="info-row" onClick={() => setPicker("pattern")}>
+            <span className="info-key">pattern</span>
+            <span className="info-val">{patInfo?.name ?? "---"}</span>
+          </button>
+          {patInfo?.desc && <div className="info-desc">{patInfo.desc}</div>}
+          {hasKey && keys && (
+            <div className="key-octave-row">
+              <button className="info-row half" onClick={() => setPicker("key")}>
+                <span className="info-key">key</span>
+                <span className="info-val">{keys[keyIdx ?? 0]}</span>
+              </button>
+              <button className="info-row half" onClick={() => setPicker("octave")}>
+                <span className="info-key">oct</span>
+                <span className="info-val">{octave}</span>
+              </button>
+            </div>
+          )}
+          <BeatIndicator step={state.step} accent={accent} />
+          <StepGrid
+            steps={"pattern_data" in state ? (state as S1State | J6State).pattern_data : []}
+            currentStep={state.step}
+            accent={accent}
+            onTap={handleStepTap}
+            onLongPress={handleStepLongPress}
+          />
+        </>
       )}
 
       {/* Edit actions bar */}
