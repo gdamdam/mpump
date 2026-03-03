@@ -11,24 +11,18 @@ export interface DrumHit {
   vel: number;
 }
 
-// ── Device state ─────────────────────────────────────────────────────────
+// ── Device mode ──────────────────────────────────────────────────────────
 
-export interface S1State {
+export type DeviceMode = "synth" | "drums" | "drums+bass";
+
+// ── Device state (generic, replaces S1State/T8State/J6State) ─────────────
+
+export interface DeviceState {
+  id: string;
+  mode: DeviceMode;
   genre_idx: number;
   pattern_idx: number;
-  key_idx: number;
-  octave: number;
-  step: number;
-  connected: boolean;
-  paused: boolean;
-  editing: boolean;
-  pattern_data: (StepData | null)[];
-}
-
-export interface T8State {
-  drum_genre_idx: number;
   bass_genre_idx: number;
-  pattern_idx: number;
   bass_pattern_idx: number;
   key_idx: number;
   octave: number;
@@ -36,25 +30,18 @@ export interface T8State {
   connected: boolean;
   paused: boolean;
   editing: boolean;
+  pattern_data: (StepData | null)[];
   drum_data: DrumHit[][];
   bass_data: (StepData | null)[];
-}
-
-export interface J6State {
-  genre_idx: number;
-  pattern_idx: number;
-  step: number;
-  connected: boolean;
-  paused: boolean;
-  editing: boolean;
-  pattern_data: (StepData | null)[];
+  label: string;
+  accent: string;
+  hasKey: boolean;
+  hasOctave: boolean;
 }
 
 export interface EngineState {
   bpm: number;
-  s1: S1State;
-  t8: T8State;
-  j6: J6State;
+  devices: Record<string, DeviceState>;
 }
 
 // ── Catalog ──────────────────────────────────────────────────────────────
@@ -92,7 +79,7 @@ export type ClientMessage =
   | { type: "set_bpm"; bpm: number }
   | { type: "toggle_pause"; device: string }
   | { type: "edit_step"; device: string; step: number; data: StepData | null }
-  | { type: "edit_drum_step"; step: number; hits: DrumHit[] }
+  | { type: "edit_drum_step"; device: string; step: number; hits: DrumHit[] }
   | { type: "discard_edit"; device: string }
   | { type: "save_pattern"; device: string; name: string; desc: string }
   | { type: "delete_pattern"; device: string; idx: number };

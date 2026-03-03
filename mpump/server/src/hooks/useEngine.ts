@@ -7,19 +7,7 @@ import { isSupported, requestAccess } from "../engine/MidiAccess";
 
 const INITIAL: EngineState = {
   bpm: 120,
-  s1: {
-    genre_idx: 0, pattern_idx: 0, key_idx: 0, octave: 2,
-    step: -1, connected: false, paused: false, editing: false, pattern_data: [],
-  },
-  t8: {
-    drum_genre_idx: 0, bass_genre_idx: 0, pattern_idx: 0, bass_pattern_idx: 0,
-    key_idx: 0, octave: 2, step: -1, connected: false, paused: false, editing: false,
-    drum_data: [], bass_data: [],
-  },
-  j6: {
-    genre_idx: 0, pattern_idx: 0,
-    step: -1, connected: false, paused: false, editing: false, pattern_data: [],
-  },
+  devices: {},
 };
 
 type Action =
@@ -32,10 +20,15 @@ function reducer(state: EngineState, action: Action): EngineState {
       return action.data;
     case "step": {
       const { device, step } = action;
-      if (device === "s1") return { ...state, s1: { ...state.s1, step } };
-      if (device === "t8") return { ...state, t8: { ...state.t8, step } };
-      if (device === "j6") return { ...state, j6: { ...state.j6, step } };
-      return state;
+      const ds = state.devices[device];
+      if (!ds) return state;
+      return {
+        ...state,
+        devices: {
+          ...state.devices,
+          [device]: { ...ds, step },
+        },
+      };
     }
     default:
       return state;
@@ -112,7 +105,7 @@ export function useEngine() {
         engine.editStep(msg.device, msg.step, msg.data);
         break;
       case "edit_drum_step":
-        engine.editDrumStep(msg.step, msg.hits);
+        engine.editDrumStep(msg.device, msg.step, msg.hits);
         break;
       case "discard_edit":
         engine.discardEdit(msg.device);

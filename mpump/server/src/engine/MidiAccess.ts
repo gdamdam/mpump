@@ -1,18 +1,7 @@
 import { MidiPort } from "./MidiPort";
+import { DEVICE_REGISTRY } from "../data/devices";
 
-export type DeviceName = "S-1" | "T-8" | "J-6";
-
-const PORT_MATCHERS: Record<DeviceName, string> = {
-  "S-1": "S-1",
-  "T-8": "T-8",
-  "J-6": "J-6",
-};
-
-export interface DetectedPorts {
-  "S-1"?: MidiPort;
-  "T-8"?: MidiPort;
-  "J-6"?: MidiPort;
-}
+export type DetectedPorts = Record<string, MidiPort>;
 
 /** Check if Web MIDI is available in this browser. */
 export function isSupported(): boolean {
@@ -38,9 +27,9 @@ export function detectPorts(access: MIDIAccess): DetectedPorts {
   for (const output of access.outputs.values()) {
     if (output.state !== "connected" || output.type !== "output") continue;
     const name = output.name ?? "";
-    for (const [device, match] of Object.entries(PORT_MATCHERS)) {
-      if (name.includes(match) && !(device in result)) {
-        result[device as DeviceName] = new MidiPort(output);
+    for (const config of DEVICE_REGISTRY) {
+      if (name.includes(config.portMatch) && !(config.id in result)) {
+        result[config.id] = new MidiPort(output);
       }
     }
   }

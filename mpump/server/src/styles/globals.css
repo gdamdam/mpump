@@ -308,6 +308,11 @@ button:active {
   font-weight: 600;
 }
 
+.chord-set {
+  opacity: 0.5;
+  font-weight: 400;
+}
+
 .info-desc {
   font-size: 11px;
   color: var(--text-dim);

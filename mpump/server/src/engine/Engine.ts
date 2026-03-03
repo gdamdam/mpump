@@ -1,12 +1,12 @@
-import type { StepData, DrumHit, EngineState, Catalog } from "../types";
+import type { StepData, DrumHit, EngineState, Catalog, DeviceState } from "../types";
 import type { MidiPort } from "./MidiPort";
 import { MidiClock } from "./MidiClock";
 import { Sequencer } from "./Sequencer";
 import { T8Sequencer } from "./T8Sequencer";
-import { type DetectedPorts, type DeviceName, detectPorts } from "./MidiAccess";
-import { getPattern, getDrumPattern, getBassPattern, getJ6Pattern } from "../data/patterns";
-import { loadCatalog, type LoadedCatalog } from "../data/catalog";
-import { DEVICES } from "../data/devices";
+import { type DetectedPorts, detectPorts } from "./MidiAccess";
+import { getMelodicPattern, getDrumPattern, getBassPattern } from "../data/patterns";
+import { loadCatalog, getDeviceGenres, getDeviceBassGenres, getExtrasKey, getBassExtrasKey, getMelodicSource, type LoadedCatalog } from "../data/catalog";
+import { DEVICE_REGISTRY, findDeviceConfig, type DeviceConfig } from "../data/devices";
 import { parseKey } from "../data/keys";
 
 export interface EngineCallbacks {
@@ -15,35 +15,37 @@ export interface EngineCallbacks {
   onCatalogChange: (catalog: Catalog) => void;
 }
 
+// ── Per-device internal state (not exported to UI) ───────────────────────
+
+interface InternalDeviceState {
+  config: DeviceConfig;
+  genreIdx: number;
+  patternIdx: number;
+  bassGenreIdx: number;
+  bassPatternIdx: number;
+  keyIdx: number;
+  octave: number;
+  step: number;
+  connected: boolean;
+  paused: boolean;
+  melodicEdit: (StepData | null)[] | null;
+  drumEdit: DrumHit[][] | null;
+  bassEdit: (StepData | null)[] | null;
+}
+
 /**
  * Orchestrator: manages device lifecycle, sequencers, clocks, state, and edits.
- * Port of WebEngine + DeviceScanner for the browser.
+ * Data-driven — supports any device in the DEVICE_REGISTRY.
  */
 export class Engine {
   private access: MIDIAccess;
   private cb: EngineCallbacks;
   private data!: LoadedCatalog;
 
-  // State
   bpm = 120;
 
-  // S-1
-  s1GenreIdx = 0; s1PatternIdx = 0; s1KeyIdx = 0; s1Octave = 2;
-  s1Step = -1; s1Connected = false; s1Paused = false;
-  private s1Edit: (StepData | null)[] | null = null;
-
-  // T-8
-  t8DrumGenreIdx = 0; t8BassGenreIdx = 0;
-  t8PatternIdx = 0; t8BassPatternIdx = 0;
-  t8KeyIdx = 0; t8Octave = 2;
-  t8Step = -1; t8Connected = false; t8Paused = false;
-  private t8DrumEdit: DrumHit[][] | null = null;
-  private t8BassEdit: (StepData | null)[] | null = null;
-
-  // J-6
-  j6GenreIdx = 0; j6PatternIdx = 0;
-  j6Step = -1; j6Connected = false; j6Paused = false;
-  private j6Edit: (StepData | null)[] | null = null;
+  // Per-device state
+  private deviceStates: Map<string, InternalDeviceState> = new Map();
 
   // Active sequencers/clocks
   private sequencers: Map<string, Sequencer | T8Sequencer> = new Map();
@@ -61,6 +63,18 @@ export class Engine {
   constructor(access: MIDIAccess, callbacks: EngineCallbacks) {
     this.access = access;
     this.cb = callbacks;
+
+    // Initialize state for every registered device
+    for (const config of DEVICE_REGISTRY) {
+      this.deviceStates.set(config.id, {
+        config,
+        genreIdx: 0, patternIdx: 0,
+        bassGenreIdx: 0, bassPatternIdx: 0,
+        keyIdx: 0, octave: 2,
+        step: -1, connected: false, paused: false,
+        melodicEdit: null, drumEdit: null, bassEdit: null,
+      });
+    }
   }
 
   async init(): Promise<void> {
@@ -101,9 +115,7 @@ export class Engine {
     // Send allNotesOff on all known ports
     for (const port of Object.values(this.ports)) {
       if (port) {
-        port.allNotesOff(0);
-        port.allNotesOff(1);
-        port.allNotesOff(9);
+        for (let ch = 0; ch < 16; ch++) port.allNotesOff(ch);
       }
     }
 
@@ -115,35 +127,29 @@ export class Engine {
 
   private handleDeviceChange(): void {
     const newPorts = detectPorts(this.access);
-    const allDevices: DeviceName[] = ["S-1", "T-8", "J-6"];
 
-    for (const name of allDevices) {
-      const wasConnected = !!this.ports[name];
-      const isConnected = !!newPorts[name];
+    for (const [id, ds] of this.deviceStates) {
+      const wasConnected = ds.connected;
+      const isConnected = id in newPorts;
 
-      if (!wasConnected && isConnected && !this.stopped.has(name)) {
+      if (!wasConnected && isConnected && !this.stopped.has(id)) {
         // New device — start
-        this.ports[name] = newPorts[name];
-        this.setConnected(name, true);
-        this.startDevice(name);
+        this.ports[id] = newPorts[id];
+        ds.connected = true;
+        this.startDevice(id);
       } else if (wasConnected && !isConnected) {
         // Device removed — stop
-        this.stopDevice(name);
-        delete this.ports[name];
-        this.setConnected(name, false);
+        this.stopDevice(id);
+        delete this.ports[id];
+        ds.connected = false;
+        ds.step = -1;
       } else if (isConnected) {
         // Still connected — update port ref
-        this.ports[name] = newPorts[name];
+        this.ports[id] = newPorts[id];
       }
     }
 
     this.cb.onStateChange(this.getState());
-  }
-
-  private setConnected(name: DeviceName, connected: boolean): void {
-    if (name === "S-1") { this.s1Connected = connected; if (!connected) this.s1Step = -1; }
-    else if (name === "T-8") { this.t8Connected = connected; if (!connected) this.t8Step = -1; }
-    else if (name === "J-6") { this.j6Connected = connected; if (!connected) this.j6Step = -1; }
   }
 
   // ── Sequencer lifecycle ──────────────────────────────────────────────
@@ -153,214 +159,211 @@ export class Engine {
     const barDur = 16 * stepDur;
     const now = performance.now();
     const elapsed = now - this.t0;
-    let n = Math.ceil(elapsed / barDur);
+    const n = Math.ceil(elapsed / barDur);
     let tBar = this.t0 + n * barDur;
     if (tBar - now < 50) tBar += barDur;
     return tBar;
   }
 
-  private startDevice(name: DeviceName): void {
-    const port = this.ports[name];
-    if (!port) return;
+  private startDevice(id: string): void {
+    const port = this.ports[id];
+    const ds = this.deviceStates.get(id);
+    if (!port || !ds) return;
+    const config = ds.config;
 
     const tStart = this.nextBarBoundary();
 
-    if (name === "S-1") {
-      const pattern = this.s1Edit ?? this.getS1Pattern();
-      const root = this.getS1Root();
+    if (config.mode === "synth") {
+      const pattern = ds.melodicEdit ?? this.getDeviceMelodicPattern(id);
+      const root = this.getDeviceRoot(id);
+
+      let pc: number | null = null;
+      if (config.useProgramChange) {
+        const genres = this.getDeviceGenres(id);
+        const genre = genres[ds.genreIdx]?.name ?? "";
+        const chordSet = this.data.catalog.j6.chord_sets?.[genre] ?? null;
+        pc = chordSet !== null ? chordSet - 1 : null;
+      }
+
       const seq = new Sequencer({
-        port, channel: DEVICES["S-1"].channel,
+        port, channel: config.channels.main,
         pattern, rootNote: root,
-        baseVelocity: DEVICES["S-1"].baseVelocity,
-        gateFraction: DEVICES["S-1"].gateFraction,
-        bpm: this.bpm, tStart,
-      });
-      seq.onStep = (step) => {
-        this.s1Step = step;
-        this.cb.onStep("s1", step);
-      };
-      seq.start();
-      this.sequencers.set("S-1", seq);
-
-      const clock = new MidiClock(port, this.bpm);
-      clock.start();
-      this.clocks.set("S-1", clock);
-
-    } else if (name === "T-8") {
-      const drumPattern = this.t8DrumEdit ?? this.getT8DrumPattern();
-      const bassPattern = this.t8BassEdit ?? this.getT8BassPattern();
-      const root = this.getT8Root();
-      const seq = new T8Sequencer({
-        port, drumPattern, bassPattern,
-        bassRoot: root,
-        baseVelocity: DEVICES["T-8"].baseVelocity,
-        bpm: this.bpm, tStart,
-      });
-      seq.onStep = (step) => {
-        this.t8Step = step;
-        this.cb.onStep("t8", step);
-      };
-      seq.start();
-      this.sequencers.set("T-8", seq);
-
-      const clock = new MidiClock(port, this.bpm);
-      clock.start();
-      this.clocks.set("T-8", clock);
-
-    } else if (name === "J-6") {
-      const pattern = this.j6Edit ?? this.getJ6Pattern();
-      const genre = this.data.catalog.j6.genres[this.j6GenreIdx]?.name ?? "";
-      const chordSet = this.data.catalog.j6.chord_sets?.[genre] ?? null;
-      const pc = chordSet !== null ? chordSet - 1 : null;
-      const seq = new Sequencer({
-        port, channel: DEVICES["J-6"].channel,
-        pattern, rootNote: DEVICES["J-6"].rootNote,
-        baseVelocity: DEVICES["J-6"].baseVelocity,
-        gateFraction: DEVICES["J-6"].gateFraction,
+        baseVelocity: config.baseVelocity,
+        gateFraction: config.gateFraction,
         bpm: this.bpm, tStart,
         programChange: pc,
       });
       seq.onStep = (step) => {
-        this.j6Step = step;
-        this.cb.onStep("j6", step);
+        ds.step = step;
+        this.cb.onStep(id, step);
       };
       seq.start();
-      this.sequencers.set("J-6", seq);
+      this.sequencers.set(id, seq);
 
+    } else {
+      // drums or drums+bass
+      const drumPattern = ds.drumEdit ?? this.getDeviceDrumPattern(id);
+      const bassPattern = config.mode === "drums+bass"
+        ? (ds.bassEdit ?? this.getDeviceBassPattern(id))
+        : Array.from({ length: 16 }, (): null => null);
+      const root = config.hasKey ? this.getDeviceRoot(id) : config.rootNote;
+
+      const seq = new T8Sequencer({
+        port,
+        drumChannel: config.channels.main,
+        bassChannel: config.channels.bass ?? config.channels.main,
+        drumPattern, bassPattern,
+        bassRoot: root,
+        baseVelocity: config.baseVelocity,
+        drumGateFraction: config.drumGateFraction,
+        bassGateFraction: config.gateFraction,
+        drumMap: config.drumMap,
+        bpm: this.bpm, tStart,
+      });
+      seq.onStep = (step) => {
+        ds.step = step;
+        this.cb.onStep(id, step);
+      };
+      seq.start();
+      this.sequencers.set(id, seq);
+    }
+
+    if (config.sendClock) {
       const clock = new MidiClock(port, this.bpm);
       clock.start();
-      this.clocks.set("J-6", clock);
+      this.clocks.set(id, clock);
     }
   }
 
-  private stopDevice(name: DeviceName): void {
-    const seq = this.sequencers.get(name);
-    if (seq) { seq.stop(); this.sequencers.delete(name); }
-    const clk = this.clocks.get(name);
-    if (clk) { clk.stop(); this.clocks.delete(name); }
+  private stopDevice(id: string): void {
+    const seq = this.sequencers.get(id);
+    if (seq) { seq.stop(); this.sequencers.delete(id); }
+    const clk = this.clocks.get(id);
+    if (clk) { clk.stop(); this.clocks.delete(id); }
   }
 
-  private restartDevice(name: DeviceName): void {
-    this.stopDevice(name);
-    if (this.ports[name] && !this.stopped.has(name)) {
-      this.startDevice(name);
+  private restartDevice(id: string): void {
+    this.stopDevice(id);
+    const ds = this.deviceStates.get(id);
+    if (ds && this.ports[id] && !this.stopped.has(id)) {
+      this.startDevice(id);
     }
   }
 
   private pauseAll(): void {
-    for (const [name] of this.sequencers) {
-      this.stopDevice(name as DeviceName);
+    for (const [id] of this.sequencers) {
+      this.stopDevice(id);
     }
   }
 
   private resumeAll(): void {
-    const allDevices: DeviceName[] = ["S-1", "T-8", "J-6"];
-    for (const name of allDevices) {
-      if (this.ports[name] && !this.stopped.has(name)) {
-        this.startDevice(name);
+    for (const [id, ds] of this.deviceStates) {
+      if (ds.connected && this.ports[id] && !this.stopped.has(id)) {
+        this.startDevice(id);
       }
     }
   }
 
   // ── Pattern helpers ──────────────────────────────────────────────────
 
-  private getS1Pattern(): (StepData | null)[] {
-    const genre = this.data.catalog.s1.genres[this.s1GenreIdx]?.name ?? "";
-    return getPattern("s1", genre, this.s1PatternIdx);
+  private getDeviceGenres(id: string): import("../types").GenreInfo[] {
+    const ds = this.deviceStates.get(id);
+    if (!ds) return [];
+    return getDeviceGenres(this.data.catalog, id, ds.config.mode);
   }
 
-  private getS1Root(): number {
-    const keyName = this.data.catalog.keys[this.s1KeyIdx] ?? "A";
-    return parseKey(keyName, this.s1Octave);
+  private getDeviceBassGenres(): import("../types").GenreInfo[] {
+    return getDeviceBassGenres(this.data.catalog);
   }
 
-  private getT8DrumPattern(): DrumHit[][] {
-    const genre = this.data.catalog.t8.drum_genres[this.t8DrumGenreIdx]?.name ?? "";
-    return getDrumPattern(genre, this.t8PatternIdx);
+  private getDeviceMelodicPattern(id: string): (StepData | null)[] {
+    const ds = this.deviceStates.get(id)!;
+    const genres = this.getDeviceGenres(id);
+    const genre = genres[ds.genreIdx]?.name ?? "";
+    return getMelodicPattern(getMelodicSource(id), genre, ds.patternIdx);
   }
 
-  private getT8BassPattern(): (StepData | null)[] {
-    const genre = this.data.catalog.t8.bass_genres[this.t8BassGenreIdx]?.name ?? "";
-    return getBassPattern(genre, this.t8BassPatternIdx);
+  private getDeviceDrumPattern(id: string): DrumHit[][] {
+    const ds = this.deviceStates.get(id)!;
+    const genres = this.getDeviceGenres(id);
+    const genre = genres[ds.genreIdx]?.name ?? "";
+    return getDrumPattern(genre, ds.patternIdx);
   }
 
-  private getT8Root(): number {
-    const keyName = this.data.catalog.keys[this.t8KeyIdx] ?? "A";
-    return parseKey(keyName, this.t8Octave);
+  private getDeviceBassPattern(id: string): (StepData | null)[] {
+    const ds = this.deviceStates.get(id)!;
+    const bassGenres = this.getDeviceBassGenres();
+    const genre = bassGenres[ds.bassGenreIdx]?.name ?? "";
+    return getBassPattern(genre, ds.bassPatternIdx);
   }
 
-  private getJ6Pattern(): (StepData | null)[] {
-    const genre = this.data.catalog.j6.genres[this.j6GenreIdx]?.name ?? "";
-    return getJ6Pattern(genre, this.j6PatternIdx);
+  private getDeviceRoot(id: string): number {
+    const ds = this.deviceStates.get(id)!;
+    const config = ds.config;
+    if (!config.hasKey) return config.rootNote;
+    const keyName = this.data.catalog.keys[ds.keyIdx] ?? "A";
+    return parseKey(keyName, ds.octave);
   }
 
   // ── Commands ─────────────────────────────────────────────────────────
 
   setGenre(device: string, idx: number): void {
-    if (device === "s1") {
-      this.s1GenreIdx = idx;
-      this.s1PatternIdx = 0;
-      this.s1Edit = null;
-      this.restartDevice("S-1");
-    } else if (device === "t8") {
-      this.t8DrumGenreIdx = idx;
-      this.t8PatternIdx = 0;
-      this.t8DrumEdit = null;
-      this.restartDevice("T-8");
-    } else if (device === "t8_bass") {
-      this.t8BassGenreIdx = idx;
-      this.t8BassPatternIdx = 0;
-      this.t8BassEdit = null;
-      this.restartDevice("T-8");
-    } else if (device === "j6") {
-      this.j6GenreIdx = idx;
-      this.j6PatternIdx = 0;
-      this.j6Edit = null;
-      this.restartDevice("J-6");
+    const isBass = device.endsWith("_bass");
+    const deviceId = isBass ? device.slice(0, -5) : device;
+    const ds = this.deviceStates.get(deviceId);
+    if (!ds) return;
+
+    if (isBass) {
+      ds.bassGenreIdx = idx;
+      ds.bassPatternIdx = 0;
+      ds.bassEdit = null;
+    } else {
+      ds.genreIdx = idx;
+      ds.patternIdx = 0;
+      if (ds.config.mode === "synth") {
+        ds.melodicEdit = null;
+      } else {
+        ds.drumEdit = null;
+      }
     }
+    this.restartDevice(deviceId);
     this.cb.onStateChange(this.getState());
   }
 
   setPattern(device: string, idx: number): void {
-    if (device === "s1") {
-      this.s1PatternIdx = idx;
-      this.s1Edit = null;
-      this.restartDevice("S-1");
-    } else if (device === "t8") {
-      this.t8PatternIdx = idx;
-      this.t8DrumEdit = null;
-      this.restartDevice("T-8");
-    } else if (device === "t8_bass") {
-      this.t8BassPatternIdx = idx;
-      this.t8BassEdit = null;
-      this.restartDevice("T-8");
-    } else if (device === "j6") {
-      this.j6PatternIdx = idx;
-      this.j6Edit = null;
-      this.restartDevice("J-6");
+    const isBass = device.endsWith("_bass");
+    const deviceId = isBass ? device.slice(0, -5) : device;
+    const ds = this.deviceStates.get(deviceId);
+    if (!ds) return;
+
+    if (isBass) {
+      ds.bassPatternIdx = idx;
+      ds.bassEdit = null;
+    } else {
+      ds.patternIdx = idx;
+      if (ds.config.mode === "synth") {
+        ds.melodicEdit = null;
+      } else {
+        ds.drumEdit = null;
+      }
     }
+    this.restartDevice(deviceId);
     this.cb.onStateChange(this.getState());
   }
 
   setKey(device: string, idx: number): void {
-    if (device === "s1") {
-      this.s1KeyIdx = idx;
-      this.restartDevice("S-1");
-    } else if (device === "t8") {
-      this.t8KeyIdx = idx;
-      this.restartDevice("T-8");
-    }
+    const ds = this.deviceStates.get(device);
+    if (!ds || !ds.config.hasKey) return;
+    ds.keyIdx = idx;
+    this.restartDevice(device);
     this.cb.onStateChange(this.getState());
   }
 
   setOctave(device: string, octave: number): void {
-    if (device === "s1") {
-      this.s1Octave = octave;
-      this.restartDevice("S-1");
-    } else if (device === "t8") {
-      this.t8Octave = octave;
-      this.restartDevice("T-8");
-    }
+    const ds = this.deviceStates.get(device);
+    if (!ds || !ds.config.hasOctave) return;
+    ds.octave = octave;
+    this.restartDevice(device);
     this.cb.onStateChange(this.getState());
   }
 
@@ -371,33 +374,26 @@ export class Engine {
     // Update all clocks
     for (const [, clk] of this.clocks) clk.setBpm(this.bpm);
 
-    // Restart all sequencers at new bar boundary
-    const devices: DeviceName[] = ["S-1", "T-8", "J-6"];
-    for (const name of devices) {
-      if (this.sequencers.has(name)) {
-        this.restartDevice(name);
-      }
+    // Restart all active sequencers at new bar boundary
+    for (const [id] of this.sequencers) {
+      this.restartDevice(id);
     }
     this.cb.onStateChange(this.getState());
   }
 
   togglePause(device: string): void {
-    const nameMap: Record<string, DeviceName> = { s1: "S-1", t8: "T-8", j6: "J-6" };
-    const name = nameMap[device];
-    if (!name) return;
+    const ds = this.deviceStates.get(device);
+    if (!ds) return;
 
-    if (this.stopped.has(name)) {
-      this.stopped.delete(name);
-      if (device === "s1") this.s1Paused = false;
-      else if (device === "t8") this.t8Paused = false;
-      else if (device === "j6") this.j6Paused = false;
-      if (this.ports[name]) this.startDevice(name);
+    if (this.stopped.has(device)) {
+      this.stopped.delete(device);
+      ds.paused = false;
+      if (this.ports[device]) this.startDevice(device);
     } else {
-      this.stopped.add(name);
-      if (device === "s1") { this.s1Paused = true; this.s1Step = -1; }
-      else if (device === "t8") { this.t8Paused = true; this.t8Step = -1; }
-      else if (device === "j6") { this.j6Paused = true; this.j6Step = -1; }
-      this.stopDevice(name);
+      this.stopped.add(device);
+      ds.paused = true;
+      ds.step = -1;
+      this.stopDevice(device);
     }
     this.cb.onStateChange(this.getState());
   }
@@ -405,112 +401,105 @@ export class Engine {
   // ── Edit commands ────────────────────────────────────────────────────
 
   editStep(device: string, stepIdx: number, data: StepData | null): void {
-    if (device === "s1") {
-      if (!this.s1Edit) this.s1Edit = [...this.getS1Pattern()];
-      this.s1Edit[stepIdx] = data;
-      const seq = this.sequencers.get("S-1") as Sequencer | undefined;
-      seq?.setPattern(this.s1Edit);
-    } else if (device === "t8_bass") {
-      if (!this.t8BassEdit) this.t8BassEdit = [...this.getT8BassPattern()];
-      this.t8BassEdit[stepIdx] = data;
-      const seq = this.sequencers.get("T-8") as T8Sequencer | undefined;
-      if (seq) seq.setBassPattern(this.t8BassEdit);
-    } else if (device === "j6") {
-      if (!this.j6Edit) this.j6Edit = [...this.getJ6Pattern()];
-      this.j6Edit[stepIdx] = data;
-      const seq = this.sequencers.get("J-6") as Sequencer | undefined;
-      seq?.setPattern(this.j6Edit);
+    const isBass = device.endsWith("_bass");
+    const deviceId = isBass ? device.slice(0, -5) : device;
+    const ds = this.deviceStates.get(deviceId);
+    if (!ds) return;
+
+    if (isBass) {
+      if (!ds.bassEdit) ds.bassEdit = [...this.getDeviceBassPattern(deviceId)];
+      ds.bassEdit[stepIdx] = data;
+      const seq = this.sequencers.get(deviceId) as T8Sequencer | undefined;
+      if (seq) seq.setBassPattern(ds.bassEdit);
+    } else {
+      if (!ds.melodicEdit) ds.melodicEdit = [...this.getDeviceMelodicPattern(deviceId)];
+      ds.melodicEdit[stepIdx] = data;
+      const seq = this.sequencers.get(deviceId) as Sequencer | undefined;
+      seq?.setPattern(ds.melodicEdit);
     }
     this.cb.onStateChange(this.getState());
   }
 
-  editDrumStep(stepIdx: number, hits: DrumHit[]): void {
-    if (!this.t8DrumEdit) {
-      this.t8DrumEdit = this.getT8DrumPattern().map(h => [...h]);
+  editDrumStep(device: string, stepIdx: number, hits: DrumHit[]): void {
+    const ds = this.deviceStates.get(device);
+    if (!ds) return;
+    if (!ds.drumEdit) {
+      ds.drumEdit = this.getDeviceDrumPattern(device).map(h => [...h]);
     }
-    this.t8DrumEdit[stepIdx] = hits;
-    const seq = this.sequencers.get("T-8") as T8Sequencer | undefined;
-    if (seq) seq.setDrumPattern(this.t8DrumEdit);
+    ds.drumEdit[stepIdx] = hits;
+    const seq = this.sequencers.get(device) as T8Sequencer | undefined;
+    if (seq) seq.setDrumPattern(ds.drumEdit);
     this.cb.onStateChange(this.getState());
   }
 
   discardEdit(device: string): void {
-    if (device === "s1") {
-      this.s1Edit = null;
-      this.restartDevice("S-1");
-    } else if (device === "t8") {
-      this.t8DrumEdit = null;
-      this.t8BassEdit = null;
-      this.restartDevice("T-8");
-    } else if (device === "j6") {
-      this.j6Edit = null;
-      this.restartDevice("J-6");
-    }
+    const ds = this.deviceStates.get(device);
+    if (!ds) return;
+    ds.melodicEdit = null;
+    ds.drumEdit = null;
+    ds.bassEdit = null;
+    this.restartDevice(device);
     this.cb.onStateChange(this.getState());
   }
 
   saveToExtras(device: string, name: string, desc: string): void {
+    const ds = this.deviceStates.get(device);
+    if (!ds) return;
     const extras = this.loadExtras();
-    let steps: unknown;
-    let key: string;
+    const config = ds.config;
 
-    if (device === "s1") {
-      key = "s1";
-      steps = this.s1Edit ?? this.getS1Pattern();
-      this.s1Edit = null;
-    } else if (device === "t8") {
+    if (config.mode === "drums+bass") {
       // Save both drum and bass
-      const drumKey = "t8_drums";
-      const bassKey = "t8_bass";
-      const drumSteps = this.t8DrumEdit ?? this.getT8DrumPattern();
-      const bassSteps = this.t8BassEdit ?? this.getT8BassPattern();
+      const drumKey = getExtrasKey(device, config.mode);
+      const bassKey = getBassExtrasKey(config.mode)!;
+      const drumSteps = ds.drumEdit ?? this.getDeviceDrumPattern(device);
+      const bassSteps = ds.bassEdit ?? this.getDeviceBassPattern(device);
 
       extras[drumKey] = extras[drumKey] ?? [];
       extras[drumKey].push({ name, desc, steps: drumSteps });
       extras[bassKey] = extras[bassKey] ?? [];
       extras[bassKey].push({ name, desc, steps: bassSteps });
 
-      this.t8DrumEdit = null;
-      this.t8BassEdit = null;
-      this.saveExtras(extras);
-      this.data = loadCatalogSync(this.data, extras);
-      this.restartDevice("T-8");
-      this.cb.onCatalogChange(this.getCatalog());
-      this.cb.onStateChange(this.getState());
-      return;
-    } else if (device === "j6") {
-      key = "j6";
-      steps = this.j6Edit ?? this.getJ6Pattern();
-      this.j6Edit = null;
+      ds.drumEdit = null;
+      ds.bassEdit = null;
     } else {
-      return;
+      const key = getExtrasKey(device, config.mode);
+      let steps: unknown;
+      if (config.mode === "synth") {
+        steps = ds.melodicEdit ?? this.getDeviceMelodicPattern(device);
+        ds.melodicEdit = null;
+      } else {
+        // drums only
+        steps = ds.drumEdit ?? this.getDeviceDrumPattern(device);
+        ds.drumEdit = null;
+      }
+      extras[key] = extras[key] ?? [];
+      extras[key].push({ name, desc, steps });
     }
 
-    extras[key] = extras[key] ?? [];
-    extras[key].push({ name, desc, steps });
     this.saveExtras(extras);
     this.data = loadCatalogSync(this.data, extras);
-
-    const nameMap: Record<string, DeviceName> = { s1: "S-1", j6: "J-6" };
-    if (nameMap[device]) this.restartDevice(nameMap[device]);
-
+    this.restartDevice(device);
     this.cb.onCatalogChange(this.getCatalog());
     this.cb.onStateChange(this.getState());
   }
 
   deleteExtra(device: string, idx: number): void {
+    const ds = this.deviceStates.get(device);
+    if (!ds) return;
     const extras = this.loadExtras();
-    const keyMap: Record<string, string> = { s1: "s1", t8: "t8_drums", t8_bass: "t8_bass", j6: "j6" };
+    const config = ds.config;
 
-    if (device === "t8") {
+    if (config.mode === "drums+bass") {
       // Delete from both drums and bass at same index
-      const drumList = extras["t8_drums"] ?? [];
-      const bassList = extras["t8_bass"] ?? [];
+      const drumKey = getExtrasKey(device, config.mode);
+      const bassKey = getBassExtrasKey(config.mode)!;
+      const drumList = extras[drumKey] ?? [];
+      const bassList = extras[bassKey] ?? [];
       if (idx >= 0 && idx < drumList.length) drumList.splice(idx, 1);
       if (idx >= 0 && idx < bassList.length) bassList.splice(idx, 1);
     } else {
-      const key = keyMap[device];
-      if (!key) return;
+      const key = getExtrasKey(device, config.mode);
       const list = extras[key] ?? [];
       if (idx >= 0 && idx < list.length) list.splice(idx, 1);
     }
@@ -539,47 +528,42 @@ export class Engine {
   // ── State serialization ──────────────────────────────────────────────
 
   getState(): EngineState {
-    const s1Editing = this.s1Edit !== null;
-    const t8Editing = this.t8DrumEdit !== null || this.t8BassEdit !== null;
-    const j6Editing = this.j6Edit !== null;
+    const devices: Record<string, DeviceState> = {};
 
-    return {
-      bpm: this.bpm,
-      s1: {
-        genre_idx: this.s1GenreIdx,
-        pattern_idx: this.s1PatternIdx,
-        key_idx: this.s1KeyIdx,
-        octave: this.s1Octave,
-        step: this.s1Step,
-        connected: this.s1Connected,
-        paused: this.s1Paused,
-        editing: s1Editing,
-        pattern_data: this.s1Edit ?? this.getS1Pattern(),
-      },
-      t8: {
-        drum_genre_idx: this.t8DrumGenreIdx,
-        bass_genre_idx: this.t8BassGenreIdx,
-        pattern_idx: this.t8PatternIdx,
-        bass_pattern_idx: this.t8BassPatternIdx,
-        key_idx: this.t8KeyIdx,
-        octave: this.t8Octave,
-        step: this.t8Step,
-        connected: this.t8Connected,
-        paused: this.t8Paused,
-        editing: t8Editing,
-        drum_data: this.t8DrumEdit ?? this.getT8DrumPattern(),
-        bass_data: this.t8BassEdit ?? this.getT8BassPattern(),
-      },
-      j6: {
-        genre_idx: this.j6GenreIdx,
-        pattern_idx: this.j6PatternIdx,
-        step: this.j6Step,
-        connected: this.j6Connected,
-        paused: this.j6Paused,
-        editing: j6Editing,
-        pattern_data: this.j6Edit ?? this.getJ6Pattern(),
-      },
-    };
+    for (const [id, ds] of this.deviceStates) {
+      const config = ds.config;
+      const editing = ds.melodicEdit !== null || ds.drumEdit !== null || ds.bassEdit !== null;
+
+      devices[id] = {
+        id,
+        mode: config.mode,
+        genre_idx: ds.genreIdx,
+        pattern_idx: ds.patternIdx,
+        bass_genre_idx: ds.bassGenreIdx,
+        bass_pattern_idx: ds.bassPatternIdx,
+        key_idx: ds.keyIdx,
+        octave: ds.octave,
+        step: ds.step,
+        connected: ds.connected,
+        paused: ds.paused,
+        editing,
+        pattern_data: config.mode === "synth"
+          ? (ds.melodicEdit ?? this.getDeviceMelodicPattern(id))
+          : [],
+        drum_data: config.mode !== "synth"
+          ? (ds.drumEdit ?? this.getDeviceDrumPattern(id))
+          : [],
+        bass_data: config.mode === "drums+bass"
+          ? (ds.bassEdit ?? this.getDeviceBassPattern(id))
+          : [],
+        label: config.label,
+        accent: config.accent,
+        hasKey: config.hasKey,
+        hasOctave: config.hasOctave,
+      };
+    }
+
+    return { bpm: this.bpm, devices };
   }
 
   getCatalog(): Catalog {

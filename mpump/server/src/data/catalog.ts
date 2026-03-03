@@ -1,4 +1,4 @@
-import type { Catalog } from "../types";
+import type { Catalog, DeviceMode, GenreInfo } from "../types";
 import { loadPatterns, setStore, type PatternStore } from "./patterns";
 
 export interface LoadedCatalog {
@@ -22,6 +22,40 @@ export async function loadCatalog(): Promise<LoadedCatalog> {
 
   return result;
 }
+
+// ── Device-to-catalog helpers ────────────────────────────────────────────
+
+/** Get the main genre list for a device (melodic genres for synths, drum genres for drums). */
+export function getDeviceGenres(catalog: Catalog, deviceId: string, mode: DeviceMode): GenreInfo[] {
+  if (mode === "synth") {
+    return deviceId === "j6" ? catalog.j6.genres : catalog.s1.genres;
+  }
+  // drums or drums+bass → drum genres
+  return catalog.t8.drum_genres;
+}
+
+/** Get the bass genre list (only for drums+bass devices). */
+export function getDeviceBassGenres(catalog: Catalog): GenreInfo[] {
+  return catalog.t8.bass_genres;
+}
+
+/** Get the extras storage key for a device's main patterns. */
+export function getExtrasKey(deviceId: string, mode: DeviceMode): string {
+  if (mode === "synth") return deviceId === "j6" ? "j6" : "s1";
+  return "t8_drums";
+}
+
+/** Get the extras storage key for a device's bass patterns (drums+bass only). */
+export function getBassExtrasKey(mode: DeviceMode): string | undefined {
+  return mode === "drums+bass" ? "t8_bass" : undefined;
+}
+
+/** Get the melodic pattern source pool for a device. */
+export function getMelodicSource(deviceId: string): "s1" | "j6" {
+  return deviceId === "j6" ? "j6" : "s1";
+}
+
+// ── Extras loading ───────────────────────────────────────────────────────
 
 function loadExtras(): Record<string, { name: string; desc: string; steps: unknown }[]> {
   try {

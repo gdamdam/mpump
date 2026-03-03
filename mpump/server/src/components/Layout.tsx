@@ -9,14 +9,15 @@ interface Props {
 }
 
 export function Layout({ state, catalog, command }: Props) {
-  const anyConnected = state.s1.connected || state.t8.connected || state.j6.connected;
+  const connectedDevices = Object.values(state.devices).filter(d => d.connected);
+  const anyConnected = connectedDevices.length > 0;
 
   return (
     <div className="layout">
       <header className="header">
         <div className="title">
           <pre className="title-art">{"█▀▄▀█ █▀█ █ █ █▀▄▀█ █▀█\n█ ▀ █ █▀▀ ▀▄▀ █ ▀ █ █▀▀"}</pre>
-          <span className="title-version">v1.0.2</span>
+          <span className="title-version">v1.1.0</span>
         </div>
         <BpmControl bpm={state.bpm} command={command} />
       </header>
@@ -26,7 +27,7 @@ export function Layout({ state, catalog, command }: Props) {
           <div className="no-devices">
             <div className="no-devices-icon">no instruments detected</div>
             <div className="no-devices-hint">
-              connect a Roland AIRA device (S-1, T-8, J-6) via USB
+              connect a MIDI device via USB
             </div>
             <div className="no-devices-hint">
               devices are detected automatically when plugged in
@@ -34,63 +35,14 @@ export function Layout({ state, catalog, command }: Props) {
           </div>
         )}
 
-        {state.s1.connected && (
+        {connectedDevices.map(ds => (
           <DevicePanel
-            device="s1"
-            label="S-1"
-            accent="var(--s1)"
-            state={state.s1}
+            key={ds.id}
+            state={ds}
             catalog={catalog}
-            genreList={catalog?.s1.genres}
-            patternList={catalog?.s1.genres[state.s1.genre_idx]?.patterns}
-            genreIdx={state.s1.genre_idx}
-            keys={catalog?.keys}
-            keyIdx={state.s1.key_idx}
-            octave={state.s1.octave}
-            octaveMin={catalog?.octave_min ?? 0}
-            octaveMax={catalog?.octave_max ?? 6}
-            bpm={state.bpm}
             command={command}
           />
-        )}
-
-        {state.t8.connected && (
-          <DevicePanel
-            device="t8"
-            label="T-8"
-            accent="var(--t8)"
-            state={state.t8}
-            catalog={catalog}
-            genreList={catalog?.t8.drum_genres}
-            patternList={catalog?.t8.drum_genres[state.t8.drum_genre_idx]?.patterns}
-            bassGenreList={catalog?.t8.bass_genres}
-            bassPatternList={catalog?.t8.bass_genres[state.t8.bass_genre_idx]?.patterns}
-            genreIdx={state.t8.drum_genre_idx}
-            bassGenreIdx={state.t8.bass_genre_idx}
-            keys={catalog?.keys}
-            keyIdx={state.t8.key_idx}
-            octave={state.t8.octave}
-            octaveMin={catalog?.octave_min ?? 0}
-            octaveMax={catalog?.octave_max ?? 6}
-            bpm={state.bpm}
-            command={command}
-          />
-        )}
-
-        {state.j6.connected && (
-          <DevicePanel
-            device="j6"
-            label="J-6"
-            accent="var(--j6)"
-            state={state.j6}
-            catalog={catalog}
-            genreList={catalog?.j6.genres}
-            patternList={catalog?.j6.genres[state.j6.genre_idx]?.patterns}
-            genreIdx={state.j6.genre_idx}
-            bpm={state.bpm}
-            command={command}
-          />
-        )}
+        ))}
       </main>
     </div>
   );

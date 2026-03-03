@@ -3,21 +3,23 @@ import type { StepData, DrumHit } from "../types";
 
 const LOOKAHEAD_MS = 100;
 const SCHEDULE_INTERVAL_MS = 25;
-const DRUM_CH = 9;
-const BASS_CH = 1;
-const DRUM_GATE_FRAC = 0.10;
-const BASS_GATE_FRAC = 0.50;
 
 /**
- * Combined drum + bass sequencer for T-8.
- * Drums on channel 10 (idx 9), bass on channel 2 (idx 1).
+ * Combined drum + bass sequencer.
+ * Drums on a configurable channel, bass on a configurable channel.
+ * Supports drumMap for note remapping (e.g., GM notes → device-specific notes).
  */
 export class T8Sequencer {
   private port: MidiPort;
+  private drumCh: number;
+  private bassCh: number;
   private drumPattern: DrumHit[][] = [];
   private bassPattern: (StepData | null)[] = [];
   private bassRoot: number;
   private baseVelocity: number;
+  private drumGateFrac: number;
+  private bassGateFrac: number;
+  private drumMap: Record<number, number> | undefined;
   private bpm: number;
 
   private timerId: number = 0;
@@ -29,18 +31,28 @@ export class T8Sequencer {
 
   constructor(opts: {
     port: MidiPort;
+    drumChannel: number;
+    bassChannel: number;
     drumPattern: DrumHit[][];
     bassPattern: (StepData | null)[];
     bassRoot?: number;
     baseVelocity?: number;
+    drumGateFraction?: number;
+    bassGateFraction?: number;
+    drumMap?: Record<number, number>;
     bpm: number;
     tStart?: number;
   }) {
     this.port = opts.port;
+    this.drumCh = opts.drumChannel;
+    this.bassCh = opts.bassChannel;
     this.drumPattern = opts.drumPattern;
     this.bassPattern = opts.bassPattern;
     this.bassRoot = opts.bassRoot ?? 45;
     this.baseVelocity = opts.baseVelocity ?? 100;
+    this.drumGateFrac = opts.drumGateFraction ?? 0.10;
+    this.bassGateFrac = opts.bassGateFraction ?? 0.50;
+    this.drumMap = opts.drumMap;
     this.bpm = opts.bpm;
     this.nextStepTime = opts.tStart ?? performance.now();
   }
@@ -57,11 +69,11 @@ export class T8Sequencer {
     this.running = false;
     window.clearInterval(this.timerId);
     if (this.pendingBassNote !== null) {
-      this.port.noteOff(BASS_CH, this.pendingBassNote);
+      this.port.noteOff(this.bassCh, this.pendingBassNote);
       this.pendingBassNote = null;
     }
-    this.port.allNotesOff(DRUM_CH);
-    this.port.allNotesOff(BASS_CH);
+    this.port.allNotesOff(this.drumCh);
+    this.port.allNotesOff(this.bassCh);
   }
 
   setDrumPattern(pattern: DrumHit[][]): void {
@@ -83,8 +95,8 @@ export class T8Sequencer {
   private schedule(): void {
     const horizon = performance.now() + LOOKAHEAD_MS;
     const stepDur = 60000 / (this.bpm * 4);
-    const drumGate = stepDur * DRUM_GATE_FRAC;
-    const bassGate = stepDur * BASS_GATE_FRAC;
+    const drumGate = stepDur * this.drumGateFrac;
+    const bassGate = stepDur * this.bassGateFrac;
 
     while (this.nextStepTime < horizon) {
       const idx = this.stepIndex % 16;
@@ -99,8 +111,9 @@ export class T8Sequencer {
       // ── Drums ──
       const drumHits = this.drumPattern[idx] ?? [];
       for (const hit of drumHits) {
-        this.port.noteOn(DRUM_CH, hit.note, hit.vel, stepTime);
-        this.port.noteOff(DRUM_CH, hit.note, stepTime + drumGate);
+        const note = this.drumMap ? (this.drumMap[hit.note] ?? hit.note) : hit.note;
+        this.port.noteOn(this.drumCh, note, hit.vel, stepTime);
+        this.port.noteOff(this.drumCh, note, stepTime + drumGate);
       }
 
       // ── Bass ──
@@ -109,7 +122,7 @@ export class T8Sequencer {
       if (bassStep === null) {
         // Rest — release pending bass
         if (this.pendingBassNote !== null) {
-          this.port.noteOff(BASS_CH, this.pendingBassNote, stepTime);
+          this.port.noteOff(this.bassCh, this.pendingBassNote, stepTime);
           this.pendingBassNote = null;
         }
       } else {
@@ -118,16 +131,16 @@ export class T8Sequencer {
 
         if (bassStep.slide && this.pendingBassNote !== null) {
           // Slide: legato
-          this.port.noteOn(BASS_CH, midiNote, velocity, stepTime);
-          this.port.noteOff(BASS_CH, this.pendingBassNote, stepTime);
+          this.port.noteOn(this.bassCh, midiNote, velocity, stepTime);
+          this.port.noteOff(this.bassCh, this.pendingBassNote, stepTime);
           this.pendingBassNote = midiNote;
         } else {
           // Normal
           if (this.pendingBassNote !== null) {
-            this.port.noteOff(BASS_CH, this.pendingBassNote, stepTime);
+            this.port.noteOff(this.bassCh, this.pendingBassNote, stepTime);
             this.pendingBassNote = null;
           }
-          this.port.noteOn(BASS_CH, midiNote, velocity, stepTime);
+          this.port.noteOn(this.bassCh, midiNote, velocity, stepTime);
           this.pendingBassNote = midiNote;
         }
 
@@ -135,7 +148,7 @@ export class T8Sequencer {
         const nextIdx = (idx + 1) % 16;
         const nextBass = this.bassPattern[nextIdx];
         if (!nextBass?.slide) {
-          this.port.noteOff(BASS_CH, midiNote, stepTime + bassGate);
+          this.port.noteOff(this.bassCh, midiNote, stepTime + bassGate);
           this.pendingBassNote = null;
         }
       }

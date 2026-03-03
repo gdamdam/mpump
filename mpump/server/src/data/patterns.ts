@@ -35,31 +35,23 @@ export function setStore(s: PatternStore): void {
   store = s;
 }
 
-/** Get an S-1 melodic pattern. */
-export function getPattern(device: string, genre: string, idx: number): (StepData | null)[] {
+/** Get a melodic pattern by source pool ("s1" or "j6"). */
+export function getMelodicPattern(source: "s1" | "j6", genre: string, idx: number): (StepData | null)[] {
   const s = getStore();
-  if (device === "s1") {
-    return s.s1[genre]?.[idx] ?? emptyMelodic();
-  }
-  return emptyMelodic();
+  const pool = source === "j6" ? s.j6 : s.s1;
+  return pool[genre]?.[idx] ?? emptyMelodic();
 }
 
-/** Get a T-8 drum pattern. */
+/** Get a drum pattern. */
 export function getDrumPattern(genre: string, idx: number): DrumHit[][] {
   const s = getStore();
   return s.t8Drums[genre]?.[idx] ?? emptyDrums();
 }
 
-/** Get a T-8 bass pattern. */
+/** Get a bass pattern. */
 export function getBassPattern(genre: string, idx: number): (StepData | null)[] {
   const s = getStore();
   return s.t8Bass[genre]?.[idx] ?? emptyMelodic();
-}
-
-/** Get a J-6 chord pattern. */
-export function getJ6Pattern(genre: string, idx: number): (StepData | null)[] {
-  const s = getStore();
-  return s.j6[genre]?.[idx] ?? emptyMelodic();
 }
 
 function emptyMelodic(): (StepData | null)[] {
