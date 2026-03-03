@@ -14,10 +14,13 @@ dependencies = [
     "mido>=1.3.3",
     "python-rtmidi>=1.5.8",
     "textual>=0.47.0",
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
 ]
 
 [project.scripts]
 mpump = "mpump.cli:main"
+mpump-web = "mpump.web.server:main"
 
 [tool.setuptools.packages.find]
 include = ["mpump*"]
