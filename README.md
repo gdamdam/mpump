@@ -1,4 +1,4 @@
-# mpump v1.3.0
+# mpump v1.3.1
 
 Hot-plug MIDI sequencer for USB MIDI devices. Plug in a device and it starts playing immediately. Unplug it and it stops cleanly. No configuration files, no drivers — just USB and sound.
 
