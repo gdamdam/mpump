@@ -295,6 +295,50 @@ button:active {
   background: var(--fg-dim);
 }
 
+.device-len-btn {
+  min-width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  background: var(--bg-cell);
+  color: var(--text-dim);
+  border: 1px solid transparent;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, border-color 0.15s;
+  font-family: inherit;
+}
+.device-len-btn.active {
+  border-color: var(--device-accent);
+  color: var(--device-accent);
+}
+
+.device-midi-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  background: var(--bg-cell);
+  color: var(--text-dim);
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+.device-midi-btn:active {
+  background: var(--fg-dim);
+}
+
+.doubled-row {
+  opacity: 0.45;
+  margin-top: 2px;
+}
+
 .panel-label {
   font-size: 18px;
   font-weight: 700;

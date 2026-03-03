@@ -9,6 +9,11 @@ import { Transport } from "./Transport";
 import { Picker } from "./Picker";
 import { StepEditor } from "./StepEditor";
 import { SaveDialog } from "./SaveDialog";
+import {
+  exportMelodicMidi, exportDrumMidi, exportDrumBassMidi,
+  importMelodicMidi, importDrumMidi,
+} from "../utils/midi";
+import { parseKey } from "../data/keys";
 
 type PickerMode = null | "genre" | "pattern" | "key" | "octave" | "bass_genre" | "bass_pattern";
 
@@ -25,6 +30,10 @@ export function DevicePanel({ state, catalog, command }: Props) {
   const [editingStep, setEditingStep] = useState<number | null>(null);
   const [editingBassStep, setEditingBassStep] = useState<number | null>(null);
   const [showSave, setShowSave] = useState(false);
+  const [doubled, setDoubled] = useState(false);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const drumFileInputRef = useRef<HTMLInputElement>(null);
 
   // Genre/pattern lists from catalog
   const genreList = catalog ? getDeviceGenres(catalog, device, mode) : [];
@@ -129,6 +138,58 @@ export function DevicePanel({ state, catalog, command }: Props) {
     command({ type: "discard_edit", device });
   }, [device, command]);
 
+  // ── MIDI export ────────────────────────────────────────────────────────
+
+  const handleExport = useCallback(() => {
+    const bpm = 120; // default; could be passed as prop
+    const genrePart = genreName.replace(/\s+/g, "-");
+    const patPart = patInfo?.name?.replace(/\s+/g, "-") ?? "pattern";
+
+    if (mode === "synth") {
+      const rootNote = state.hasKey && keys
+        ? parseKey(keys[state.key_idx], state.octave)
+        : 45;
+      exportMelodicMidi(state.pattern_data, rootNote, bpm, `${label}-${genrePart}-${patPart}.mid`);
+    } else if (mode === "drums") {
+      exportDrumMidi(state.drum_data, bpm, `${label}-${genrePart}-${patPart}.mid`);
+    } else if (mode === "drums+bass") {
+      const rootNote = state.hasKey && keys
+        ? parseKey(keys[state.key_idx], state.octave)
+        : 45;
+      exportDrumBassMidi(state.drum_data, state.bass_data, rootNote, bpm, `${label}-${genrePart}-${patPart}.mid`);
+    }
+  }, [mode, state, keys, genreName, patInfo, label]);
+
+  // ── MIDI import ────────────────────────────────────────────────────────
+
+  const handleImportMelodic = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const steps = await importMelodicMidi(file);
+      for (let i = 0; i < Math.min(steps.length, 16); i++) {
+        command({ type: "edit_step", device, step: i, data: steps[i] });
+      }
+    } catch (err) {
+      console.error("MIDI import failed:", err);
+    }
+    e.target.value = ""; // reset for re-import
+  }, [device, command]);
+
+  const handleImportDrum = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const drumData = await importDrumMidi(file);
+      for (let i = 0; i < Math.min(drumData.length, 16); i++) {
+        command({ type: "edit_drum_step", device, step: i, hits: drumData[i] });
+      }
+    } catch (err) {
+      console.error("MIDI import failed:", err);
+    }
+    e.target.value = "";
+  }, [device, command]);
+
   return (
     <div
       className="device-panel"
@@ -144,6 +205,27 @@ export function DevicePanel({ state, catalog, command }: Props) {
         </span>
         <div className="panel-actions">
           <button
+            className={`device-len-btn ${doubled ? "active" : ""}`}
+            title="Toggle 16/32 steps"
+            onClick={() => setDoubled((d) => !d)}
+          >
+            {doubled ? "32" : "16"}
+          </button>
+          <button
+            className="device-midi-btn"
+            title="Export MIDI"
+            onClick={handleExport}
+          >
+            &#x21E9;
+          </button>
+          <button
+            className="device-midi-btn"
+            title="Import MIDI"
+            onClick={() => mode === "synth" ? fileInputRef.current?.click() : drumFileInputRef.current?.click()}
+          >
+            &#x21E7;
+          </button>
+          <button
             className="device-shuffle-btn"
             title="Randomize genre &amp; pattern"
             onClick={() => command({ type: "randomize_device", device })}
@@ -153,6 +235,10 @@ export function DevicePanel({ state, catalog, command }: Props) {
           <Transport device={device} paused={state.paused} command={command} />
         </div>
       </div>
+
+      {/* Hidden file inputs for MIDI import */}
+      <input ref={fileInputRef} type="file" accept=".mid,.midi" style={{ display: "none" }} onChange={handleImportMelodic} />
+      <input ref={drumFileInputRef} type="file" accept=".mid,.midi" style={{ display: "none" }} onChange={handleImportDrum} />
 
       {/* ── drums or drums+bass: drum section + optional bass ──────── */}
       {mode !== "synth" ? (
@@ -178,6 +264,16 @@ export function DevicePanel({ state, catalog, command }: Props) {
               accent={accent}
               onToggle={handleDrumToggle}
             />
+            {doubled && (
+              <div className="doubled-row">
+                <DrumGrid
+                  drumData={state.drum_data}
+                  currentStep={-1}
+                  accent={accent}
+                  onToggle={handleDrumToggle}
+                />
+              </div>
+            )}
           </div>
 
           {/* BASS section (drums+bass only) */}
@@ -224,6 +320,17 @@ export function DevicePanel({ state, catalog, command }: Props) {
                 onTap={handleBassTap}
                 onLongPress={handleBassLongPress}
               />
+              {doubled && (
+                <div className="doubled-row">
+                  <BassGrid
+                    steps={state.bass_data}
+                    currentStep={-1}
+                    accent={accent}
+                    onTap={handleBassTap}
+                    onLongPress={handleBassLongPress}
+                  />
+                </div>
+              )}
             </div>
           )}
         </>
@@ -262,6 +369,17 @@ export function DevicePanel({ state, catalog, command }: Props) {
             onTap={handleStepTap}
             onLongPress={handleStepLongPress}
           />
+          {doubled && (
+            <div className="doubled-row">
+              <StepGrid
+                steps={state.pattern_data}
+                currentStep={-1}
+                accent={accent}
+                onTap={handleStepTap}
+                onLongPress={handleStepLongPress}
+              />
+            </div>
+          )}
         </>
       )}
 
