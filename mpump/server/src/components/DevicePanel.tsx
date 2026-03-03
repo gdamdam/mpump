@@ -183,7 +183,16 @@ export function DevicePanel({ state, catalog, command }: Props) {
           {/* BASS section (drums+bass only) */}
           {mode === "drums+bass" && bassGenreList && (
             <div className="t8-section">
-              <div className="t8-section-label" style={{ color: accent }}>bass</div>
+              <div className="t8-section-header">
+                <div className="t8-section-label" style={{ color: accent }}>bass</div>
+                <button
+                  className="device-shuffle-btn"
+                  title="Randomize bass genre &amp; pattern"
+                  onClick={() => command({ type: "randomize_bass", device })}
+                >
+                  &#x2684;
+                </button>
+              </div>
               <button className="info-row" onClick={() => setPicker("bass_genre")}>
                 <span className="info-key">genre</span>
                 <span className="info-val" style={{ color: accent }}>

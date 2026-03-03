@@ -84,4 +84,5 @@ export type ClientMessage =
   | { type: "save_pattern"; device: string; name: string; desc: string }
   | { type: "delete_pattern"; device: string; idx: number }
   | { type: "randomize_all" }
-  | { type: "randomize_device"; device: string };
+  | { type: "randomize_device"; device: string }
+  | { type: "randomize_bass"; device: string };

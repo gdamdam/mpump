@@ -122,6 +122,9 @@ export function useEngine() {
       case "randomize_device":
         engine.randomizeSingle(msg.device);
         break;
+      case "randomize_bass":
+        engine.randomizeBass(msg.device);
+        break;
     }
   }, []);
 

@@ -423,6 +423,22 @@ export class Engine {
     this.cb.onStateChange(this.getState());
   }
 
+  randomizeBass(device: string): void {
+    const ds = this.deviceStates.get(device);
+    if (!ds || !ds.connected || ds.config.mode !== "drums+bass") return;
+
+    const bassGenres = this.getDeviceBassGenres();
+    const nonExtras = bassGenres.map((g, i) => ({ g, i })).filter(x => x.g.name !== "extras");
+    if (nonExtras.length === 0) return;
+    const pick = nonExtras[Math.floor(Math.random() * nonExtras.length)];
+    ds.bassGenreIdx = pick.i;
+    ds.bassPatternIdx = Math.floor(Math.random() * pick.g.patterns.length);
+    ds.bassEdit = null;
+
+    this.restartDevice(device);
+    this.cb.onStateChange(this.getState());
+  }
+
   togglePause(device: string): void {
     const ds = this.deviceStates.get(device);
     if (!ds) return;
