@@ -196,10 +196,21 @@ def main():
 
     parser = argparse.ArgumentParser(
         prog="mpump-web",
-        description="mpump web UI — control your AIRA devices from a browser",
+        description="mpump web UI — control Roland AIRA devices from a browser.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=(
+            "Open http://<your-mac-ip>:PORT in any browser (iOS Safari, desktop, etc.).\n"
+            "Supports Add-to-Home-Screen for a full-screen PWA experience.\n\n"
+            "Features:\n"
+            "  - Live pattern visualization synced to playback\n"
+            "  - Browse and switch genres, patterns, keys, octaves\n"
+            "  - Tap steps to edit patterns in real time\n"
+            "  - Save edited patterns to the EXTRAS genre (~/.mpump/extras.json)\n"
+            "  - Multiple simultaneous browser clients\n"
+        ),
     )
-    parser.add_argument("--bpm", type=int, default=120, help="Initial BPM (20–300)")
-    parser.add_argument("--port", type=int, default=8080, help="HTTP port (default 8080)")
+    parser.add_argument("--bpm", type=int, default=120, metavar="N", help="initial tempo in BPM, 20–300 (default: 120)")
+    parser.add_argument("--port", type=int, default=8080, metavar="N", help="HTTP port to listen on (default: 8080)")
     args = parser.parse_args()
 
     app.state.bpm = args.bpm

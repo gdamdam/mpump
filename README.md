@@ -1,4 +1,4 @@
-# mpump v0.2.0
+# mpump v1.0.1
 
 Hot-plug MIDI sequencer for Roland AIRA Compact devices. Plug in a device and it starts playing immediately. Unplug it and it stops cleanly. No configuration files, no drivers — just USB and sound.
 
@@ -18,9 +18,19 @@ Requires Python 3.11+ and macOS (CoreMIDI). All supported devices are USB class-
 
 ---
 
-## Two interfaces
+## Three interfaces
 
-### Terminal UI (recommended)
+### Web UI
+
+```bash
+mpump-web
+```
+
+Opens a web server on port 8080. Point any browser on the local network at `http://<your-mac-ip>:8080` — works great from iOS Safari. Supports Add-to-Home-Screen for a full-screen PWA experience.
+
+Features: live step-grid visualization, genre/pattern/key/octave switching, tap-to-edit patterns, save edited patterns to the EXTRAS genre. Multiple browser clients can connect simultaneously.
+
+### Terminal UI
 
 ```bash
 mpump-ui
@@ -31,7 +41,7 @@ Three-panel TUI showing S-1, T-8 and J-6 side by side. Browse and commit pattern
 ### Headless CLI
 
 ```bash
-mpump
+mpump --cli
 ```
 
 Starts immediately with the given flags, no UI.
@@ -46,6 +56,25 @@ Starts immediately with the given flags, no UI.
 | **Roland T-8** | Drum machine (AIRA Compact) | Independent drum + bass patterns; drums on Ch 10, bass on Ch 2 |
 | **Roland J-6** | Chord synth (AIRA Compact) | Chord-stab progressions on Ch 1; auto-selects chord set via Program Change |
 | **Roland SP-404MK2** | Sampler | Fixed pad-trigger pattern on Ch 1 |
+
+---
+
+## Web UI (`mpump-web`)
+
+```bash
+mpump-web                     # defaults: BPM 120, port 8080
+mpump-web --bpm 133           # custom tempo
+mpump-web --port 9000         # custom port
+```
+
+| Flag | Default | Description |
+|---|---|---|
+| `--bpm N` | `120` | Initial tempo (20–300) |
+| `--port N` | `8080` | HTTP port to listen on |
+
+### Pattern editing
+
+Tap any step in the grid to toggle it on/off. Long-press (or right-click) a step to open the detail editor where you can adjust semitone offset, velocity, and slide. Edited patterns can be saved to the **EXTRAS** genre, which persists across sessions in `~/.mpump/extras.json` and is available in all three interfaces.
 
 ---
 
@@ -141,6 +170,10 @@ Root is always C (MIDI 60). On connect, mpump sends a Program Change to auto-sel
 mpump --list-j6
 ```
 
+### EXTRAS — user-created patterns
+
+Patterns edited and saved via the web UI or TUI are stored in `~/.mpump/extras.json` and appear as the **extras** genre in all interfaces.
+
 ---
 
 ## Sync model
@@ -166,16 +199,22 @@ On acid patterns, steps marked `slide=True` send the next `note_on` before the p
 ```
 pyproject.toml
 mpump/
-  cli.py          # mpump entry point (headless)
-  ui_cli.py       # mpump-ui entry point (terminal UI)
+  cli.py          # mpump entry point (headless + TUI)
   ui.py           # Textual TUI application
   scanner.py      # hot-plug: polls MIDI ports every 0.5 s, spawns threads
   sequencer.py    # per-device 16-step loop thread (Sequencer + T8Sequencer)
   devices.py      # device profiles
-  patterns.py     # S-1: 60 patterns
-  patterns_t8.py  # T-8: 60 drum + 60 bass patterns
-  patterns_j6.py  # J-6: 60 chord progressions
+  patterns.py     # S-1: 150 patterns (15 genres × 10)
+  patterns_t8.py  # T-8: 150 drum + 150 bass patterns
+  patterns_j6.py  # J-6: 150 chord progressions
+  extras.py       # user-created patterns (~/.mpump/extras.json)
   keys.py         # key name → root MIDI note
+  web/
+    engine.py     # WebEngine: async state manager wrapping DeviceScanner
+    server.py     # FastAPI + WebSocket + static SPA serving
+  frontend/
+    src/           # React + TypeScript SPA (Vite)
+    dist/          # built output (served by mpump-web)
 ```
 
 ---
