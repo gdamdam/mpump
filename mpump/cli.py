@@ -11,6 +11,7 @@ Default: opens the terminal UI.  Pass --cli for headless operation.
 import argparse
 import sys
 
+from .devices import DEVICE_REGISTRY
 from .keys import parse_key, valid_key_names, DEFAULT_KEY, DEFAULT_OCTAVE, OCTAVE_MIN, OCTAVE_MAX
 from .patterns import get_pattern, list_patterns, GENRE_NAMES, GENRES
 from .patterns_t8 import (
@@ -132,26 +133,42 @@ def parse_args() -> argparse.Namespace:
     )
 
     # Listing
-    parser.add_argument("--list",    action="store_true", help="List all S-1 patterns and exit")
-    parser.add_argument("--list-t8",      action="store_true", help="List all T-8 drum patterns and exit")
-    parser.add_argument("--list-t8-bass", action="store_true", help="List all T-8 bass patterns and exit")
-    parser.add_argument("--list-j6", action="store_true", help="List all J-6 chord patterns and exit")
+    parser.add_argument("--list",          action="store_true", help="List all synth patterns and exit")
+    parser.add_argument("--list-drums",    action="store_true", help="List all drum patterns and exit")
+    parser.add_argument("--list-bass",     action="store_true", help="List all bass patterns and exit")
+    parser.add_argument("--list-devices",  action="store_true", help="List all 50 supported devices and exit")
+    # Deprecated aliases
+    parser.add_argument("--list-t8",       action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--list-t8-bass",  action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--list-j6",       action="store_true", help="List all J-6 chord patterns and exit")
 
     return parser.parse_args()
+
+
+def _print_devices() -> None:
+    print("Supported devices (50):\n")
+    print(f"  {'ID':<20} {'Label':<22} {'Mode':<12} {'Port match'}")
+    print(f"  {'─'*20} {'─'*22} {'─'*12} {'─'*20}")
+    for d in DEVICE_REGISTRY:
+        print(f"  {d.id:<20} {d.label:<22} {d.mode:<12} {d.port_match}")
 
 
 def main() -> None:
     args = parse_args()
 
+    if args.list_devices:
+        _print_devices()
+        return
+
     if args.list:
         print(list_patterns())
         return
 
-    if args.list_t8:
+    if args.list_drums or args.list_t8:
         print(list_t8_patterns())
         return
 
-    if args.list_t8_bass:
+    if args.list_bass or args.list_t8_bass:
         print(list_t8_bass_patterns())
         return
 
@@ -238,13 +255,11 @@ def main() -> None:
 
     scanner = DeviceScanner(
         bpm=args.bpm,
-        s1_pattern=s1_pattern,
-        s1_root=s1_root,
-        t8_drum_pattern=t8_drum,
-        t8_bass_pattern=t8_bass,
-        t8_bass_root=t8_bass_root,
-        j6_pattern=j6_pattern,
-        j6_program_change=j6_pc,
+        device_states={
+            "s1": {"pattern": s1_pattern, "root": s1_root},
+            "t8": {"drum_pattern": t8_drum, "bass_pattern": t8_bass, "bass_root": t8_bass_root},
+            "j6": {"pattern": j6_pattern, "program_change": j6_pc},
+        },
     )
     scanner.run()
 

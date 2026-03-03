@@ -3,6 +3,10 @@
 On import, loads saved patterns and injects an "extras" genre into the
 shared genre dicts (GENRES, T8_DRUMS, T8_BASS, J6_GENRES) so all
 interfaces (web, TUI, CLI) see them automatically.
+
+Keys are mode-based: "synth", "drums", "bass", "chords".
+Old device-specific keys ("s1", "t8_drums", "t8_bass", "j6") are
+migrated automatically on load.
 """
 
 from __future__ import annotations
@@ -18,6 +22,9 @@ EXTRAS_DIR = Path.home() / ".mpump"
 EXTRAS_FILE = EXTRAS_DIR / "extras.json"
 
 GENRE_KEY = "extras"
+
+# Old key → new key migration map
+_MIGRATE = {"s1": "synth", "t8_drums": "drums", "t8_bass": "bass", "j6": "chords"}
 
 # ── Serialisation helpers ─────────────────────────────────────────────────
 
@@ -48,9 +55,22 @@ def _load_raw() -> dict:
         return {}
     try:
         with open(EXTRAS_FILE) as f:
-            return json.load(f)
+            data = json.load(f)
     except (json.JSONDecodeError, OSError):
         return {}
+    # Migrate old keys if present
+    migrated = False
+    for old_key, new_key in _MIGRATE.items():
+        if old_key in data and new_key not in data:
+            data[new_key] = data.pop(old_key)
+            migrated = True
+        elif old_key in data and new_key in data:
+            # Merge old into new, then remove old
+            data[new_key].extend(data.pop(old_key))
+            migrated = True
+    if migrated:
+        _save_raw(data)
+    return data
 
 
 def _save_raw(data: dict):
@@ -81,10 +101,10 @@ def reload():
     """(Re)load extras from disk and update the shared genre dicts in place."""
     data = _load_raw()
 
-    GENRES[GENRE_KEY] = _to_melodic_tuples(data.get("s1", []))
-    T8_DRUMS[GENRE_KEY] = _to_drum_tuples(data.get("t8_drums", []))
-    T8_BASS[GENRE_KEY] = _to_melodic_tuples(data.get("t8_bass", []))
-    J6_GENRES[GENRE_KEY] = _to_melodic_tuples(data.get("j6", []))
+    GENRES[GENRE_KEY] = _to_melodic_tuples(data.get("synth", []))
+    T8_DRUMS[GENRE_KEY] = _to_drum_tuples(data.get("drums", []))
+    T8_BASS[GENRE_KEY] = _to_melodic_tuples(data.get("bass", []))
+    J6_GENRES[GENRE_KEY] = _to_melodic_tuples(data.get("chords", []))
 
     for names in (GENRE_NAMES, T8_GENRE_NAMES, J6_GENRE_NAMES):
         if GENRE_KEY not in names:
@@ -95,19 +115,29 @@ def reload():
 
 # ── Public API ────────────────────────────────────────────────────────────
 
+# Mode-based key map for public API (accepts both old and new names)
+_KEY_MAP = {
+    "s1": "synth", "synth": "synth",
+    "t8": "drums", "drums": "drums",
+    "t8_bass": "bass", "bass": "bass",
+    "j6": "chords", "chords": "chords",
+}
+
+_DRUM_KEYS = {"drums", "t8"}
+
+
 def save_pattern(device: str, name: str, desc: str, steps: list) -> bool:
-    """Persist a pattern to extras.  *device* is s1 | t8 | t8_bass | j6."""
-    key_map = {"s1": "s1", "t8": "t8_drums", "t8_bass": "t8_bass", "j6": "j6"}
-    key = key_map.get(device)
+    """Persist a pattern to extras.  *device* is synth|drums|bass|chords (or legacy s1|t8|t8_bass|j6)."""
+    key = _KEY_MAP.get(device)
     if not key:
         return False
 
     data = _load_raw()
 
-    if device in ("s1", "t8_bass", "j6"):
-        serialized = [_ser_step(s) for s in steps]
-    else:
+    if device in _DRUM_KEYS or key == "drums":
         serialized = [_ser_drum_step(s) for s in steps]
+    else:
+        serialized = [_ser_step(s) for s in steps]
 
     data.setdefault(key, []).append({"name": name, "desc": desc, "steps": serialized})
     _save_raw(data)
@@ -117,8 +147,7 @@ def save_pattern(device: str, name: str, desc: str, steps: list) -> bool:
 
 def delete_pattern(device: str, idx: int) -> bool:
     """Delete pattern at 0-based *idx* from the extras genre."""
-    key_map = {"s1": "s1", "t8": "t8_drums", "t8_bass": "t8_bass", "j6": "j6"}
-    key = key_map.get(device)
+    key = _KEY_MAP.get(device)
     if not key:
         return False
 

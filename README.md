@@ -1,4 +1,4 @@
-# mpump v1.2.4
+# mpump v1.3.0
 
 Hot-plug MIDI sequencer for USB MIDI devices. Plug in a device and it starts playing immediately. Unplug it and it stops cleanly. No configuration files, no drivers — just USB and sound.
 
@@ -73,90 +73,92 @@ The browser sequencer auto-detects 50 USB MIDI devices. Devices are recognized b
 
 ### Roland
 
-| Device | Type | Mode |
-|---|---|---|
-| S-1 | AIRA Compact monosynth | synth |
-| T-8 | AIRA Compact drum machine | drums+bass |
-| J-6 | AIRA Compact chord synth | synth |
-| SP-404MK2 | Sampler | synth |
-| TR-6S | Drum machine | drums |
-| TR-8S | Drum machine | drums |
-| MC-101 | Groovebox | drums+bass |
-| MC-707 | Groovebox | drums+bass |
-| SH-4d | Polysynth | synth |
-| TB-3 | Bass synth (303-style) | synth |
-| TB-03 | Bass synth (303 clone, Boutique) | synth |
-| JD-Xi | Crossover synth | synth |
-| JU-06A | Juno clone (Boutique) | synth |
-| SE-02 | Analog mono (Boutique) | synth |
-| GAIA 2 | Wavetable/VA polysynth | synth |
+| Device | Type | Mode | Status |
+|---|---|---|---|
+| S-1 | AIRA Compact monosynth | synth | Tested |
+| T-8 | AIRA Compact drum machine | drums+bass | Tested |
+| J-6 | AIRA Compact chord synth | synth | Tested |
+| SP-404MK2 | Sampler | synth | Untested |
+| TR-6S | Drum machine | drums | Untested |
+| TR-8S | Drum machine | drums | Untested |
+| MC-101 | Groovebox | drums+bass | Untested |
+| MC-707 | Groovebox | drums+bass | Untested |
+| SH-4d | Polysynth | synth | Untested |
+| TB-3 | Bass synth (303-style) | synth | Untested |
+| TB-03 | Bass synth (303 clone, Boutique) | synth | Untested |
+| JD-Xi | Crossover synth | synth | Untested |
+| JU-06A | Juno clone (Boutique) | synth | Untested |
+| SE-02 | Analog mono (Boutique) | synth | Untested |
+| GAIA 2 | Wavetable/VA polysynth | synth | Untested |
 
 ### Korg
 
-| Device | Type | Mode |
-|---|---|---|
-| minilogue xd | 4-voice analog poly | synth |
-| minilogue | 4-voice analog poly | synth |
-| monologue | Analog monosynth | synth |
-| NTS-1 | Programmable synth | synth |
-| drumlogue | Hybrid drum machine | drums+bass |
-| wavestate | Wave sequencing synth | synth |
-| opsix | FM synth | synth |
-| modwave | Wavetable synth | synth |
+| Device | Type | Mode | Status |
+|---|---|---|---|
+| minilogue xd | 4-voice analog poly | synth | Untested |
+| minilogue | 4-voice analog poly | synth | Untested |
+| monologue | Analog monosynth | synth | Untested |
+| NTS-1 | Programmable synth | synth | Untested |
+| drumlogue | Hybrid drum machine | drums+bass | Untested |
+| wavestate | Wave sequencing synth | synth | Untested |
+| opsix | FM synth | synth | Untested |
+| modwave | Wavetable synth | synth | Untested |
 
 ### Novation
 
-| Device | Type | Mode |
-|---|---|---|
-| Circuit Tracks | Groovebox | drums+bass |
-| Circuit Rhythm | Sample groovebox | drums |
-| Bass Station II | Analog monosynth | synth |
-| Peak | 8-voice hybrid poly | synth |
+| Device | Type | Mode | Status |
+|---|---|---|---|
+| Circuit Tracks | Groovebox | drums+bass | Untested |
+| Circuit Rhythm | Sample groovebox | drums | Untested |
+| Bass Station II | Analog monosynth | synth | Untested |
+| Peak | 8-voice hybrid poly | synth | Untested |
 
 ### Arturia
 
-| Device | Type | Mode |
-|---|---|---|
-| MicroFreak | Digital/hybrid synth | synth |
-| DrumBrute Impact | Analog drum machine | drums |
+| Device | Type | Mode | Status |
+|---|---|---|---|
+| MicroFreak | Digital/hybrid synth | synth | Untested |
+| DrumBrute Impact | Analog drum machine | drums | Untested |
 
 ### Behringer
 
-| Device | Type | Mode |
-|---|---|---|
-| TD-3 | 303 clone | synth |
-| RD-6 | 606 clone | drums |
-| Crave | Semi-modular mono | synth |
-| Model D | Minimoog clone | synth |
-| Neutron | Semi-modular | synth |
-| Poly D | 4-voice analog poly | synth |
-| K-2 | MS-20 clone | synth |
-| MS-1 | SH-101 clone | synth |
-| DeepMind 12 | 12-voice analog poly | synth |
-| Wasp Deluxe | EDP Wasp clone | synth |
+| Device | Type | Mode | Status |
+|---|---|---|---|
+| TD-3 | 303 clone | synth | Untested |
+| RD-6 | 606 clone | drums | Untested |
+| Crave | Semi-modular mono | synth | Untested |
+| Model D | Minimoog clone | synth | Untested |
+| Neutron | Semi-modular | synth | Untested |
+| Poly D | 4-voice analog poly | synth | Untested |
+| K-2 | MS-20 clone | synth | Untested |
+| MS-1 | SH-101 clone | synth | Untested |
+| DeepMind 12 | 12-voice analog poly | synth | Untested |
+| Wasp Deluxe | EDP Wasp clone | synth | Untested |
 
 ### Elektron
 
-| Device | Type | Mode |
-|---|---|---|
-| Syntakt | Drum machine + synth | drums |
-| Digitakt | Sampler / drums | drums |
-| Model:Cycles | FM groovebox | drums+bass |
-| Model:Samples | Sample groovebox | drums |
-| Analog Rytm MKII | Analog drums + sampler | drums |
-| Analog Four MKII | 4-voice analog poly | synth |
+| Device | Type | Mode | Status |
+|---|---|---|---|
+| Syntakt | Drum machine + synth | drums | Untested |
+| Digitakt | Sampler / drums | drums | Untested |
+| Model:Cycles | FM groovebox | drums+bass | Untested |
+| Model:Samples | Sample groovebox | drums | Untested |
+| Analog Rytm MKII | Analog drums + sampler | drums | Untested |
+| Analog Four MKII | 4-voice analog poly | synth | Untested |
 
 ### Other
 
-| Device | Type | Mode |
-|---|---|---|
-| TE OP-Z | Multi-track synth | synth |
-| TE EP-133 K.O. II | Sampler / drums | drums+bass |
-| Sequential Take 5 | 5-voice analog poly | synth |
-| IK UNO Drum | Analog/PCM drum machine | drums |
-| IK UNO Synth | Analog monosynth | synth |
+| Device | Type | Mode | Status |
+|---|---|---|---|
+| TE OP-Z | Multi-track synth | synth | Untested |
+| TE EP-133 K.O. II | Sampler / drums | drums+bass | Untested |
+| Sequential Take 5 | 5-voice analog poly | synth | Untested |
+| IK UNO Drum | Analog/PCM drum machine | drums | Untested |
+| IK UNO Synth | Analog monosynth | synth | Untested |
 
-The Python CLI/TUI currently supports S-1, T-8, J-6, and SP-404MK2.
+**Tested** = verified with hardware. **Untested** = port names may need adjustment; please report issues.
+
+All 50 devices are supported across all interfaces (browser sequencer, CLI, TUI, web UI). The TUI shows dedicated panels for S-1, T-8, and J-6; other devices are auto-detected and sequenced in CLI and web modes.
 
 ---
 
@@ -209,16 +211,25 @@ Browse with arrow keys (and `b/B` for bass) then press `Enter` to apply. The now
 
 ## CLI flags (`mpump` and `mpump-ui`)
 
-### S-1
+### General
 
 | Flag | Default | Description |
 |---|---|---|
 | `--bpm N` | `120` | Tempo (20-300) |
+| `--list` | — | Print all synth patterns and exit |
+| `--list-drums` | — | Print all drum patterns and exit |
+| `--list-bass` | — | Print all bass patterns and exit |
+| `--list-j6` | — | Print all J-6 chord patterns and exit |
+| `--list-devices` | — | Print all 50 supported devices and exit |
+
+### S-1
+
+| Flag | Default | Description |
+|---|---|---|
 | `--genre GENRE` | `techno` | S-1 genre — see [GENRES.md](GENRES.md) for full list |
 | `--pattern N` | `1` | Pattern 1-10 within genre |
 | `--key KEY` | `A` | Root key: `A A# Bb B C C# Db D D# Eb E F F# Gb G G# Ab` |
 | `--octave N` | `2` | Root octave 0-6 (A2 = MIDI 45) |
-| `--list` | — | Print all S-1 patterns and exit |
 
 ### T-8
 
@@ -229,8 +240,6 @@ Browse with arrow keys (and `b/B` for bass) then press `Enter` to apply. The now
 | `--t8-bass-pattern N` | `1` | Bass pattern 1-10, independent of drums |
 | `--t8-key KEY` | `A` | Root key for bass |
 | `--t8-octave N` | `2` | Root octave for bass |
-| `--list-t8` | — | Print all T-8 drum patterns and exit |
-| `--list-t8-bass` | — | Print all T-8 bass patterns and exit |
 
 ### J-6
 
@@ -238,7 +247,6 @@ Browse with arrow keys (and `b/B` for bass) then press `Enter` to apply. The now
 |---|---|---|
 | `--j6-genre GENRE` | `techno` | Chord genre — see [GENRES.md](GENRES.md) for full list |
 | `--j6-pattern N` | `1` | Chord pattern 1-10 |
-| `--list-j6` | — | Print all J-6 patterns and exit |
 
 ---
 

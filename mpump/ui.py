@@ -14,7 +14,7 @@ from textual.widget import Widget
 from textual.widgets import Footer, Static
 
 from . import __version__
-from .devices import DEVICES
+from .devices import DEVICES, get_device
 from .keys import DEFAULT_KEY, DEFAULT_OCTAVE, OCTAVE_MAX, OCTAVE_MIN, parse_key, valid_key_names
 from .patterns import GENRE_NAMES, GENRES, get_pattern
 from .patterns_t8 import T8_BASS, T8_DRUMS, T8_GENRE_NAMES, get_t8_bass_pattern, get_t8_drum_pattern
@@ -661,17 +661,13 @@ class MpumpApp(App):
     def on_mount(self) -> None:
         self._scanner = DeviceScanner(
             bpm=self.bpm,
-            s1_pattern=self._s1_pattern(),
-            s1_root=self._s1_root(),
-            t8_drum_pattern=self._t8_drum(),
-            t8_bass_pattern=self._t8_bass(),
-            t8_bass_root=self._t8_root(),
-            j6_pattern=self._j6_pattern(),
-            j6_program_change=self._j6_pc(),
-            s1_step_callback=lambda i: self.call_from_thread(self._on_s1_step, i),
-            t8_step_callback=lambda i: self.call_from_thread(self._on_t8_step, i),
-            j6_step_callback=lambda i: self.call_from_thread(self._on_j6_step, i),
-            connected_callback=self._on_connected,
+            device_states={
+                "s1": {"pattern": self._s1_pattern(), "root": self._s1_root()},
+                "t8": {"drum_pattern": self._t8_drum(), "bass_pattern": self._t8_bass(), "bass_root": self._t8_root()},
+                "j6": {"pattern": self._j6_pattern(), "program_change": self._j6_pc()},
+            },
+            step_callback=lambda did, i: self._on_step(did, i),
+            connected_callback=lambda did, s: self._on_connected(did, s),
         )
         self.call_after_refresh(self._refresh_topbar)
         self.call_after_refresh(self._refresh_s1_ui)
@@ -684,27 +680,35 @@ class MpumpApp(App):
         if self._scanner:
             self._scanner.tick()
 
-    def _on_s1_step(self, idx: int) -> None:
+    def _on_step(self, device_id: str, idx: int) -> None:
+        if device_id == "s1":
+            self.call_from_thread(self._set_s1_step, idx)
+        elif device_id == "t8":
+            self.call_from_thread(self._set_t8_step, idx)
+        elif device_id == "j6":
+            self.call_from_thread(self._set_j6_step, idx)
+
+    def _set_s1_step(self, idx: int) -> None:
         self.s1_step = idx
 
-    def _on_t8_step(self, idx: int) -> None:
+    def _set_t8_step(self, idx: int) -> None:
         self.t8_step = idx
 
-    def _on_j6_step(self, idx: int) -> None:
+    def _set_j6_step(self, idx: int) -> None:
         self.j6_step = idx
 
-    def _on_connected(self, name: str, state: bool) -> None:
-        if name == "S-1":
+    def _on_connected(self, device_id: str, state: bool) -> None:
+        if device_id == "s1":
             self.s1_connected = state
             if not state:
                 self.s1_step = -1
                 self.s1_paused = False
-        elif name == "T-8":
+        elif device_id == "t8":
             self.t8_connected = state
             if not state:
                 self.t8_step = -1
                 self.t8_paused = False
-        elif name == "J-6":
+        elif device_id == "j6":
             self.j6_connected = state
             if not state:
                 self.j6_step = -1

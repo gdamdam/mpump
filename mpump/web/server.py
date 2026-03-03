@@ -49,27 +49,27 @@ async def _event_loop():
         event = await engine._queue.get()
         kind = event[0]
         if kind == "step":
-            _, device, idx = event
-            if device == "s1":
+            _, device_id, idx = event
+            if device_id == "s1":
                 engine.s1_step = idx
-            elif device == "t8":
+            elif device_id == "t8":
                 engine.t8_step = idx
-            elif device == "j6":
+            elif device_id == "j6":
                 engine.j6_step = idx
-            await _broadcast_step(device, idx)
+            await _broadcast_step(device_id, idx)
         elif kind == "connected":
-            _, name, state = event
-            if name == "S-1":
+            _, device_id, state = event
+            if device_id == "s1":
                 engine.s1_connected = state
                 if not state:
                     engine.s1_step = -1
                     engine.s1_paused = False
-            elif name == "T-8":
+            elif device_id == "t8":
                 engine.t8_connected = state
                 if not state:
                     engine.t8_step = -1
                     engine.t8_paused = False
-            elif name == "J-6":
+            elif device_id == "j6":
                 engine.j6_connected = state
                 if not state:
                     engine.j6_step = -1

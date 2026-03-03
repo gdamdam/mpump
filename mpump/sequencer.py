@@ -210,45 +210,50 @@ class Sequencer(threading.Thread):
 
 
 class T8Sequencer(threading.Thread):
-    """Combined drum + bass sequencer for drum machines (e.g. T-8).
+    """Combined drum + bass sequencer for drum machines.
 
-    Opens a single port and drives two MIDI channels per step:
-      - Ch 10 (index 9): drum hits  — DrumStep (list of note/vel pairs)
-      - Ch  2 (index 1): bass synth — Step (semitone offset from root)
+    Opens a single port and drives one or two MIDI channels per step:
+      - Drum channel: drum hits — DrumStep (list of note/vel pairs)
+      - Bass channel (optional): bass synth — Step (semitone offset from root)
 
-    Gate lengths are independent: drums fire very short (10% of step)
-    while bass uses a longer gate (50%). Bass supports slide/accent
-    using the same logic as Sequencer.
+    Gate lengths are independent: drums fire very short while bass uses
+    a longer gate. Bass supports slide/accent using the same logic as
+    Sequencer.
     """
-
-    DRUM_CH  = 9   # MIDI channel 10 (0-indexed)
-    BASS_CH  = 1   # MIDI channel 2  (0-indexed)
-
-    DRUM_GATE_FRAC = 0.10
-    BASS_GATE_FRAC = 0.50
 
     def __init__(
         self,
+        name: str,
         port_match: str,
         drum_pattern: list[DrumStep],
-        bass_pattern: list[Step],
+        bass_pattern: list[Step] | None,
+        drum_channel: int = 9,
+        bass_channel: int | None = 1,
         bass_root: int = 45,
         base_velocity: int = 100,
+        drum_gate_frac: float = 0.10,
+        bass_gate_frac: float = 0.50,
+        drum_map: dict[int, int] | None = None,
         bpm: int = 120,
         step_callback=None,
         t_start: float | None = None,
     ):
         super().__init__(daemon=True)
-        self.name = "T-8"
-        self._port_match  = port_match
-        self._drum_pattern = drum_pattern
-        self._bass_pattern = bass_pattern
-        self._bass_root    = bass_root
-        self._base_vel     = base_velocity
-        self._stop_flag    = threading.Event()
-        self._step_dur     = 60.0 / (bpm * 4)
+        self.name = name
+        self._port_match    = port_match
+        self._drum_pattern  = drum_pattern
+        self._bass_pattern  = bass_pattern
+        self._drum_ch       = drum_channel
+        self._bass_ch       = bass_channel
+        self._bass_root     = bass_root
+        self._base_vel      = base_velocity
+        self._drum_gate_frac = drum_gate_frac
+        self._bass_gate_frac = bass_gate_frac
+        self._drum_map      = drum_map
+        self._stop_flag     = threading.Event()
+        self._step_dur      = 60.0 / (bpm * 4)
         self._step_callback = step_callback
-        self._t_start      = t_start
+        self._t_start       = t_start
 
     # ------------------------------------------------------------------
     # MIDI helpers
@@ -271,13 +276,15 @@ class T8Sequencer(threading.Thread):
         """Send all drum note_ons; return list of notes to turn off later."""
         notes = []
         for note, vel in step:
-            self._send(port, self.DRUM_CH, note, vel, on=True)
+            if self._drum_map:
+                note = self._drum_map.get(note, note)
+            self._send(port, self._drum_ch, note, vel, on=True)
             notes.append(note)
         return notes
 
     def _release_drums(self, port, notes: list[int]) -> None:
         for note in notes:
-            self._send(port, self.DRUM_CH, note, 0, on=False)
+            self._send(port, self._drum_ch, note, 0, on=False)
 
     # ------------------------------------------------------------------
     # Thread entry point
@@ -290,15 +297,20 @@ class T8Sequencer(threading.Thread):
         try:
             port = mido.open_output(self._port_match)
         except OSError as e:
-            print(f"[T-8] Could not open port: {e}")
+            print(f"[{self.name}] Could not open port: {e}")
             return
 
-        drum_gate = self._step_dur * self.DRUM_GATE_FRAC
-        bass_gate = self._step_dur * self.BASS_GATE_FRAC
-        bass_rest = self._step_dur - bass_gate
+        has_bass = self._bass_ch is not None and self._bass_pattern is not None
+        drum_gate = self._step_dur * self._drum_gate_frac
+        bass_gate = self._step_dur * self._bass_gate_frac if has_bass else 0
 
-        print(f"[T-8] Started — drums Ch10 / bass Ch2 "
-              f"root={self._bass_root} @ {round(60/(self._step_dur*4))} BPM")
+        if has_bass:
+            print(f"[{self.name}] Started — drums Ch{self._drum_ch+1} / "
+                  f"bass Ch{self._bass_ch+1} root={self._bass_root} "
+                  f"@ {round(60/(self._step_dur*4))} BPM")
+        else:
+            print(f"[{self.name}] Started — drums Ch{self._drum_ch+1} "
+                  f"@ {round(60/(self._step_dur*4))} BPM")
 
         step_idx    = 0
         pending_bass_off: int | None = None
@@ -319,30 +331,32 @@ class T8Sequencer(threading.Thread):
                 if self._step_callback:
                     self._step_callback(step_idx)
                 d_step: DrumStep  = self._drum_pattern[step_idx]
-                b_step: Step      = self._bass_pattern[step_idx]
 
                 # ── Drums ────────────────────────────────────────────
                 pending_drum_notes = self._fire_drums(port, d_step)
 
                 # ── Bass note_on (with slide carry logic) ────────────
-                if b_step is None:
-                    if pending_bass_off is not None:
-                        self._send(port, self.BASS_CH, pending_bass_off, 0, False)
-                        pending_bass_off = None
-                    pending_bass_slide = False
-                else:
-                    semitones, vel_factor, slide = b_step
-                    b_note = max(0, min(127, self._bass_root + semitones))
-                    b_vel  = min(127, int(self._base_vel * vel_factor))
+                if has_bass:
+                    b_step: Step = self._bass_pattern[step_idx]
 
-                    if pending_bass_off is not None and pending_bass_off != b_note:
-                        self._send(port, self.BASS_CH, b_note, b_vel, True)
-                        self._send(port, self.BASS_CH, pending_bass_off, 0, False)
+                    if b_step is None:
+                        if pending_bass_off is not None:
+                            self._send(port, self._bass_ch, pending_bass_off, 0, False)
+                            pending_bass_off = None
+                        pending_bass_slide = False
                     else:
-                        self._send(port, self.BASS_CH, b_note, b_vel, True)
+                        semitones, vel_factor, slide = b_step
+                        b_note = max(0, min(127, self._bass_root + semitones))
+                        b_vel  = min(127, int(self._base_vel * vel_factor))
 
-                    pending_bass_off   = b_note
-                    pending_bass_slide = slide
+                        if pending_bass_off is not None and pending_bass_off != b_note:
+                            self._send(port, self._bass_ch, b_note, b_vel, True)
+                            self._send(port, self._bass_ch, pending_bass_off, 0, False)
+                        else:
+                            self._send(port, self._bass_ch, b_note, b_vel, True)
+
+                        pending_bass_off   = b_note
+                        pending_bass_slide = slide
 
                 # ── Wait drum gate, then release drums ───────────────
                 t_drum_off = t_step_start + drum_gate
@@ -354,17 +368,18 @@ class T8Sequencer(threading.Thread):
                 self._release_drums(port, pending_drum_notes)
 
                 # ── Wait remainder up to bass gate ───────────────────
-                t_bass_off = t_step_start + bass_gate
-                delay = t_bass_off - time.perf_counter()
-                if delay > 0:
-                    self._stop_flag.wait(timeout=delay)
-                if self._stop_flag.is_set():
-                    break
+                if has_bass:
+                    t_bass_off = t_step_start + bass_gate
+                    delay = t_bass_off - time.perf_counter()
+                    if delay > 0:
+                        self._stop_flag.wait(timeout=delay)
+                    if self._stop_flag.is_set():
+                        break
 
-                # ── Release bass if not sliding ──────────────────────
-                if b_step is not None and not pending_bass_slide:
-                    self._send(port, self.BASS_CH, pending_bass_off, 0, False)
-                    pending_bass_off = None
+                    # ── Release bass if not sliding ──────────────────
+                    if self._bass_pattern[step_idx] is not None and not pending_bass_slide:
+                        self._send(port, self._bass_ch, pending_bass_off, 0, False)
+                        pending_bass_off = None
 
                 # ── Wait rest of step (absolute target) ───────────────
                 t_next = t_step_start + self._step_dur
@@ -376,8 +391,9 @@ class T8Sequencer(threading.Thread):
 
         finally:
             if pending_bass_off is not None:
-                self._send(port, self.BASS_CH, pending_bass_off, 0, False)
-            self._all_off(port, self.DRUM_CH)
-            self._all_off(port, self.BASS_CH)
+                self._send(port, self._bass_ch, pending_bass_off, 0, False)
+            self._all_off(port, self._drum_ch)
+            if has_bass:
+                self._all_off(port, self._bass_ch)
             port.close()
-            print("[T-8] Stopped.")
+            print(f"[{self.name}] Stopped.")

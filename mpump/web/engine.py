@@ -82,17 +82,13 @@ class WebEngine:
         # Scanner
         self._scanner = DeviceScanner(
             bpm=self.bpm,
-            s1_pattern=self._s1_pattern(),
-            s1_root=self._s1_root(),
-            t8_drum_pattern=self._t8_drum(),
-            t8_bass_pattern=self._t8_bass(),
-            t8_bass_root=self._t8_root(),
-            j6_pattern=self._j6_pattern(),
-            j6_program_change=self._j6_pc(),
-            s1_step_callback=lambda i: self._enqueue("step", "s1", i),
-            t8_step_callback=lambda i: self._enqueue("step", "t8", i),
-            j6_step_callback=lambda i: self._enqueue("step", "j6", i),
-            connected_callback=lambda n, s: self._enqueue("connected", n, s),
+            device_states={
+                "s1": {"pattern": self._s1_pattern(), "root": self._s1_root()},
+                "t8": {"drum_pattern": self._t8_drum(), "bass_pattern": self._t8_bass(), "bass_root": self._t8_root()},
+                "j6": {"pattern": self._j6_pattern(), "program_change": self._j6_pc()},
+            },
+            step_callback=lambda did, i: self._enqueue("step", did, i),
+            connected_callback=lambda did, s: self._enqueue("connected", did, s),
         )
 
     # ── Thread→async bridge ───────────────────────────────────────────────
