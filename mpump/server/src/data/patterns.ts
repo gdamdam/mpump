@@ -14,10 +14,10 @@ export async function loadPatterns(): Promise<PatternStore> {
   if (store) return store;
 
   const [s1, t8Drums, t8Bass, j6] = await Promise.all([
-    fetch("/data/patterns-s1.json").then(r => r.json()),
-    fetch("/data/patterns-t8-drums.json").then(r => r.json()),
-    fetch("/data/patterns-t8-bass.json").then(r => r.json()),
-    fetch("/data/patterns-j6.json").then(r => r.json()),
+    fetch(`${import.meta.env.BASE_URL}data/patterns-s1.json`).then(r => r.json()),
+    fetch(`${import.meta.env.BASE_URL}data/patterns-t8-drums.json`).then(r => r.json()),
+    fetch(`${import.meta.env.BASE_URL}data/patterns-t8-bass.json`).then(r => r.json()),
+    fetch(`${import.meta.env.BASE_URL}data/patterns-j6.json`).then(r => r.json()),
   ]);
 
   store = { s1, t8Drums, t8Bass, j6 };

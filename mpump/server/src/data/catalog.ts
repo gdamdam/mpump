@@ -9,7 +9,7 @@ export interface LoadedCatalog {
 /** Load catalog.json, pattern JSONs, and merge extras from localStorage. */
 export async function loadCatalog(): Promise<LoadedCatalog> {
   const [catalogData, patterns] = await Promise.all([
-    fetch("/data/catalog.json").then(r => r.json()) as Promise<Catalog>,
+    fetch(`${import.meta.env.BASE_URL}data/catalog.json`).then(r => r.json()) as Promise<Catalog>,
     loadPatterns(),
   ]);
 
