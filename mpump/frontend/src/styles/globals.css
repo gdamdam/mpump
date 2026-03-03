@@ -331,6 +331,11 @@ button:active {
   width: 100%;
   border-radius: 1px 1px 0 0;
   transition: height 0.15s, background 0.06s;
+  pointer-events: none;
+}
+
+.slide-marker {
+  pointer-events: none;
 }
 
 .rest-bar {
