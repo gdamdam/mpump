@@ -142,7 +142,16 @@ export function DevicePanel({ state, catalog, command }: Props) {
           {label}
           {editing && <span className="editing-badge">EDIT</span>}
         </span>
-        <Transport device={device} paused={state.paused} command={command} />
+        <div className="panel-actions">
+          <button
+            className="device-shuffle-btn"
+            title="Randomize genre &amp; pattern"
+            onClick={() => command({ type: "randomize_device", device })}
+          >
+            &#x2684;
+          </button>
+          <Transport device={device} paused={state.paused} command={command} />
+        </div>
       </div>
 
       {/* ── drums or drums+bass: drum section + optional bass ──────── */}

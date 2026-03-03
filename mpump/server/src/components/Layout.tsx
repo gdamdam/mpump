@@ -17,9 +17,18 @@ export function Layout({ state, catalog, command }: Props) {
       <header className="header">
         <div className="title">
           <pre className="title-art">{"█▀▄▀█ █▀█ █ █ █▀▄▀█ █▀█\n█ ▀ █ █▀▀ ▀▄▀ █ ▀ █ █▀▀"}</pre>
-          <span className="title-version">v1.1.0</span>
+          <span className="title-version">v1.2.1</span>
         </div>
-        <BpmControl bpm={state.bpm} command={command} />
+        <div className="header-controls">
+          <button
+            className="shuffle-btn"
+            title="Randomize genre &amp; pattern on all devices"
+            onClick={() => command({ type: "randomize_all" })}
+          >
+            &#x2684;
+          </button>
+          <BpmControl bpm={state.bpm} command={command} />
+        </div>
       </header>
 
       <main className="panels">

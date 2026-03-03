@@ -116,6 +116,12 @@ export function useEngine() {
       case "delete_pattern":
         engine.deleteExtra(msg.device, msg.idx);
         break;
+      case "randomize_all":
+        engine.randomizeAll();
+        break;
+      case "randomize_device":
+        engine.randomizeSingle(msg.device);
+        break;
     }
   }, []);
 

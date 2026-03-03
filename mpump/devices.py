@@ -1,4 +1,4 @@
-# Device profiles for supported Roland AIRA and SP devices.
+# Device profiles for supported USB MIDI devices.
 #
 # Port naming on macOS CoreMIDI:
 #   Sending TO a device uses the port named "{product} MIDI IN"

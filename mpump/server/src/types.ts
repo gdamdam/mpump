@@ -82,4 +82,6 @@ export type ClientMessage =
   | { type: "edit_drum_step"; device: string; step: number; hits: DrumHit[] }
   | { type: "discard_edit"; device: string }
   | { type: "save_pattern"; device: string; name: string; desc: string }
-  | { type: "delete_pattern"; device: string; idx: number };
+  | { type: "delete_pattern"; device: string; idx: number }
+  | { type: "randomize_all" }
+  | { type: "randomize_device"; device: string };

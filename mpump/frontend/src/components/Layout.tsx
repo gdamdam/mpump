@@ -16,7 +16,7 @@ export function Layout({ state, catalog, command }: Props) {
       <header className="header">
         <div className="title">
           <pre className="title-art">{"█▀▄▀█ █▀█ █ █ █▀▄▀█ █▀█\n█ ▀ █ █▀▀ ▀▄▀ █ ▀ █ █▀▀"}</pre>
-          <span className="title-version">v1.0.1</span>
+          <span className="title-version">v1.2.1</span>
         </div>
         <BpmControl bpm={state.bpm} command={command} />
       </header>

@@ -1,7 +1,7 @@
 {
   "name": "mpump",
   "short_name": "mpump",
-  "description": "Browser MIDI sequencer for Roland AIRA devices",
+  "description": "Browser MIDI sequencer for USB MIDI devices",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0d1117",

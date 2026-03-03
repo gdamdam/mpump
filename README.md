@@ -1,6 +1,6 @@
-# mpump v1.0.1
+# mpump v1.2.1
 
-Hot-plug MIDI sequencer for Roland AIRA Compact devices. Plug in a device and it starts playing immediately. Unplug it and it stops cleanly. No configuration files, no drivers — just USB and sound.
+Hot-plug MIDI sequencer for USB MIDI devices. Plug in a device and it starts playing immediately. Unplug it and it stops cleanly. No configuration files, no drivers — just USB and sound.
 
 Multiple devices play in sync from a shared clock. Switching patterns or pausing a device waits for the next bar boundary so everything stays phase-locked.
 
@@ -22,7 +22,7 @@ Requires Python 3.11+ and macOS (CoreMIDI). All supported devices are USB class-
 
 ### Browser sequencer (standalone)
 
-Open `https://your-host/` in Chrome, Edge, or Opera — no install, no server, no Mac required. The sequencer runs entirely in the browser using the Web MIDI API. Connect your AIRA devices via USB, grant MIDI permission, and play.
+Open `https://your-host/` in Chrome, Edge, or Opera — no install, no server, no Mac required. The sequencer runs entirely in the browser using the Web MIDI API. Connect your MIDI devices via USB, grant MIDI permission, and play.
 
 Firefox works with a Web MIDI add-on. Safari and iOS are not supported (no Web MIDI).
 
@@ -67,12 +67,34 @@ Starts immediately with the given flags, no UI.
 
 ## Supported devices
 
+### Roland AIRA Compact
+
 | Device | Type | MIDI |
 |---|---|---|
-| **Roland S-1** | Monosynth (AIRA Compact) | Genre patterns — melodic/bass lines with slides and accents |
-| **Roland T-8** | Drum machine (AIRA Compact) | Independent drum + bass patterns; drums on Ch 10, bass on Ch 2 |
-| **Roland J-6** | Chord synth (AIRA Compact) | Chord-stab progressions on Ch 1; auto-selects chord set via Program Change |
+| **Roland S-1** | Monosynth | Genre patterns — melodic/bass lines with slides and accents |
+| **Roland T-8** | Drum machine + bass | Independent drum + bass patterns; drums on Ch 10, bass on Ch 2 |
+| **Roland J-6** | Chord synth | Chord-stab progressions on Ch 1; auto-selects chord set via Program Change |
+
+### Other Roland
+
+| Device | Type | MIDI |
+|---|---|---|
 | **Roland SP-404MK2** | Sampler | Fixed pad-trigger pattern on Ch 1 |
+
+### Elektron
+
+| Device | Type | MIDI |
+|---|---|---|
+| **Elektron Syntakt** | Drum machine + synth | Drum patterns on Ch 1 |
+| **Elektron Digitakt** | Sampler / drums | Drum patterns on Ch 1 (notes 24-31) |
+
+### Teenage Engineering
+
+| Device | Type | MIDI |
+|---|---|---|
+| **TE OP-Z** | Multi-track synth | Melodic patterns on Ch 5 (bass track) |
+
+The browser sequencer (Web MIDI) auto-detects all devices listed above. The Python CLI/TUI currently supports S-1, T-8, J-6, and SP-404MK2.
 
 ---
 
@@ -86,7 +108,7 @@ mpump-web --port 9000         # custom port
 
 | Flag | Default | Description |
 |---|---|---|
-| `--bpm N` | `120` | Initial tempo (20–300) |
+| `--bpm N` | `120` | Initial tempo (20-300) |
 | `--port N` | `8080` | HTTP port to listen on |
 
 ### Pattern editing
@@ -108,18 +130,18 @@ mpump-ui --j6-genre trance --j6-pattern 4
 
 | Key | Action |
 |---|---|
-| `Tab` | Cycle focus: S-1 → T-8 → J-6 |
-| `← / →` | Previous / next genre |
-| `↑ / ↓` | Previous / next pattern (browse only) |
+| `Tab` | Cycle focus: S-1 -> T-8 -> J-6 |
+| `<- / ->` | Previous / next genre |
+| `up / down` | Previous / next pattern (browse only) |
 | `Enter` | Commit browsed pattern/genre to device |
 | `b / B` | T-8 bass pattern down / up (browse only) |
 | `k / K` | Root key down / up (immediate, S-1 and T-8) |
 | `o / O` | Octave down / up (immediate, S-1 and T-8) |
 | `Space` | Pause / resume focused device |
-| `= / -` | BPM +5 / −5 |
+| `= / -` | BPM +5 / -5 |
 | `q` | Quit |
 
-Browse with `← → ↑ ↓` (and `b/B` for bass) then press `Enter` to apply. The now-playing strip always shows what is actually running.
+Browse with arrow keys (and `b/B` for bass) then press `Enter` to apply. The now-playing strip always shows what is actually running.
 
 ---
 
@@ -129,11 +151,11 @@ Browse with `← → ↑ ↓` (and `b/B` for bass) then press `Enter` to apply. 
 
 | Flag | Default | Description |
 |---|---|---|
-| `--bpm N` | `120` | Tempo (20–300) |
+| `--bpm N` | `120` | Tempo (20-300) |
 | `--genre GENRE` | `techno` | S-1 genre — see [GENRES.md](GENRES.md) for full list |
-| `--pattern N` | `1` | Pattern 1–10 within genre |
+| `--pattern N` | `1` | Pattern 1-10 within genre |
 | `--key KEY` | `A` | Root key: `A A# Bb B C C# Db D D# Eb E F F# Gb G G# Ab` |
-| `--octave N` | `2` | Root octave 0–6 (A2 = MIDI 45) |
+| `--octave N` | `2` | Root octave 0-6 (A2 = MIDI 45) |
 | `--list` | — | Print all S-1 patterns and exit |
 
 ### T-8
@@ -141,8 +163,8 @@ Browse with `← → ↑ ↓` (and `b/B` for bass) then press `Enter` to apply. 
 | Flag | Default | Description |
 |---|---|---|
 | `--t8-genre GENRE` | `techno` | Drum/bass genre |
-| `--t8-pattern N` | `1` | Drum pattern 1–10 |
-| `--t8-bass-pattern N` | `1` | Bass pattern 1–10, independent of drums |
+| `--t8-pattern N` | `1` | Drum pattern 1-10 |
+| `--t8-bass-pattern N` | `1` | Bass pattern 1-10, independent of drums |
 | `--t8-key KEY` | `A` | Root key for bass |
 | `--t8-octave N` | `2` | Root octave for bass |
 | `--list-t8` | — | Print all T-8 drum patterns and exit |
@@ -153,14 +175,14 @@ Browse with `← → ↑ ↓` (and `b/B` for bass) then press `Enter` to apply. 
 | Flag | Default | Description |
 |---|---|---|
 | `--j6-genre GENRE` | `techno` | Chord genre — see [GENRES.md](GENRES.md) for full list |
-| `--j6-pattern N` | `1` | Chord pattern 1–10 |
+| `--j6-pattern N` | `1` | Chord pattern 1-10 |
 | `--list-j6` | — | Print all J-6 patterns and exit |
 
 ---
 
 ## Pattern library
 
-### S-1 — 150 patterns, 15 genres × 10
+### S-1 — 150 patterns, 15 genres x 10
 
 Genres: `techno`, `acid-techno`, `trance`, `dub-techno`, `idm`, `edm`, `drum-and-bass`, `house`, `breakbeat`, `jungle`, `garage`, `ambient`, `glitch`, `electro`, `downtempo`
 
@@ -170,7 +192,7 @@ All patterns are expressed as semitone offsets from the root, so `--key` and `--
 mpump --list           # full catalogue with descriptions
 ```
 
-### T-8 — 150 drum + 150 bass patterns, 15 genres × 10 each
+### T-8 — 150 drum + 150 bass patterns, 15 genres x 10 each
 
 Drum and bass patterns are selected independently. The bass runs on Ch 2; drums on Ch 10 (GM).
 
@@ -179,7 +201,7 @@ mpump --list-t8        # drum patterns
 mpump --list-t8-bass   # bass patterns
 ```
 
-### J-6 — 150 chord progressions, 15 genres × 10
+### J-6 — 150 chord progressions, 15 genres x 10
 
 Root is always C (MIDI 60). On connect, mpump sends a Program Change to auto-select the matching chord set on the J-6.
 
@@ -221,11 +243,11 @@ mpump/
   scanner.py      # hot-plug: polls MIDI ports every 0.5 s, spawns threads
   sequencer.py    # per-device 16-step loop thread (Sequencer + T8Sequencer)
   devices.py      # device profiles
-  patterns.py     # S-1: 150 patterns (15 genres × 10)
+  patterns.py     # S-1: 150 patterns (15 genres x 10)
   patterns_t8.py  # T-8: 150 drum + 150 bass patterns
   patterns_j6.py  # J-6: 150 chord progressions
   extras.py       # user-created patterns (~/.mpump/extras.json)
-  keys.py         # key name → root MIDI note
+  keys.py         # key name -> root MIDI note
   web/
     engine.py     # WebEngine: async state manager wrapping DeviceScanner
     server.py     # FastAPI + WebSocket + static SPA serving
@@ -233,7 +255,7 @@ mpump/
     src/           # React + TypeScript SPA (Vite, served by mpump-web)
     dist/          # built output
   server/
-    scripts/       # export_patterns.py — Python → JSON converter
+    scripts/       # export_patterns.py — Python -> JSON converter
     src/           # React + TypeScript standalone SPA (Web MIDI)
     public/data/   # generated pattern JSON files
     dist/          # built output — deploy to any HTTPS host
@@ -246,3 +268,4 @@ mpump/
 - macOS Sequoia 15, Python 3.11
 - Roland S-1, T-8, J-6 (hot-plug + playback confirmed)
 - Roland SP-404MK2 (hot-plug confirmed; pattern playback not yet hardware-tested)
+- Elektron Syntakt, Digitakt, OP-Z (browser sequencer — port names need hardware verification)

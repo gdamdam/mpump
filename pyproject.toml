@@ -4,12 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mpump"
-version = "1.0.1"
-description = "Hot-plug MIDI sequencer for Roland AIRA devices"
+version = "1.2.1"
+description = "Hot-plug MIDI sequencer for USB MIDI devices"
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
-keywords = ["midi", "sequencer", "roland", "aira", "music"]
+keywords = ["midi", "sequencer", "synth", "drums", "music"]
 dependencies = [
     "mido>=1.3.3",
     "python-rtmidi>=1.5.8",

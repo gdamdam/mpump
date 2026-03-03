@@ -210,7 +210,7 @@ class Sequencer(threading.Thread):
 
 
 class T8Sequencer(threading.Thread):
-    """Combined drum + bass sequencer for the Roland T-8.
+    """Combined drum + bass sequencer for drum machines (e.g. T-8).
 
     Opens a single port and drives two MIDI channels per step:
       - Ch 10 (index 9): drum hits  — DrumStep (list of note/vel pairs)

@@ -15,7 +15,7 @@ export function MidiGate({ midiState, onRetry }: Props) {
           <div className="midi-gate-title">Web MIDI not available</div>
           <div className="midi-gate-body">
             This app requires the Web MIDI API to communicate with your
-            Roland AIRA devices. Please use Chrome, Edge, or Opera.
+            MIDI devices. Please use Chrome, Edge, or Opera.
             Firefox may work with a Web MIDI add-on.
           </div>
         </>

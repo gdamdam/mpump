@@ -167,6 +167,32 @@ button:active {
   opacity: 0.5;
 }
 
+/* ── Header controls ─────────────────────────────────────────────────── */
+
+.header-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.shuffle-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: var(--bg-cell);
+  color: var(--fg);
+  border: none;
+  font-size: 22px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+.shuffle-btn:active {
+  background: var(--fg-dim);
+}
+
 /* ── BPM control ──────────────────────────────────────────────────────── */
 
 .bpm-control {
@@ -220,6 +246,30 @@ button:active {
   align-items: center;
   justify-content: space-between;
   margin-bottom: 8px;
+}
+
+.panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.device-shuffle-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: var(--bg-cell);
+  color: var(--fg);
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+.device-shuffle-btn:active {
+  background: var(--fg-dim);
 }
 
 .panel-label {

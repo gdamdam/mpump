@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-mpump — Roland AIRA MIDI sequencer.
+mpump — hot-plug MIDI sequencer.
 
-Watches for Roland AIRA devices (S-1, J-6, T-8) and SP-404MK2 over USB MIDI.
+Watches for USB MIDI devices and starts sequencing automatically.
 Plug or unplug devices at any time — loops start/stop automatically.
 
 Default: opens the terminal UI.  Pass --cli for headless operation.
@@ -37,7 +37,7 @@ DEFAULT_J6_PATTERN = 1
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="mpump",
-        description="mpump — Roland AIRA MIDI sequencer (default: terminal UI, use --cli for headless)",
+        description="mpump — hot-plug MIDI sequencer (default: terminal UI, use --cli for headless)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
             "S-1 genres:  " + ", ".join(GENRE_NAMES) + "\n"

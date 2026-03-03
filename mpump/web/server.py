@@ -196,7 +196,7 @@ def main():
 
     parser = argparse.ArgumentParser(
         prog="mpump-web",
-        description="mpump web UI — control Roland AIRA devices from a browser.",
+        description="mpump web UI — control MIDI devices from a browser.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
             "Open http://<your-mac-ip>:PORT in any browser (iOS Safari, desktop, etc.).\n"

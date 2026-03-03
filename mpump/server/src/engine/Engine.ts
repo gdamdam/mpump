@@ -381,6 +381,48 @@ export class Engine {
     this.cb.onStateChange(this.getState());
   }
 
+  private randomizeDevice(id: string): void {
+    const ds = this.deviceStates.get(id);
+    if (!ds || !ds.connected) return;
+
+    const genres = this.getDeviceGenres(id);
+    if (genres.length === 0) return;
+
+    const nonExtras = genres.map((g, i) => ({ g, i })).filter(x => x.g.name !== "extras");
+    if (nonExtras.length === 0) return;
+    const pick = nonExtras[Math.floor(Math.random() * nonExtras.length)];
+    ds.genreIdx = pick.i;
+    ds.patternIdx = Math.floor(Math.random() * pick.g.patterns.length);
+    ds.melodicEdit = null;
+    ds.drumEdit = null;
+
+    if (ds.config.mode === "drums+bass") {
+      const bassGenres = this.getDeviceBassGenres();
+      const bassNonExtras = bassGenres.map((g, i) => ({ g, i })).filter(x => x.g.name !== "extras");
+      if (bassNonExtras.length > 0) {
+        const bassPick = bassNonExtras[Math.floor(Math.random() * bassNonExtras.length)];
+        ds.bassGenreIdx = bassPick.i;
+        ds.bassPatternIdx = Math.floor(Math.random() * bassPick.g.patterns.length);
+        ds.bassEdit = null;
+      }
+    }
+
+    this.restartDevice(id);
+  }
+
+  randomizeAll(): void {
+    for (const [id, ds] of this.deviceStates) {
+      if (!ds.connected) continue;
+      this.randomizeDevice(id);
+    }
+    this.cb.onStateChange(this.getState());
+  }
+
+  randomizeSingle(device: string): void {
+    this.randomizeDevice(device);
+    this.cb.onStateChange(this.getState());
+  }
+
   togglePause(device: string): void {
     const ds = this.deviceStates.get(device);
     if (!ds) return;
