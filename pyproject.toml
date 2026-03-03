@@ -17,8 +17,7 @@ dependencies = [
 ]
 
 [project.scripts]
-mpump    = "mpump.cli:main"
-mpump-ui = "mpump.ui_cli:main"
+mpump = "mpump.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["mpump*"]

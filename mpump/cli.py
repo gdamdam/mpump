@@ -5,10 +5,7 @@ mpump — Roland AIRA MIDI sequencer.
 Watches for Roland AIRA devices (S-1, J-6, T-8) and SP-404MK2 over USB MIDI.
 Plug or unplug devices at any time — loops start/stop automatically.
 
-Usage:
-    python3 mpump.py [options]
-    python3 mpump.py --list
-    python3 mpump.py --list-t8
+Default: opens the terminal UI.  Pass --cli for headless operation.
 """
 
 import argparse
@@ -39,14 +36,29 @@ DEFAULT_J6_PATTERN = 1
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="mpump",
-        description="Stream MIDI to Roland AIRA devices (hot-plug aware)",
+        description="mpump — Roland AIRA MIDI sequencer (default: terminal UI, use --cli for headless)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
             "S-1 genres:  " + ", ".join(GENRE_NAMES) + "\n"
             "T-8 genres:  " + ", ".join(T8_GENRE_NAMES) + "\n"
             "J-6 genres:  " + ", ".join(J6_GENRE_NAMES) + "\n"
-            "Keys:        " + ", ".join(valid_key_names())
+            "Keys:        " + ", ".join(valid_key_names()) + "\n\n"
+            "UI key bindings:\n"
+            "  Tab        Switch focus between S-1, T-8 and J-6 panels\n"
+            "  ← / →      Previous / next genre\n"
+            "  ↑ / ↓      Previous / next drum pattern\n"
+            "  b / B      T-8 bass pattern down / up\n"
+            "  k / K      Key down / up  (not J-6)\n"
+            "  o / O      Octave down / up  (not J-6)\n"
+            "  Space      Pause / resume focused device\n"
+            "  = / -      BPM +5 / -5\n"
+            "  Enter      Commit browsed pattern / genre\n"
+            "  q          Quit\n"
         ),
+    )
+    parser.add_argument(
+        "--cli", action="store_true",
+        help="Run in headless CLI mode instead of the terminal UI",
     )
     parser.add_argument(
         "--bpm", type=int, default=DEFAULT_BPM, metavar="BPM",
@@ -146,6 +158,19 @@ def main() -> None:
     if not (20 <= args.bpm <= 300):
         print("Error: --bpm must be between 20 and 300", file=sys.stderr)
         sys.exit(1)
+
+    if not args.cli:
+        from .ui import run_ui
+        run_ui(
+            bpm=args.bpm,
+            s1_genre=args.genre,              s1_pattern=args.pattern,
+            s1_key=args.key,                  s1_octave=args.octave,
+            t8_genre=args.t8_genre,           t8_pattern=args.t8_pattern,
+            t8_bass_genre=args.t8_bass_genre, t8_bass_pattern=args.t8_bass_pattern,
+            t8_key=args.t8_key,               t8_octave=args.t8_octave,
+            j6_genre=args.j6_genre,           j6_pattern=args.j6_pattern,
+        )
+        return
 
     # S-1 ----------------------------------------------------------------
     try:
