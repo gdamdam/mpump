@@ -1149,18 +1149,22 @@ class MpumpApp(App):
         p = self.focused_panel
         if p == 0:
             current = self.s1_key_idx
+            _oct    = self.s1_octave          # snapshot so key change never alters octave
             def _apply(idx):
                 if idx is not None:
                     self.s1_key_idx = idx
+                    self.s1_octave  = _oct    # restore — key change must not shift octave
                     if self.keys_locked:
                         self.t8_key_idx = idx
                         self._push_t8()
                     self._push_s1()
         elif p == 1:
             current = self.t8_key_idx
+            _oct    = self.t8_octave
             def _apply(idx):
                 if idx is not None:
                     self.t8_key_idx = idx
+                    self.t8_octave  = _oct
                     if self.keys_locked:
                         self.s1_key_idx = idx
                         self._push_s1()
