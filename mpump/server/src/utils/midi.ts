@@ -43,36 +43,36 @@ function readVarLen(data: Uint8Array, offset: number): [number, number] {
 
 // ── Export: melodic pattern → MIDI file ─────────────────────────────────
 
-export function exportMelodicMidi(
+export async function exportMelodicMidi(
   steps: (StepData | null)[],
   rootNote: number,
   bpm: number,
   filename: string,
-): void {
+): Promise<void> {
   const track = buildMelodicTrack(steps, rootNote, bpm, 0);
-  downloadMidi(track, filename);
+  await saveMidi(track, filename);
 }
 
 // ── Export: drum pattern → MIDI file ────────────────────────────────────
 
-export function exportDrumMidi(
+export async function exportDrumMidi(
   drumData: DrumHit[][],
   bpm: number,
   filename: string,
-): void {
+): Promise<void> {
   const track = buildDrumTrack(drumData, bpm, 9);
-  downloadMidi(track, filename);
+  await saveMidi(track, filename);
 }
 
 // ── Export: drums+bass → MIDI file ──────────────────────────────────────
 
-export function exportDrumBassMidi(
+export async function exportDrumBassMidi(
   drumData: DrumHit[][],
   bassSteps: (StepData | null)[],
   bassRoot: number,
   bpm: number,
   filename: string,
-): void {
+): Promise<void> {
   // Merge drum and bass events into one track
   const events: MidiEvent[] = [];
   const gate = Math.floor(TICKS_PER_STEP * 0.1); // drum gate
@@ -96,7 +96,7 @@ export function exportDrumBassMidi(
   events.sort((a, b) => a.t - b.t || (a.on ? 0 : 1) - (b.on ? 0 : 1));
 
   const trackBytes = buildTrackFromEvents(events, bpm);
-  downloadMidi(trackBytes, filename);
+  await saveMidi(trackBytes, filename);
 }
 
 // ── Import: MIDI file → melodic pattern ─────────────────────────────────
@@ -237,7 +237,7 @@ function buildTrackFromEvents(events: MidiEvent[], bpm: number): number[] {
   return trackData;
 }
 
-function downloadMidi(trackData: number[], filename: string): void {
+function buildMidiBlob(trackData: number[]): Blob {
   const header: number[] = [];
 
   // "MThd"
@@ -253,11 +253,38 @@ function downloadMidi(trackData: number[], filename: string): void {
   writeU32(track, trackData.length);
 
   const bytes = new Uint8Array([...header, ...track, ...trackData]);
-  const blob = new Blob([bytes], { type: "audio/midi" });
+  return new Blob([bytes], { type: "audio/midi" });
+}
+
+async function saveMidi(trackData: number[], filename: string): Promise<void> {
+  const name = filename.endsWith(".mid") ? filename : `${filename}.mid`;
+  const blob = buildMidiBlob(trackData);
+
+  // Try native save picker (Chrome/Edge)
+  if (typeof window.showSaveFilePicker === "function") {
+    try {
+      const handle = await window.showSaveFilePicker({
+        suggestedName: name,
+        types: [{
+          description: "MIDI file",
+          accept: { "audio/midi": [".mid"] },
+        }],
+      });
+      const writable = await handle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      return;
+    } catch (err: unknown) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      // Fall through to anchor download
+    }
+  }
+
+  // Fallback: anchor download
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = filename.endsWith(".mid") ? filename : `${filename}.mid`;
+  a.download = name;
   a.click();
   URL.revokeObjectURL(url);
 }

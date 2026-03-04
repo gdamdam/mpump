@@ -30,7 +30,7 @@ export function DevicePanel({ state, catalog, command }: Props) {
   const [editingStep, setEditingStep] = useState<number | null>(null);
   const [editingBassStep, setEditingBassStep] = useState<number | null>(null);
   const [showSave, setShowSave] = useState(false);
-  const [doubled, setDoubled] = useState(false);
+  const doubled = state.patternLength === 32;
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const drumFileInputRef = useRef<HTMLInputElement>(null);
@@ -140,7 +140,7 @@ export function DevicePanel({ state, catalog, command }: Props) {
 
   // ── MIDI export ────────────────────────────────────────────────────────
 
-  const handleExport = useCallback(() => {
+  const handleExport = useCallback(async () => {
     const bpm = 120; // default; could be passed as prop
     const genrePart = genreName.replace(/\s+/g, "-");
     const patPart = patInfo?.name?.replace(/\s+/g, "-") ?? "pattern";
@@ -149,14 +149,14 @@ export function DevicePanel({ state, catalog, command }: Props) {
       const rootNote = state.hasKey && keys
         ? parseKey(keys[state.key_idx], state.octave)
         : 45;
-      exportMelodicMidi(state.pattern_data, rootNote, bpm, `${label}-${genrePart}-${patPart}.mid`);
+      await exportMelodicMidi(state.pattern_data, rootNote, bpm, `${label}-${genrePart}-${patPart}.mid`);
     } else if (mode === "drums") {
-      exportDrumMidi(state.drum_data, bpm, `${label}-${genrePart}-${patPart}.mid`);
+      await exportDrumMidi(state.drum_data, bpm, `${label}-${genrePart}-${patPart}.mid`);
     } else if (mode === "drums+bass") {
       const rootNote = state.hasKey && keys
         ? parseKey(keys[state.key_idx], state.octave)
         : 45;
-      exportDrumBassMidi(state.drum_data, state.bass_data, rootNote, bpm, `${label}-${genrePart}-${patPart}.mid`);
+      await exportDrumBassMidi(state.drum_data, state.bass_data, rootNote, bpm, `${label}-${genrePart}-${patPart}.mid`);
     }
   }, [mode, state, keys, genreName, patInfo, label]);
 
@@ -167,7 +167,7 @@ export function DevicePanel({ state, catalog, command }: Props) {
     if (!file) return;
     try {
       const steps = await importMelodicMidi(file);
-      for (let i = 0; i < Math.min(steps.length, 16); i++) {
+      for (let i = 0; i < Math.min(steps.length, state.patternLength); i++) {
         command({ type: "edit_step", device, step: i, data: steps[i] });
       }
     } catch (err) {
@@ -181,7 +181,7 @@ export function DevicePanel({ state, catalog, command }: Props) {
     if (!file) return;
     try {
       const drumData = await importDrumMidi(file);
-      for (let i = 0; i < Math.min(drumData.length, 16); i++) {
+      for (let i = 0; i < Math.min(drumData.length, state.patternLength); i++) {
         command({ type: "edit_drum_step", device, step: i, hits: drumData[i] });
       }
     } catch (err) {
@@ -207,7 +207,7 @@ export function DevicePanel({ state, catalog, command }: Props) {
           <button
             className={`device-len-btn ${doubled ? "active" : ""}`}
             title="Toggle 16/32 steps"
-            onClick={() => setDoubled((d) => !d)}
+            onClick={() => command({ type: "set_pattern_length", device, length: doubled ? 16 : 32 })}
           >
             {doubled ? "32" : "16"}
           </button>
@@ -257,20 +257,20 @@ export function DevicePanel({ state, catalog, command }: Props) {
               <span className="info-val">{patInfo?.name ?? "---"}</span>
             </button>
             {patInfo?.desc && <div className="info-desc">{patInfo.desc}</div>}
-            <BeatIndicator step={state.step} accent={accent} />
+            <BeatIndicator step={state.step} accent={accent} numSteps={state.patternLength} />
             <DrumGrid
-              drumData={state.drum_data}
-              currentStep={state.step}
+              drumData={doubled ? state.drum_data.slice(0, 16) : state.drum_data}
+              currentStep={doubled ? (state.step < 16 ? state.step : -1) : state.step}
               accent={accent}
               onToggle={handleDrumToggle}
             />
             {doubled && (
               <div className="doubled-row">
                 <DrumGrid
-                  drumData={state.drum_data}
-                  currentStep={-1}
+                  drumData={state.drum_data.slice(16, 32)}
+                  currentStep={state.step >= 16 ? state.step - 16 : -1}
                   accent={accent}
-                  onToggle={handleDrumToggle}
+                  onToggle={(stepIdx, note, vel) => handleDrumToggle(stepIdx + 16, note, vel)}
                 />
               </div>
             )}
@@ -314,8 +314,8 @@ export function DevicePanel({ state, catalog, command }: Props) {
                 </div>
               )}
               <BassGrid
-                steps={state.bass_data}
-                currentStep={state.step}
+                steps={doubled ? state.bass_data.slice(0, 16) : state.bass_data}
+                currentStep={doubled ? (state.step < 16 ? state.step : -1) : state.step}
                 accent={accent}
                 onTap={handleBassTap}
                 onLongPress={handleBassLongPress}
@@ -323,11 +323,11 @@ export function DevicePanel({ state, catalog, command }: Props) {
               {doubled && (
                 <div className="doubled-row">
                   <BassGrid
-                    steps={state.bass_data}
-                    currentStep={-1}
+                    steps={state.bass_data.slice(16, 32)}
+                    currentStep={state.step >= 16 ? state.step - 16 : -1}
                     accent={accent}
-                    onTap={handleBassTap}
-                    onLongPress={handleBassLongPress}
+                    onTap={(idx) => handleBassTap(idx + 16)}
+                    onLongPress={(idx) => handleBassLongPress(idx + 16)}
                   />
                 </div>
               )}
@@ -361,10 +361,10 @@ export function DevicePanel({ state, catalog, command }: Props) {
               </button>
             </div>
           )}
-          <BeatIndicator step={state.step} accent={accent} />
+          <BeatIndicator step={state.step} accent={accent} numSteps={state.patternLength} />
           <StepGrid
-            steps={state.pattern_data}
-            currentStep={state.step}
+            steps={doubled ? state.pattern_data.slice(0, 16) : state.pattern_data}
+            currentStep={doubled ? (state.step < 16 ? state.step : -1) : state.step}
             accent={accent}
             onTap={handleStepTap}
             onLongPress={handleStepLongPress}
@@ -372,11 +372,11 @@ export function DevicePanel({ state, catalog, command }: Props) {
           {doubled && (
             <div className="doubled-row">
               <StepGrid
-                steps={state.pattern_data}
-                currentStep={-1}
+                steps={state.pattern_data.slice(16, 32)}
+                currentStep={state.step >= 16 ? state.step - 16 : -1}
                 accent={accent}
-                onTap={handleStepTap}
-                onLongPress={handleStepLongPress}
+                onTap={(idx) => handleStepTap(idx + 16)}
+                onLongPress={(idx) => handleStepLongPress(idx + 16)}
               />
             </div>
           )}

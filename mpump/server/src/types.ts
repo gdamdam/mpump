@@ -33,6 +33,7 @@ export interface DeviceState {
   pattern_data: (StepData | null)[];
   drum_data: DrumHit[][];
   bass_data: (StepData | null)[];
+  patternLength: 16 | 32;
   label: string;
   accent: string;
   hasKey: boolean;
@@ -85,4 +86,5 @@ export type ClientMessage =
   | { type: "delete_pattern"; device: string; idx: number }
   | { type: "randomize_all" }
   | { type: "randomize_device"; device: string }
-  | { type: "randomize_bass"; device: string };
+  | { type: "randomize_bass"; device: string }
+  | { type: "set_pattern_length"; device: string; length: 16 | 32 };

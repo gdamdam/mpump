@@ -1,15 +1,17 @@
 interface Props {
   step: number;
   accent: string;
+  numSteps?: number;
 }
 
-export function BeatIndicator({ step, accent }: Props) {
+export function BeatIndicator({ step, accent, numSteps = 16 }: Props) {
+  const numBeats = numSteps / 4;
   const beat = step >= 0 ? Math.floor(step / 4) : -1;
 
   return (
     <div className="beat-indicator">
       <div className="beat-dots">
-        {[0, 1, 2, 3].map((i) => (
+        {Array.from({ length: numBeats }, (_, i) => (
           <div
             key={i}
             className={`beat-dot ${i === beat ? "active" : ""}`}
@@ -18,7 +20,7 @@ export function BeatIndicator({ step, accent }: Props) {
         ))}
       </div>
       <div className="beat-bar">
-        {Array.from({ length: 16 }, (_, i) => (
+        {Array.from({ length: numSteps }, (_, i) => (
           <div
             key={i}
             className={`beat-cell ${i === step ? "active" : ""} ${i % 4 === 0 ? "bar-start" : ""}`}

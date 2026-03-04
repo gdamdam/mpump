@@ -17,7 +17,7 @@ export function Layout({ state, catalog, command }: Props) {
       <header className="header">
         <div className="title">
           <pre className="title-art">{"█▀▄▀█ █▀█ █ █ █▀▄▀█ █▀█\n█ ▀ █ █▀▀ ▀▄▀ █ ▀ █ █▀▀"}</pre>
-          <span className="title-version">v1.3.1</span>
+          <span className="title-version">v1.3.2</span>
         </div>
         <div className="header-controls">
           <button
@@ -53,12 +53,6 @@ export function Layout({ state, catalog, command }: Props) {
           />
         ))}
       </main>
-
-      <footer className="footer">
-        <a href="https://github.com/maddomtom/mpump#supported-devices" target="_blank" rel="noopener noreferrer">
-          supported devices
-        </a>
-      </footer>
     </div>
   );
 }

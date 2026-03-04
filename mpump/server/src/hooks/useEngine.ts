@@ -125,6 +125,9 @@ export function useEngine() {
       case "randomize_bass":
         engine.randomizeBass(msg.device);
         break;
+      case "set_pattern_length":
+        engine.setPatternLength(msg.device, msg.length);
+        break;
     }
   }, []);
 

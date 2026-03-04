@@ -28,6 +28,7 @@ interface InternalDeviceState {
   step: number;
   connected: boolean;
   paused: boolean;
+  patternLength: 16 | 32;
   melodicEdit: (StepData | null)[] | null;
   drumEdit: DrumHit[][] | null;
   bassEdit: (StepData | null)[] | null;
@@ -72,6 +73,7 @@ export class Engine {
         bassGenreIdx: 0, bassPatternIdx: 0,
         keyIdx: 0, octave: 2,
         step: -1, connected: false, paused: false,
+        patternLength: 16,
         melodicEdit: null, drumEdit: null, bassEdit: null,
       });
     }
@@ -154,9 +156,9 @@ export class Engine {
 
   // ── Sequencer lifecycle ──────────────────────────────────────────────
 
-  private nextBarBoundary(): number {
+  private nextBarBoundary(numSteps = 16): number {
     const stepDur = 60000 / (this.bpm * 4);
-    const barDur = 16 * stepDur;
+    const barDur = numSteps * stepDur;
     const now = performance.now();
     const elapsed = now - this.t0;
     const n = Math.ceil(elapsed / barDur);
@@ -171,10 +173,13 @@ export class Engine {
     if (!port || !ds) return;
     const config = ds.config;
 
-    const tStart = this.nextBarBoundary();
+    const tStart = this.nextBarBoundary(ds.patternLength);
 
     if (config.mode === "synth") {
-      const pattern = ds.melodicEdit ?? this.getDeviceMelodicPattern(id);
+      let pattern = ds.melodicEdit ?? this.getDeviceMelodicPattern(id);
+      if (ds.patternLength === 32 && pattern.length === 16) {
+        pattern = [...pattern, ...pattern];
+      }
       const root = this.getDeviceRoot(id);
 
       let pc: number | null = null;
@@ -202,10 +207,14 @@ export class Engine {
 
     } else {
       // drums or drums+bass
-      const drumPattern = ds.drumEdit ?? this.getDeviceDrumPattern(id);
-      const bassPattern = config.mode === "drums+bass"
+      let drumPattern = ds.drumEdit ?? this.getDeviceDrumPattern(id);
+      let bassPattern = config.mode === "drums+bass"
         ? (ds.bassEdit ?? this.getDeviceBassPattern(id))
         : Array.from({ length: 16 }, (): null => null);
+      if (ds.patternLength === 32) {
+        if (drumPattern.length === 16) drumPattern = [...drumPattern, ...drumPattern];
+        if (bassPattern.length === 16) bassPattern = [...bassPattern, ...bassPattern];
+      }
       const root = config.hasKey ? this.getDeviceRoot(id) : config.rootNote;
 
       const seq = new T8Sequencer({
@@ -320,6 +329,7 @@ export class Engine {
     } else {
       ds.genreIdx = idx;
       ds.patternIdx = 0;
+      ds.patternLength = 16;
       if (ds.config.mode === "synth") {
         ds.melodicEdit = null;
       } else {
@@ -341,6 +351,7 @@ export class Engine {
       ds.bassEdit = null;
     } else {
       ds.patternIdx = idx;
+      ds.patternLength = 16;
       if (ds.config.mode === "synth") {
         ds.melodicEdit = null;
       } else {
@@ -393,6 +404,7 @@ export class Engine {
     const pick = nonExtras[Math.floor(Math.random() * nonExtras.length)];
     ds.genreIdx = pick.i;
     ds.patternIdx = Math.floor(Math.random() * pick.g.patterns.length);
+    ds.patternLength = 16;
     ds.melodicEdit = null;
     ds.drumEdit = null;
 
@@ -435,6 +447,35 @@ export class Engine {
     ds.bassPatternIdx = Math.floor(Math.random() * pick.g.patterns.length);
     ds.bassEdit = null;
 
+    this.restartDevice(device);
+    this.cb.onStateChange(this.getState());
+  }
+
+  setPatternLength(device: string, length: 16 | 32): void {
+    const ds = this.deviceStates.get(device);
+    if (!ds || ds.patternLength === length) return;
+
+    if (length === 32) {
+      // 16→32: create edit buffers if needed, then double them
+      if (ds.config.mode === "synth") {
+        if (!ds.melodicEdit) ds.melodicEdit = [...this.getDeviceMelodicPattern(device)];
+        if (ds.melodicEdit.length === 16) ds.melodicEdit = [...ds.melodicEdit, ...ds.melodicEdit];
+      } else {
+        if (!ds.drumEdit) ds.drumEdit = this.getDeviceDrumPattern(device).map(h => [...h]);
+        if (ds.drumEdit.length === 16) ds.drumEdit = [...ds.drumEdit, ...ds.drumEdit];
+        if (ds.config.mode === "drums+bass") {
+          if (!ds.bassEdit) ds.bassEdit = [...this.getDeviceBassPattern(device)];
+          if (ds.bassEdit.length === 16) ds.bassEdit = [...ds.bassEdit, ...ds.bassEdit];
+        }
+      }
+    } else {
+      // 32→16: truncate edit buffers to first 16
+      if (ds.melodicEdit && ds.melodicEdit.length > 16) ds.melodicEdit = ds.melodicEdit.slice(0, 16);
+      if (ds.drumEdit && ds.drumEdit.length > 16) ds.drumEdit = ds.drumEdit.slice(0, 16);
+      if (ds.bassEdit && ds.bassEdit.length > 16) ds.bassEdit = ds.bassEdit.slice(0, 16);
+    }
+
+    ds.patternLength = length;
     this.restartDevice(device);
     this.cb.onStateChange(this.getState());
   }
@@ -592,6 +633,29 @@ export class Engine {
       const config = ds.config;
       const editing = ds.melodicEdit !== null || ds.drumEdit !== null || ds.bassEdit !== null;
 
+      // Build pattern data, doubling source if 32-step and not editing
+      let patternData: (StepData | null)[] = [];
+      let drumData: DrumHit[][] = [];
+      let bassData: (StepData | null)[] = [];
+
+      if (config.mode === "synth") {
+        patternData = ds.melodicEdit ?? this.getDeviceMelodicPattern(id);
+        if (ds.patternLength === 32 && patternData.length === 16) {
+          patternData = [...patternData, ...patternData];
+        }
+      } else {
+        drumData = ds.drumEdit ?? this.getDeviceDrumPattern(id);
+        if (ds.patternLength === 32 && drumData.length === 16) {
+          drumData = [...drumData, ...drumData];
+        }
+        if (config.mode === "drums+bass") {
+          bassData = ds.bassEdit ?? this.getDeviceBassPattern(id);
+          if (ds.patternLength === 32 && bassData.length === 16) {
+            bassData = [...bassData, ...bassData];
+          }
+        }
+      }
+
       devices[id] = {
         id,
         mode: config.mode,
@@ -605,15 +669,10 @@ export class Engine {
         connected: ds.connected,
         paused: ds.paused,
         editing,
-        pattern_data: config.mode === "synth"
-          ? (ds.melodicEdit ?? this.getDeviceMelodicPattern(id))
-          : [],
-        drum_data: config.mode !== "synth"
-          ? (ds.drumEdit ?? this.getDeviceDrumPattern(id))
-          : [],
-        bass_data: config.mode === "drums+bass"
-          ? (ds.bassEdit ?? this.getDeviceBassPattern(id))
-          : [],
+        pattern_data: patternData,
+        drum_data: drumData,
+        bass_data: bassData,
+        patternLength: ds.patternLength,
         label: config.label,
         accent: config.accent,
         hasKey: config.hasKey,

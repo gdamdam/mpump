@@ -99,7 +99,8 @@ export class T8Sequencer {
     const bassGate = stepDur * this.bassGateFrac;
 
     while (this.nextStepTime < horizon) {
-      const idx = this.stepIndex % 16;
+      const numSteps = Math.max(this.drumPattern.length, this.bassPattern.length) || 16;
+      const idx = this.stepIndex % numSteps;
       const stepTime = this.nextStepTime;
 
       // Step callback
@@ -145,7 +146,7 @@ export class T8Sequencer {
         }
 
         // Check next step for slide
-        const nextIdx = (idx + 1) % 16;
+        const nextIdx = (idx + 1) % numSteps;
         const nextBass = this.bassPattern[nextIdx];
         if (!nextBass?.slide) {
           this.port.noteOff(this.bassCh, midiNote, stepTime + bassGate);
