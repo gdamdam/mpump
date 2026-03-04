@@ -1,4 +1,4 @@
-# mpump v1.3.3
+# mpump v1.3.4
 
 Hot-plug MIDI sequencer for USB MIDI devices. Plug in a device and it starts playing immediately. Unplug it and it stops cleanly. No configuration files, no drivers — just USB and sound.
 
@@ -252,7 +252,9 @@ Browse with arrow keys (and `b/B` for bass) then press `Enter` to apply. The now
 
 ## Pattern library
 
-### S-1 — 150 patterns, 15 genres x 10
+Full pattern catalogue with names and descriptions: **[GENRES.md](GENRES.md)**
+
+### S-1 — 160 patterns, 15 genres (acid-techno has 20, rest have 10)
 
 Genres: `techno`, `acid-techno`, `trance`, `dub-techno`, `idm`, `edm`, `drum-and-bass`, `house`, `breakbeat`, `jungle`, `garage`, `ambient`, `glitch`, `electro`, `downtempo`
 
@@ -313,7 +315,7 @@ mpump/
   scanner.py      # hot-plug: polls MIDI ports every 0.5 s, spawns threads
   sequencer.py    # per-device 16-step loop thread (Sequencer + T8Sequencer)
   devices.py      # device profiles
-  patterns.py     # S-1: 150 patterns (15 genres x 10)
+  patterns.py     # S-1: 160 patterns (15 genres, acid-techno has 20)
   patterns_t8.py  # T-8: 150 drum + 150 bass patterns
   patterns_j6.py  # J-6: 150 chord progressions
   extras.py       # user-created patterns (~/.mpump/extras.json)
