@@ -1,12 +1,12 @@
 # mpump Genre & Pattern Reference
 
-All patterns are 16-step loops. Patterns are selected by genre name + pattern number (1–10).
+All patterns are 16-step loops. Patterns are selected by genre name + pattern number.
 
 ---
 
 ## S-1 — Melodic / Bass Lines
 
-15 genres × 10 patterns. All patterns are semitone offsets from the root key, freely transposable with `--key` and `--octave`. Steps marked with slides trigger legato/portamento on the S-1.
+15 genres, 10 patterns each (acid-techno has 20). All patterns are semitone offsets from the root key, freely transposable with `--key` and `--octave`. Steps marked with slides trigger legato/portamento on the S-1.
 
 ### `techno`
 
@@ -34,9 +34,19 @@ All patterns are 16-step loops. Patterns are selected by genre name + pattern nu
 | 5 | Acid Roll | Busy 16th-note flow — non-stop squelch |
 | 6 | Dark Acid | Sub-octave register with rare octave stabs — deep and menacing |
 | 7 | 303 Minor | Sliding minor triad arpeggio — melodic acid tension |
-| 8 | Hyper Acid | Full 16th density, wide intervals — chaotic energy |
+| 8 | Hardfloor Spiral | Octave squeals + chromatic returns — relentless spiral motion |
 | 9 | 303 Bounce | Accent–rest–slide pattern — rubbery 303 bounce |
 | 10 | Acid Ostinato | Sliding root ostinato with upper note fills — hypnotic acid lock |
+| 11 | Acid Tracks-ish | Root/b7 bounce with a mid-bar squeal — OG Chicago flavor |
+| 12 | Higher State Lift | Upward stabs + slide pulls — peak-time tension |
+| 13 | 707 Jacks | Jacking syncopation: accent–rest–slide loop (rubbery) |
+| 14 | Confusion Runner | Minor-ish run with chromatic approaches — nervous drive |
+| 15 | Acid Thunder | Aggro accents + low dips — punchy, percussive acid |
+| 16 | Octave Scream | Repeated octave yelps then fall back into groove |
+| 17 | Tritone Tease | b5 passing hits as chromatic tension — classic acid nastiness |
+| 18 | Rubber Band | Slide chains across small intervals — ultra-liquid 303 |
+| 19 | 12-Step Illusion | Feels like a shorter cycle inside 16 — great for phasing vs drums |
+| 20 | Warehouse Razor | Dense but with air pockets — accented hooks, chromatic bites |
 
 ### `trance`
 
