@@ -1,9 +1,11 @@
 import { useState } from "react";
 import type { StepData } from "../types";
+import { midiToNoteName } from "../data/keys";
 
 interface Props {
   initial: StepData | null;
   accent: string;
+  rootNote: number;
   onSave: (data: StepData | null) => void;
   onClose: () => void;
 }
@@ -15,7 +17,7 @@ const VELOCITIES = [
   { label: "Accent", val: 1.3 },
 ];
 
-export function StepEditor({ initial, accent, onSave, onClose }: Props) {
+export function StepEditor({ initial, accent, rootNote, onSave, onClose }: Props) {
   const [semi, setSemi] = useState(initial?.semi ?? 0);
   const [vel, setVel] = useState(initial?.vel ?? 1.0);
   const [slide, setSlide] = useState(initial?.slide ?? false);
@@ -33,12 +35,12 @@ export function StepEditor({ initial, accent, onSave, onClose }: Props) {
         </div>
 
         <div className="editor-body">
-          {/* Semitone */}
+          {/* Note */}
           <div className="editor-row">
-            <span className="editor-label">Semitone</span>
+            <span className="editor-label">Note</span>
             <div className="editor-control">
               <button className="editor-btn" onClick={() => setSemi(Math.max(-12, semi - 1))}>-</button>
-              <span className="editor-value">{semi >= 0 ? `+${semi}` : semi}</span>
+              <span className="editor-value">{midiToNoteName(Math.max(0, Math.min(127, rootNote + semi)))}</span>
               <button className="editor-btn" onClick={() => setSemi(Math.min(24, semi + 1))}>+</button>
             </div>
           </div>

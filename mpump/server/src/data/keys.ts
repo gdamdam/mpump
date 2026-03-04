@@ -20,6 +20,15 @@ export const OCTAVE_MIN = 0;
 export const OCTAVE_MAX = 6;
 
 /** Return the root MIDI note for a key name at the given octave. */
+const NOTE_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+
+/** Return the note name (e.g. "A2", "F#3") for a MIDI note number. */
+export function midiToNoteName(midi: number): string {
+  const note = NOTE_NAMES[midi % 12];
+  const octave = Math.floor(midi / 12) - 2;
+  return `${note}${octave}`;
+}
+
 export function parseKey(name: string, octave: number = DEFAULT_OCTAVE): number {
   let normalised = name.trim();
   // Capitalize first, preserve # or b

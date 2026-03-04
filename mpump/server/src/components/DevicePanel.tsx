@@ -44,6 +44,11 @@ export function DevicePanel({ state, catalog, command }: Props) {
   const octaveMin = catalog?.octave_min ?? 0;
   const octaveMax = catalog?.octave_max ?? 6;
 
+  // Root note for step editors
+  const rootNote = state.hasKey && keys
+    ? parseKey(keys[state.key_idx], state.octave)
+    : 45;
+
   // J-6 chord set display
   const chordSet = device === "j6" && catalog?.j6.chord_sets
     ? catalog.j6.chord_sets[genreList[state.genre_idx]?.name ?? ""] ?? null
@@ -146,16 +151,10 @@ export function DevicePanel({ state, catalog, command }: Props) {
     const patPart = patInfo?.name?.replace(/\s+/g, "-") ?? "pattern";
 
     if (mode === "synth") {
-      const rootNote = state.hasKey && keys
-        ? parseKey(keys[state.key_idx], state.octave)
-        : 45;
       await exportMelodicMidi(state.pattern_data, rootNote, bpm, `${label}-${genrePart}-${patPart}.mid`);
     } else if (mode === "drums") {
       await exportDrumMidi(state.drum_data, bpm, `${label}-${genrePart}-${patPart}.mid`);
     } else if (mode === "drums+bass") {
-      const rootNote = state.hasKey && keys
-        ? parseKey(keys[state.key_idx], state.octave)
-        : 45;
       await exportDrumBassMidi(state.drum_data, state.bass_data, rootNote, bpm, `${label}-${genrePart}-${patPart}.mid`);
     }
   }, [mode, state, keys, genreName, patInfo, label]);
@@ -469,6 +468,7 @@ export function DevicePanel({ state, catalog, command }: Props) {
         <StepEditor
           initial={state.pattern_data[editingStep] ?? null}
           accent={accent}
+          rootNote={rootNote}
           onSave={handleStepEditorSave}
           onClose={() => setEditingStep(null)}
         />
@@ -479,6 +479,7 @@ export function DevicePanel({ state, catalog, command }: Props) {
         <StepEditor
           initial={state.bass_data[editingBassStep] ?? null}
           accent={accent}
+          rootNote={rootNote}
           onSave={handleBassEditorSave}
           onClose={() => setEditingBassStep(null)}
         />
