@@ -17,7 +17,7 @@ export function Layout({ state, catalog, command }: Props) {
       <header className="header">
         <div className="title">
           <pre className="title-art">{"█▀▄▀█ █▀█ █ █ █▀▄▀█ █▀█\n█ ▀ █ █▀▀ ▀▄▀ █ ▀ █ █▀▀"}</pre>
-          <span className="title-version">v1.3.9</span>
+          <span className="title-version">v1.3.10</span>
         </div>
         <div className="header-controls">
           <button

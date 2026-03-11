@@ -2,7 +2,7 @@
 <p align="center">MIDI sequencer for USB hardware — runs in the browser or from the command line</p>
 
 <p align="center">
-  <a href="https://github.com/gdamdam/mpump"><img src="https://img.shields.io/badge/version-1.3.9-blue" alt="Version"></a>
+  <a href="https://github.com/gdamdam/mpump"><img src="https://img.shields.io/badge/version-1.3.10-blue" alt="Version"></a>
   <a href="https://github.com/gdamdam/mpump"><img src="https://img.shields.io/badge/python-3.11+-3776AB?logo=python&logoColor=white" alt="Python 3.11+"></a>
   <a href="https://github.com/gdamdam/mpump/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-GPL--2.0-green" alt="License"></a>
   <a href="https://github.com/gdamdam/mpump"><img src="https://img.shields.io/badge/devices-50-blueviolet" alt="Supported devices"></a>
@@ -230,7 +230,7 @@ mpump-ui --j6-genre trance --j6-pattern 4
 |---|---|
 | `Tab` | Cycle focus: S-1 -> T-8 -> J-6 |
 | `<- / ->` | Previous / next genre |
-| `up / down` | Previous / next pattern (browse only) |
+| `up / down` | Previous / next pattern |
 | `Enter` | Commit browsed pattern/genre to device |
 | `b / B` | T-8 bass pattern down / up (browse only) |
 | `k / K` | Root key down / up (immediate, S-1 and T-8) |
@@ -269,6 +269,7 @@ Browse with arrow keys (and `b/B` for bass) then press `Enter` to apply. The now
 |---|---|---|
 | `--t8-genre GENRE` | `techno` | Drum/bass genre |
 | `--t8-pattern N` | `1` | Drum pattern 1-10 |
+| `--t8-bass-genre GENRE` | same as `--t8-genre` | Bass genre, independent of drums |
 | `--t8-bass-pattern N` | `1` | Bass pattern 1-10, independent of drums |
 | `--t8-key KEY` | `A` | Root key for bass |
 | `--t8-octave N` | `2` | Root octave for bass |
@@ -299,8 +300,8 @@ mpump --list           # full catalogue with descriptions
 15 genres x 10 each. Drum and bass patterns are selected independently. All drums-mode and drums+bass-mode devices in the browser sequencer share these patterns.
 
 ```bash
-mpump --list-t8        # drum patterns
-mpump --list-t8-bass   # bass patterns
+mpump --list-drums     # drum patterns
+mpump --list-bass      # bass patterns
 ```
 
 ### J-6 — 150 chord progressions

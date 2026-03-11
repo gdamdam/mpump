@@ -48,7 +48,7 @@ def parse_args() -> argparse.Namespace:
             "UI key bindings:\n"
             "  Tab        Switch focus between S-1, T-8 and J-6 panels\n"
             "  ← / →      Previous / next genre\n"
-            "  ↑ / ↓      Previous / next drum pattern\n"
+            "  ↑ / ↓      Previous / next pattern\n"
             "  b / B      T-8 bass pattern down / up\n"
             "  k / K      Key down / up  (not J-6)\n"
             "  o / O      Octave down / up  (not J-6)\n"
