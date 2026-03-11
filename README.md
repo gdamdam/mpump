@@ -5,7 +5,7 @@
 <p align="center">
   <a href="https://pypi.org/project/mpump/"><img src="https://img.shields.io/pypi/v/mpump?color=blue&label=PyPI" alt="PyPI version"></a>
   <a href="https://pypi.org/project/mpump/"><img src="https://img.shields.io/pypi/pyversions/mpump" alt="Python versions"></a>
-  <a href="https://github.com/maddomtom/mpump/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-GPL--2.0-green" alt="License"></a>
+  <a href="https://github.com/maddomtom/mpump/blob/main/LICENSE"><img src="https://img.shields.io/github/license/maddomtom/mpump?color=green" alt="License"></a>
   <a href="https://github.com/maddomtom/mpump/actions"><img src="https://img.shields.io/github/actions/workflow/status/maddomtom/mpump/ci.yml?branch=main&label=CI" alt="CI"></a>
   <a href="https://github.com/maddomtom/mpump"><img src="https://img.shields.io/github/stars/maddomtom/mpump?style=flat&color=yellow" alt="GitHub stars"></a>
   <a href="https://github.com/maddomtom/mpump"><img src="https://img.shields.io/badge/devices-50-blueviolet" alt="Supported devices"></a>
@@ -386,4 +386,4 @@ Bug reports and device compatibility feedback are welcome — please [open an is
 
 ## License
 
-[GPL-2.0](LICENSE)
+[MIT](LICENSE)
