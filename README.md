@@ -8,6 +8,8 @@
   <a href="https://github.com/gdamdam/mpump"><img src="https://img.shields.io/badge/devices-50-blueviolet" alt="Supported devices"></a>
   <a href="https://github.com/gdamdam/mpump"><img src="https://img.shields.io/badge/patterns-610+-orange" alt="Pattern count"></a>
   <a href="https://github.com/gdamdam/mpump"><img src="https://img.shields.io/badge/genres-15-teal" alt="Genres"></a>
+  <br>
+  <a href="https://gdamdam.github.io/mpump/"><strong>Try it online</strong></a>
 </p>
 
 ---
