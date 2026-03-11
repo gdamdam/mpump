@@ -1,4 +1,13 @@
-"""WebEngine — state manager wrapping DeviceScanner for the web UI."""
+"""WebEngine — state manager wrapping DeviceScanner for the web UI.
+
+Bridges the synchronous, threaded MIDI world (DeviceScanner, Sequencer)
+with the async FastAPI/WebSocket server.  Thread-safe communication is
+achieved via an asyncio.Queue: sequencer callbacks push events with
+loop.call_soon_threadsafe(), and the server's _event_loop() drains them.
+
+Owns all UI-facing state (genre/pattern/key/octave indices, edit buffers)
+and translates WebSocket commands into scanner updates.
+"""
 
 from __future__ import annotations
 
@@ -98,6 +107,8 @@ class WebEngine:
         self._loop.call_soon_threadsafe(self._queue.put_nowait, args)
 
     # ── Pattern / root helpers (mirrors ui.py) ────────────────────────────
+    # Each helper returns the live edit buffer if active, otherwise the
+    # library pattern for the current genre/pattern index.
 
     def _s1_pattern(self):
         if self._s1_edit is not None:
@@ -169,6 +180,7 @@ class WebEngine:
     # ── State snapshot ────────────────────────────────────────────────────
 
     def get_state(self) -> dict:
+        """Build a JSON-serialisable snapshot of all device state for the UI."""
         return {
             "bpm": self.bpm,
             "s1": {
@@ -208,6 +220,7 @@ class WebEngine:
         }
 
     def get_catalog(self) -> dict:
+        """Build the full genre/pattern catalog for the UI picker."""
         cat: dict = {
             "s1": {"genres": []},
             "t8": {"drum_genres": [], "bass_genres": []},
@@ -234,8 +247,12 @@ class WebEngine:
         return cat
 
     # ── Commands (called from WebSocket handler) ──────────────────────────
+    # Each command updates local state, clears edit buffers if needed,
+    # and pushes the new pattern/root to the scanner (which forwards
+    # it to the running sequencer thread).
 
     def set_genre(self, device: str, idx: int) -> bool:
+        """Switch genre for a device.  Resets pattern index and edit buffer."""
         if device == "s1":
             idx %= len(GENRE_NAMES)
             if idx == self.s1_genre_idx:

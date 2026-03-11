@@ -1,4 +1,20 @@
-"""mpump TUI — Textual-based terminal interface."""
+"""mpump TUI — Textual-based terminal interface.
+
+Three-panel layout (S-1 | T-8 | J-6) built with Textual.  Each panel
+has a step-grid widget that renders the active pattern as a colored
+bar graph, updated in real time as the sequencer advances.
+
+Reactive properties drive the UI: when the scanner reports a new step
+index or the user changes genre/pattern, Textual's watch system
+automatically re-renders the affected widgets.
+
+Color semantics used across all grids:
+  green  — normal note / drum hit
+  amber  — accent (high velocity)
+  blue   — slide / bass note
+  dim    — empty step (rest)
+  navy   — current step cursor
+"""
 
 from __future__ import annotations
 
@@ -23,14 +39,17 @@ from .scanner import DeviceScanner
 from . import extras as _extras  # noqa: F401 — injects "extras" genre
 
 KEY_NAMES = valid_key_names()
+
+# T-8 drum grid rows: MIDI note number → display label
 DRUM_ROWS = [(36, "BD"), (38, "SD"), (42, "CH"), (46, "OH"), (50, "CP"), (49, "CY")]
 
+# ── Color palette (semantic, shared across all grid widgets) ──────────────
 _NOTE   = "#3fb950"   # green   — normal note / drum hit
 _ACCENT = "#e6a817"   # amber   — accent / high velocity
 _SLIDE  = "#58a6ff"   # blue    — slide / bass note
-_REST   = "#2d333b"   # dim     — empty step
-_CURSOR = "#1d4e89"   # navy    — step cursor bg
-_DIM    = "#7d8590"   # grey    — labels
+_REST   = "#2d333b"   # dim     — empty step (rest)
+_CURSOR = "#1d4e89"   # navy    — step cursor background
+_DIM    = "#7d8590"   # grey    — labels and decorative text
 
 
 # ─────────────────────────────────────────────────────────────────────────────

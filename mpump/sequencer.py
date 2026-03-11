@@ -1,3 +1,17 @@
+"""Per-device MIDI sequencer threads.
+
+Each connected MIDI device gets its own daemon thread running a tight
+step-loop.  Three classes:
+
+  MidiClock       — sends 24-PPQN clock ticks for BPM-synced FX
+  Sequencer       — 16/32-step melodic loop (S-1, J-6, synths)
+  T8Sequencer     — combined drum + bass loop (T-8, drum machines)
+
+Timing uses time.perf_counter() with absolute target timestamps to
+avoid drift accumulation.  Sequencers align their first step to a
+global t_start (bar boundary) so multiple devices stay phase-locked.
+"""
+
 import math
 import threading
 import time

@@ -1,3 +1,17 @@
+/**
+ * Engine.ts — Browser sequencer orchestrator.
+ *
+ * Manages the full lifecycle of USB MIDI devices detected via the Web MIDI API:
+ *   1. Hot-plug detection: listens for statechange events on MIDIAccess
+ *   2. Sequencer management: creates/destroys Sequencer or T8Sequencer per device
+ *   3. State management: tracks genre/pattern/key/octave/edit state per device
+ *   4. Sync: all sequencers start at the next bar boundary from a shared t0
+ *   5. Persistence: user-edited patterns are saved/loaded from localStorage
+ *
+ * Data-driven — any device in DEVICE_REGISTRY is automatically supported.
+ * The UI communicates via EngineCallbacks (onStateChange, onStep, onCatalogChange).
+ */
+
 import type { StepData, DrumHit, EngineState, Catalog, DeviceState } from "../types";
 import type { MidiPort } from "./MidiPort";
 import { MidiClock } from "./MidiClock";
@@ -9,6 +23,7 @@ import { loadCatalog, getDeviceGenres, getDeviceBassGenres, getExtrasKey, getBas
 import { DEVICE_REGISTRY, findDeviceConfig, type DeviceConfig } from "../data/devices";
 import { parseKey } from "../data/keys";
 
+/** Callbacks the Engine uses to notify the React UI of changes. */
 export interface EngineCallbacks {
   onStateChange: (state: EngineState) => void;
   onStep: (device: string, step: number) => void;
@@ -17,6 +32,7 @@ export interface EngineCallbacks {
 
 // ── Per-device internal state (not exported to UI) ───────────────────────
 
+/** Tracks all mutable state for a single device (genre, pattern, edits, etc.) */
 interface InternalDeviceState {
   config: DeviceConfig;
   genreIdx: number;
@@ -156,17 +172,23 @@ export class Engine {
 
   // ── Sequencer lifecycle ──────────────────────────────────────────────
 
+  /**
+   * Calculate the next bar boundary for phase-locked sequencer starts.
+   * Returns a timestamp (ms) aligned to the global t0 grid.
+   * If the boundary is less than 50ms away, skip to the next one.
+   */
   private nextBarBoundary(numSteps = 16): number {
-    const stepDur = 60000 / (this.bpm * 4);
+    const stepDur = 60000 / (this.bpm * 4);  // duration of one 16th note in ms
     const barDur = numSteps * stepDur;
     const now = performance.now();
     const elapsed = now - this.t0;
     const n = Math.ceil(elapsed / barDur);
     let tBar = this.t0 + n * barDur;
-    if (tBar - now < 50) tBar += barDur;
+    if (tBar - now < 50) tBar += barDur;     // too close — skip to next bar
     return tBar;
   }
 
+  /** Start a sequencer (+ optional MIDI clock) for a newly connected device. */
   private startDevice(id: string): void {
     const port = this.ports[id];
     const ds = this.deviceStates.get(id);
@@ -244,6 +266,7 @@ export class Engine {
     }
   }
 
+  /** Stop and clean up the sequencer + clock for a device. */
   private stopDevice(id: string): void {
     const seq = this.sequencers.get(id);
     if (seq) { seq.stop(); this.sequencers.delete(id); }
@@ -251,6 +274,7 @@ export class Engine {
     if (clk) { clk.stop(); this.clocks.delete(id); }
   }
 
+  /** Stop then re-start a device (used after pattern/key/BPM changes). */
   private restartDevice(id: string): void {
     this.stopDevice(id);
     const ds = this.deviceStates.get(id);
@@ -688,7 +712,11 @@ export class Engine {
   }
 }
 
-/** Synchronous catalog rebuild after extras change. */
+/**
+ * Synchronous catalog rebuild after extras change.
+ * Deep-clones the current catalog, strips old extras genres,
+ * then re-injects the updated extras from localStorage.
+ */
 function loadCatalogSync(
   current: LoadedCatalog,
   extras: Record<string, { name: string; desc: string; steps: unknown }[]>,

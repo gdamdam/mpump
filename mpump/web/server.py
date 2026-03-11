@@ -1,4 +1,17 @@
-"""FastAPI server — WebSocket + REST + static SPA serving."""
+"""FastAPI server — WebSocket + REST + static SPA serving.
+
+Provides the backend for the mpump-web interface:
+  - REST endpoint for the pattern catalog
+  - WebSocket for real-time state sync (step ticks, device connections)
+  - Static file serving for the built React SPA (frontend/dist)
+
+Architecture:
+  The server wraps a WebEngine (which owns the DeviceScanner and sequencer
+  threads).  Two async background loops bridge between the threaded MIDI
+  world and the async WebSocket world:
+    _event_loop  — drains the engine's asyncio.Queue (step/connect events)
+    _tick_loop   — polls MIDI ports every 0.5 s for hot-plug detection
+"""
 
 from __future__ import annotations
 
@@ -16,13 +29,17 @@ from .engine import WebEngine
 DIST_DIR = Path(__file__).resolve().parent.parent / "frontend" / "dist"
 
 engine: WebEngine | None = None
-clients: set[WebSocket] = set()
-_tasks: list[asyncio.Task] = []
+clients: set[WebSocket] = set()      # currently connected WebSocket clients
+_tasks: list[asyncio.Task] = []      # background asyncio tasks (cancelled on shutdown)
 
 
 # ── Broadcast helpers ─────────────────────────────────────────────────────
 
 async def _broadcast(msg: str):
+    """Send a JSON string to all connected WebSocket clients.
+
+    Silently removes clients that have disconnected.
+    """
     dead: list[WebSocket] = []
     for ws in clients:
         try:
@@ -34,21 +51,30 @@ async def _broadcast(msg: str):
 
 
 async def _broadcast_state():
+    """Push a full state snapshot to all clients."""
     await _broadcast(json.dumps({"type": "state", "data": engine.get_state()}))
 
 
 async def _broadcast_step(device: str, step: int):
+    """Push a single step-tick event (lightweight, sent every 16th note)."""
     await _broadcast(json.dumps({"type": "step", "device": device, "step": step}))
 
 
 # ── Background loops ─────────────────────────────────────────────────────
 
 async def _event_loop():
-    """Drain the engine's async queue (step ticks, connection changes)."""
+    """Drain the engine's async queue and broadcast events to WebSocket clients.
+
+    Events arrive from sequencer threads via the engine's thread→async bridge.
+    Two event types:
+      ("step", device_id, step_idx)    — sequencer advanced to a new step
+      ("connected", device_id, bool)   — device was plugged in or removed
+    """
     while True:
         event = await engine._queue.get()
         kind = event[0]
         if kind == "step":
+            # Update engine state and broadcast the lightweight step event
             _, device_id, idx = event
             if device_id == "s1":
                 engine.s1_step = idx
@@ -58,6 +84,7 @@ async def _event_loop():
                 engine.j6_step = idx
             await _broadcast_step(device_id, idx)
         elif kind == "connected":
+            # Update connection state; reset step/pause on disconnect
             _, device_id, state = event
             if device_id == "s1":
                 engine.s1_connected = state
@@ -78,7 +105,10 @@ async def _event_loop():
 
 
 async def _tick_loop():
-    """Poll MIDI ports on the same cadence as the TUI (0.5 s)."""
+    """Poll MIDI ports every 0.5 s for hot-plug detection.
+
+    Matches the same cadence as the TUI scanner to keep behaviour consistent.
+    """
     while True:
         engine.tick()
         await asyncio.sleep(0.5)
@@ -88,6 +118,7 @@ async def _tick_loop():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    """FastAPI lifespan: start engine + background loops, clean up on exit."""
     global engine
     engine = WebEngine(bpm=getattr(app.state, "bpm", 120))
     _tasks.append(asyncio.create_task(_event_loop()))
