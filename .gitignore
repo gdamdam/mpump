@@ -3,3 +3,6 @@ __pycache__/
 *.pyo
 .DS_Store
 mpump.egg-info/
+shots_github
+shots_github.pub
+*.mov
