@@ -1,5 +1,5 @@
 <h1 align="center">mpump</h1>
-<p align="center">MIDI sequencer for USB hardware — runs in the browser or from the command line</p>
+<p align="center">Hot-plug MIDI sequencer for USB hardware<br>Browser, TUI, or command line — no setup required</p>
 
 <p align="center">
   <a href="https://github.com/gdamdam/mpump"><img src="https://img.shields.io/badge/version-1.3.10-blue" alt="Version"></a>
