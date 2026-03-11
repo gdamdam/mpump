@@ -1,8 +1,8 @@
 <h1 align="center">mpump</h1>
-<p align="center">hot-plug MIDI sequencer for USB MIDI devices</p>
+<p align="center">MIDI sequencer for USB hardware — runs in the browser or from the command line</p>
 
 <p align="center">
-  <a href="https://github.com/gdamdam/mpump"><img src="https://img.shields.io/badge/version-1.3.7-blue" alt="Version"></a>
+  <a href="https://github.com/gdamdam/mpump"><img src="https://img.shields.io/badge/version-1.3.8-blue" alt="Version"></a>
   <a href="https://github.com/gdamdam/mpump"><img src="https://img.shields.io/badge/python-3.11+-3776AB?logo=python&logoColor=white" alt="Python 3.11+"></a>
   <a href="https://github.com/gdamdam/mpump/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-GPL--2.0-green" alt="License"></a>
   <a href="https://github.com/gdamdam/mpump"><img src="https://img.shields.io/badge/devices-50-blueviolet" alt="Supported devices"></a>
@@ -14,11 +14,9 @@
 
 ---
 
-Plug in a USB MIDI device and it starts playing immediately. Unplug it and it stops cleanly. No configuration files, no drivers — just USB and sound.
+Open the browser app, connect a USB MIDI device, and it starts playing immediately. 50 devices recognized automatically, 610+ patterns across 15 genres, live step-grid editing. No install required — runs entirely in the browser via Web MIDI.
 
-Multiple devices play in sync from a shared clock. Switching patterns or pausing a device waits for the next bar boundary so everything stays phase-locked.
-
-Built for live use: run it before the set, leave it going, connect and disconnect hardware as needed.
+For deeper hardware control on Mac, the Python package adds a terminal UI, a headless CLI, and a local web server with multi-client sync. Devices hot-plug cleanly: connect and disconnect hardware mid-set with bar-locked transitions.
 
 ## Table of Contents
 
