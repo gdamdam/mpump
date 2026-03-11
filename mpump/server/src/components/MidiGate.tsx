@@ -9,7 +9,7 @@ export function MidiGate({ midiState, onRetry }: Props) {
   return (
     <div className="midi-gate">
       <pre className="midi-gate-logo">{"█▀▄▀█ █▀█ █ █ █▀▄▀█ █▀█\n█ ▀ █ █▀▀ ▀▄▀ █ ▀ █ █▀▀"}</pre>
-      <span className="title-version">v1.3.8</span>
+      <span className="title-version">v1.3.9</span>
 
       {midiState === "unsupported" && (
         <>

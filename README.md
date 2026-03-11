@@ -2,7 +2,7 @@
 <p align="center">MIDI sequencer for USB hardware — runs in the browser or from the command line</p>
 
 <p align="center">
-  <a href="https://github.com/gdamdam/mpump"><img src="https://img.shields.io/badge/version-1.3.8-blue" alt="Version"></a>
+  <a href="https://github.com/gdamdam/mpump"><img src="https://img.shields.io/badge/version-1.3.9-blue" alt="Version"></a>
   <a href="https://github.com/gdamdam/mpump"><img src="https://img.shields.io/badge/python-3.11+-3776AB?logo=python&logoColor=white" alt="Python 3.11+"></a>
   <a href="https://github.com/gdamdam/mpump/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-GPL--2.0-green" alt="License"></a>
   <a href="https://github.com/gdamdam/mpump"><img src="https://img.shields.io/badge/devices-50-blueviolet" alt="Supported devices"></a>
@@ -13,6 +13,10 @@
 </p>
 
 ---
+
+<p align="center">
+  <video src="mpump-demo.mp4" width="600" autoplay loop muted playsinline></video>
+</p>
 
 Open the browser app, connect a USB MIDI device, and it starts playing immediately. 50 devices recognized automatically, 610+ patterns across 15 genres, live step-grid editing. No install required — runs entirely in the browser via Web MIDI.
 
