@@ -27,3 +27,6 @@ testpaths = ["tests"]
 
 [tool.setuptools.packages.find]
 include = ["mpump*"]
+
+[tool.setuptools.package-data]
+"mpump.frontend" = ["dist/**/*"]

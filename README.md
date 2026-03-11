@@ -3,10 +3,9 @@
 </p>
 
 <p align="center">
-  <a href="https://pypi.org/project/mpump/"><img src="https://img.shields.io/pypi/v/mpump?color=blue&label=PyPI" alt="PyPI version"></a>
-  <a href="https://pypi.org/project/mpump/"><img src="https://img.shields.io/pypi/pyversions/mpump" alt="Python versions"></a>
+  <a href="https://github.com/gdamdam/mpump"><img src="https://img.shields.io/badge/version-1.3.6-blue" alt="Version"></a>
+  <a href="https://github.com/gdamdam/mpump"><img src="https://img.shields.io/badge/python-3.11+-3776AB?logo=python&logoColor=white" alt="Python 3.11+"></a>
   <a href="https://github.com/gdamdam/mpump/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-GPL--2.0-green" alt="License"></a>
-  <a href="https://github.com/gdamdam/mpump"><img src="https://img.shields.io/github/stars/gdamdam/mpump?style=flat&color=yellow" alt="GitHub stars"></a>
   <a href="https://github.com/gdamdam/mpump"><img src="https://img.shields.io/badge/devices-50-blueviolet" alt="Supported devices"></a>
   <a href="https://github.com/gdamdam/mpump"><img src="https://img.shields.io/badge/patterns-610+-orange" alt="Pattern count"></a>
   <a href="https://github.com/gdamdam/mpump"><img src="https://img.shields.io/badge/genres-15-teal" alt="Genres"></a>
