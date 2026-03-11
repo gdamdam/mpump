@@ -2,7 +2,7 @@
 <p align="center">hot-plug MIDI sequencer for USB MIDI devices</p>
 
 <p align="center">
-  <a href="https://github.com/gdamdam/mpump"><img src="https://img.shields.io/badge/version-1.3.6-blue" alt="Version"></a>
+  <a href="https://github.com/gdamdam/mpump"><img src="https://img.shields.io/badge/version-1.3.7-blue" alt="Version"></a>
   <a href="https://github.com/gdamdam/mpump"><img src="https://img.shields.io/badge/python-3.11+-3776AB?logo=python&logoColor=white" alt="Python 3.11+"></a>
   <a href="https://github.com/gdamdam/mpump/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-GPL--2.0-green" alt="License"></a>
   <a href="https://github.com/gdamdam/mpump"><img src="https://img.shields.io/badge/devices-50-blueviolet" alt="Supported devices"></a>
