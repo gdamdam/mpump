@@ -15,7 +15,7 @@
 ---
 
 <p align="center">
-  <video src="mpump-demo.mp4" width="600" autoplay loop muted playsinline></video>
+  <img src="mpump-demo.gif" width="600" alt="mpump demo">
 </p>
 
 Open the browser app, connect a USB MIDI device, and it starts playing immediately. 50 devices recognized automatically, 610+ patterns across 15 genres, live step-grid editing. No install required — runs entirely in the browser via Web MIDI.
