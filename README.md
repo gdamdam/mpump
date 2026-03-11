@@ -5,12 +5,11 @@
 <p align="center">
   <a href="https://pypi.org/project/mpump/"><img src="https://img.shields.io/pypi/v/mpump?color=blue&label=PyPI" alt="PyPI version"></a>
   <a href="https://pypi.org/project/mpump/"><img src="https://img.shields.io/pypi/pyversions/mpump" alt="Python versions"></a>
-  <a href="https://github.com/maddomtom/mpump/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-GPL--2.0-green" alt="License"></a>
-  <a href="https://github.com/maddomtom/mpump/actions"><img src="https://img.shields.io/github/actions/workflow/status/maddomtom/mpump/ci.yml?branch=main&label=CI" alt="CI"></a>
-  <a href="https://github.com/maddomtom/mpump"><img src="https://img.shields.io/github/stars/maddomtom/mpump?style=flat&color=yellow" alt="GitHub stars"></a>
-  <a href="https://github.com/maddomtom/mpump"><img src="https://img.shields.io/badge/devices-50-blueviolet" alt="Supported devices"></a>
-  <a href="https://github.com/maddomtom/mpump"><img src="https://img.shields.io/badge/patterns-610+-orange" alt="Pattern count"></a>
-  <a href="https://github.com/maddomtom/mpump"><img src="https://img.shields.io/badge/genres-15-teal" alt="Genres"></a>
+  <a href="https://github.com/gdamdam/mpump/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-GPL--2.0-green" alt="License"></a>
+  <a href="https://github.com/gdamdam/mpump"><img src="https://img.shields.io/github/stars/gdamdam/mpump?style=flat&color=yellow" alt="GitHub stars"></a>
+  <a href="https://github.com/gdamdam/mpump"><img src="https://img.shields.io/badge/devices-50-blueviolet" alt="Supported devices"></a>
+  <a href="https://github.com/gdamdam/mpump"><img src="https://img.shields.io/badge/patterns-610+-orange" alt="Pattern count"></a>
+  <a href="https://github.com/gdamdam/mpump"><img src="https://img.shields.io/badge/genres-15-teal" alt="Genres"></a>
 </p>
 
 ---
@@ -189,7 +188,7 @@ The browser sequencer auto-detects **50 USB MIDI devices**. Devices are recogniz
 | IK UNO Drum | Analog/PCM drum machine | drums | Untested |
 | IK UNO Synth | Analog monosynth | synth | Untested |
 
-> **Tested** = verified with hardware. **Untested** = port names may need adjustment; please [report issues](https://github.com/maddomtom/mpump/issues).
+> **Tested** = verified with hardware. **Untested** = port names may need adjustment; please [report issues](https://github.com/gdamdam/mpump/issues).
 
 All 50 devices are supported across all interfaces. The TUI shows dedicated panels for S-1, T-8, and J-6; other devices are auto-detected and sequenced in CLI and web modes.
 
@@ -380,7 +379,7 @@ mpump/
 2. Make your changes and ensure tests pass: `pytest`
 3. Submit a pull request
 
-Bug reports and device compatibility feedback are welcome — please [open an issue](https://github.com/maddomtom/mpump/issues).
+Bug reports and device compatibility feedback are welcome — please [open an issue](https://github.com/gdamdam/mpump/issues).
 
 ---
 
