@@ -1,6 +1,5 @@
-<p align="center">
-  <strong>mpump</strong> &mdash; hot-plug MIDI sequencer for USB MIDI devices
-</p>
+<h1 align="center">mpump</h1>
+<p align="center">hot-plug MIDI sequencer for USB MIDI devices</p>
 
 <p align="center">
   <a href="https://github.com/gdamdam/mpump"><img src="https://img.shields.io/badge/version-1.3.6-blue" alt="Version"></a>
