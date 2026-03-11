@@ -6,3 +6,4 @@ mpump.egg-info/
 shots_github
 shots_github.pub
 *.mov
+build/
