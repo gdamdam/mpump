@@ -7,3 +7,4 @@ shots_github
 shots_github.pub
 *.mov
 build/
+dist/
