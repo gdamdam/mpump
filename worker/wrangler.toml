@@ -1,0 +1,6 @@
+name = "mpump-share"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+# Custom domain: s.mpump.live
+# After first deploy, run: wrangler domains add s.mpump.live

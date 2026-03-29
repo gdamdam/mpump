@@ -1,0 +1,455 @@
+/* ── MIXER — Vertical Console ─────────────────────────────────────────── */
+
+.mx-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 12px 8px;
+  max-width: 640px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* ── Console grid ── */
+.mx-console {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 2px 1.3fr;
+  gap: 8px;
+  align-items: start;
+}
+
+.mx-divider {
+  width: 1px;
+  background: var(--preview);
+  opacity: 0.2;
+  align-self: stretch;
+  margin: 8px 0;
+}
+
+/* ── Channel strip ── */
+.mx-strip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 6px 12px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg-panel) 40%, transparent);
+  border: 1px solid color-mix(in srgb, var(--preview) 40%, transparent);
+  transition: opacity 0.2s, border-color 0.2s;
+  min-width: 0;
+}
+
+.mx-strip.mx-muted {
+  opacity: 0.3;
+}
+.mx-strip.mx-dimmed {
+  opacity: 0.5;
+}
+.mx-strip.mx-soloed {
+  border-color: var(--preview);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--preview) 20%, transparent);
+}
+
+/* ── Labels ── */
+.mx-strip-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  color: var(--preview);
+  text-align: center;
+  white-space: nowrap;
+}
+.mx-label-master {
+  color: var(--preview);
+}
+
+/* ── VU Bar ── */
+.mx-vu-bar {
+  width: 22px;
+  height: 100px;
+  display: block;
+  flex-shrink: 0;
+}
+
+/* ── Vertical fader ── */
+.mx-fader {
+  writing-mode: vertical-lr;
+  direction: rtl;
+  width: 28px;
+  height: 120px;
+  cursor: pointer;
+  accent-color: var(--preview);
+  opacity: 0.85;
+  margin: 4px 0;
+}
+.mx-fader:hover {
+  opacity: 1;
+}
+
+/* ── dB label ── */
+.mx-db-label {
+  font-size: 10px;
+  font-weight: 600;
+  font-family: monospace;
+  font-variant-numeric: tabular-nums;
+  color: var(--preview);
+  text-align: center;
+  min-width: 48px;
+  opacity: 0.7;
+}
+
+/* ── Buttons ── */
+.mx-btn-row {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+}
+
+.mx-btn {
+  width: 28px;
+  height: 22px;
+  font-size: 9px;
+  font-weight: 800;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--preview);
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  opacity: 0.5;
+  transition: all 0.15s;
+}
+.mx-btn:hover {
+  opacity: 0.8;
+  border-color: var(--preview);
+}
+
+.mx-btn-mute.active {
+  background: #ff4444;
+  border-color: #ff4444;
+  color: #fff;
+  opacity: 1;
+}
+.mx-btn-mute.pending {
+  border-color: #ff4444;
+  color: #ff4444;
+  opacity: 1;
+  animation: mute-pending-pulse 0.6s ease-in-out infinite;
+}
+
+.mx-btn-solo.active {
+  background: var(--preview);
+  border-color: var(--preview);
+  color: #000;
+  opacity: 1;
+}
+
+.mx-btn-mono {
+  width: 28px;
+  height: 18px;
+  font-size: 8px;
+  margin-top: 2px;
+}
+.mx-btn-mono.active {
+  background: var(--preview);
+  border-color: var(--preview);
+  color: #000;
+  opacity: 1;
+}
+
+.mx-btn-limit {
+  width: 56px;
+  font-size: 8px;
+  letter-spacing: 1px;
+}
+.mx-btn-limit.active {
+  background: var(--preview);
+  border-color: var(--preview);
+  color: #000;
+  opacity: 1;
+}
+
+/* ── Pan section ── */
+.mx-pan-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 100%;
+}
+
+.mx-pan-label {
+  font-size: 9px;
+  font-weight: 700;
+  font-family: monospace;
+  color: var(--preview);
+  opacity: 0.6;
+  letter-spacing: 0.5px;
+}
+
+.mx-pan-slider {
+  width: 80%;
+  max-width: 60px;
+  height: 3px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--border);
+  border-radius: 2px;
+  outline: none;
+  opacity: 0.7;
+}
+.mx-pan-slider:hover {
+  opacity: 1;
+}
+.mx-pan-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text);
+  cursor: pointer;
+}
+.mx-pan-slider::-moz-range-thumb {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--text);
+  cursor: pointer;
+  border: none;
+}
+
+/* ── Master strip — needle meter ── */
+.mx-strip-master {
+  padding-top: 8px;
+}
+
+.mx-master-vu {
+  width: 100%;
+  max-width: 180px;
+}
+.mx-master-led {
+  display: none;
+}
+
+.mx-needle-wrap {
+  width: 100%;
+  aspect-ratio: 1.6 / 1;
+  display: flex;
+  flex-direction: column;
+  background: color-mix(in srgb, var(--bg-panel) 60%, transparent);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid color-mix(in srgb, var(--preview) 15%, var(--border));
+  border-radius: 10px;
+  padding: 8px 8px 0;
+  box-shadow:
+    0 2px 12px rgba(0,0,0,0.12),
+    inset 0 1px 0 color-mix(in srgb, var(--text) 6%, transparent);
+}
+
+.mx-needle-canvas {
+  width: 100%;
+  flex: 1;
+  display: block;
+}
+
+.mx-needle-footer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  padding: 1px 0 4px;
+}
+
+.mx-db-readout {
+  font-size: 9px;
+  font-weight: 600;
+  font-family: monospace;
+  font-variant-numeric: tabular-nums;
+  color: var(--preview);
+  opacity: 0.7;
+  min-width: 50px;
+  text-align: center;
+}
+
+.mx-clip {
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--preview);
+  opacity: 0.2;
+  padding: 1px 4px;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: opacity 0.15s, color 0.15s, border-color 0.15s;
+  user-select: none;
+}
+.mx-clip.active {
+  color: #ff4444;
+  opacity: 1;
+  border-color: #ff4444;
+  text-shadow: 0 0 6px rgba(255,68,68,0.5);
+}
+
+/* ── Effects bar ── */
+.mx-fx-section {
+  border: 1px solid color-mix(in srgb, var(--preview) 40%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg-panel) 30%, transparent);
+  overflow: hidden;
+}
+
+.mx-fx-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  user-select: none;
+}
+.mx-fx-header:hover {
+  background: rgba(255,255,255,0.03);
+}
+
+.mx-fx-title {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  color: var(--preview);
+  flex-shrink: 0;
+}
+
+.mx-fx-chain {
+  font-size: 9px;
+  font-family: monospace;
+  color: var(--preview);
+  opacity: 0.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.mx-fx-toggle {
+  font-size: 8px;
+  color: var(--preview);
+  opacity: 0.4;
+}
+
+.mx-fx-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 4px 12px 12px;
+}
+
+.mx-fx-btn {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 5px 10px;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--preview);
+  cursor: pointer;
+  transition: all 0.15s;
+  opacity: 0.5;
+  white-space: nowrap;
+}
+.mx-fx-btn:hover {
+  opacity: 0.8;
+  border-color: var(--preview);
+}
+.mx-fx-btn.active {
+  background: var(--preview);
+  border-color: var(--preview);
+  color: #000;
+  opacity: 1;
+}
+
+/* ── Mobile ── */
+@media (max-width: 600px) {
+  .mx-master-vu { display: none; }
+  .mx-master-led { display: block; }
+
+  .mx-panel {
+    padding: 8px 6px 16px;
+    gap: 12px;
+  }
+
+  .mx-console {
+    grid-template-columns: 1fr 1fr 1fr 1px 1.2fr;
+    gap: 4px;
+  }
+
+  .mx-strip {
+    padding: 8px 4px 10px;
+    gap: 4px;
+  }
+
+  .mx-vu-bar {
+    width: 16px;
+    height: 70px;
+  }
+
+  .mx-fader {
+    height: 90px;
+    width: 24px;
+  }
+
+  .mx-strip-label {
+    font-size: 8px;
+    letter-spacing: 1px;
+  }
+
+  .mx-db-label {
+    font-size: 8px;
+  }
+
+  .mx-btn {
+    width: 24px;
+    height: 20px;
+    font-size: 8px;
+  }
+
+  .mx-btn-limit {
+    width: 48px;
+  }
+
+  .mx-master-vu {
+    max-width: 140px;
+  }
+
+  .mx-pan-slider {
+    max-width: 48px;
+  }
+
+  .mx-fx-grid {
+    gap: 4px;
+    padding: 4px 8px 10px;
+  }
+
+  .mx-fx-btn {
+    font-size: 8px;
+    padding: 4px 8px;
+  }
+}
+
+@media (max-width: 380px) {
+  .mx-console {
+    grid-template-columns: 1fr 1fr 1fr 1px 1fr;
+    gap: 2px;
+  }
+
+  .mx-vu-bar {
+    height: 56px;
+    width: 12px;
+  }
+
+  .mx-fader {
+    height: 72px;
+  }
+}

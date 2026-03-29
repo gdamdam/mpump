@@ -1,0 +1,129 @@
+/* ── Tutorial overlay ────────────────────────────────────────────────── */
+
+.tutorial-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+/* Spotlight mode: overlay with clip-path cutout */
+.tutorial-overlay.tutorial-spotlight {
+  display: block;
+  z-index: 200;
+}
+
+.tutorial-card {
+  background: var(--bg-panel);
+  border: 1px solid var(--preview);
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 380px;
+  width: 90vw;
+  text-align: center;
+  box-shadow: 0 0 40px color-mix(in srgb, var(--preview) 25%, transparent);
+}
+
+/* Floating card positioned near spotlight target */
+.tutorial-card-floating {
+  position: fixed;
+  z-index: 201;
+  animation: tutorialSlideIn 0.25s ease-out;
+}
+
+@keyframes tutorialSlideIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.tutorial-step-count {
+  font-size: 10px;
+  color: var(--preview); opacity: 0.7;
+  margin-bottom: 8px;
+}
+
+.tutorial-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--preview);
+  margin-bottom: 12px;
+}
+
+.tutorial-body {
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.6;
+  margin-bottom: 20px;
+  white-space: pre-line;
+}
+
+.tutorial-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.tutorial-skip {
+  font-size: 12px;
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--preview); opacity: 0.7;
+  cursor: pointer;
+}
+
+.tutorial-next {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 8px 24px;
+  border-radius: 6px;
+  border: none;
+  background: var(--preview);
+  color: #000;
+  cursor: pointer;
+}
+
+.tutorial-dots {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  margin-top: 16px;
+}
+
+.tutorial-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--border);
+}
+.tutorial-dot.active {
+  background: var(--preview);
+}
+
+.tutorial-themes {
+  margin-bottom: 8px;
+}
+
+.tutorial-theme-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.tutorial-theme-btn {
+  padding: 10px 4px;
+  border-radius: 8px;
+  border: 2px solid;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.tutorial-theme-btn.active {
+  border-width: 3px;
+}

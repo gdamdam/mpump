@@ -1,0 +1,1648 @@
+import { useState, useEffect, useRef, useCallback } from "react";
+import { enableLinkBridge, onLinkState, autoDetectLinkBridge, sendLinkTempo, sendLinkPlaying } from "../utils/linkBridge";
+import type { Catalog, ClientMessage, EngineState, PreviewMode, EffectName, EffectParams } from "../types";
+import { Settings, getSongModeEnabled, getBottomTransportEnabled, PALETTES, applyPalette } from "./Settings";
+import { snapToScale } from "../data/keys";
+import { getItem, setItem, getBool, setBool, getJSON, setJSON } from "../utils/storage";
+import { DevicePanel } from "./DevicePanel";
+import { JadePanel } from "./JadePanel";
+import { KaosPanel } from "./KaosPanel";
+import { BpmControl } from "./BpmControl";
+import { VuMeter } from "./VuMeter";
+import { Waveform } from "./Waveform";
+import { TapTempo } from "./TapTempo";
+import { Recorder } from "./Recorder";
+import { PresetManager, type SavedPreset } from "./PresetManager";
+import { SessionLibrary } from "./SessionLibrary";
+import { useKeyboard } from "../hooks/useKeyboard";
+import { Tutorial, useTutorial } from "./Tutorial";
+import { ThemePicker } from "./ThemePicker";
+import { ShareModal } from "./ShareModal";
+import { JamModal } from "./JamModal";
+import { JamReactions, useJamReactions } from "./JamReactions";
+import { useJam } from "../hooks/useJam";
+import { encodeSteps, decodeSteps, encodeDrumSteps, decodeDrumSteps, validateSharePayload, encodeGesture, decodeGesture, gestureUrlFit, encodeEffectParams, encodeSynthParamsCompact, decodeSynthParamsCompact } from "../utils/patternCodec";
+import { useSupportPrompt, SupportPromptUI } from "./SupportPrompt";
+import { AboutModal } from "./AboutModal";
+import { MegaKaos } from "./MegaKaos";
+import { HelpModal } from "./HelpModal";
+import { PatternLibrary } from "./PatternLibrary";
+import { PrivacyModal } from "./PrivacyModal";
+import { MixerPanel } from "./MixerPanel";
+import { SongEditor } from "./SongEditor";
+import { SessionModal } from "./SessionModal";
+import { exportSession, downloadSession, readSessionFile, saveLastSession, getRecentSessions, saveSession, type SessionData } from "../utils/session";
+import { pressVibrate, heavyVibrate } from "../utils/haptic";
+import { getDeviceGenres, getDeviceBassGenres } from "../data/catalog";
+import { SYNTH_PRESETS, BASS_PRESETS, DRUM_KIT_PRESETS } from "../data/soundPresets";
+import { SAMPLE_PACKS } from "../data/samplePacks";
+
+interface Props {
+  state: EngineState;
+  catalog: Catalog | null;
+  command: (msg: ClientMessage) => void;
+  isPreview?: boolean;
+  getAnalyser?: () => AnalyserNode | null;
+  getChannelAnalyser?: (ch: number) => AnalyserNode | null;
+  onConnectMidi?: () => void;
+  onStartPreview?: () => void;
+  onLoadSamples?: (samples: Map<number, AudioBuffer>) => void;
+}
+
+/** Tiny visitor counter — fetches count from GoatCounter JSON API. */
+
+const MODE_LABELS: Record<PreviewMode, string> = {
+  kaos: "KAOS",
+  synth: "SYNTH",
+  ease: "SIMPLE",
+  mixer: "MIXER",
+};
+
+/** Modes shown in the header switcher (SIMPLE is in Settings). */
+const HEADER_MODES: PreviewMode[] = ["kaos", "synth", "mixer"];
+
+const EFFECT_ORDER: EffectName[] = ["delay", "distortion", "reverb", "compressor", "highpass", "chorus", "phaser", "bitcrusher"];
+
+const toUrlSafeB64 = (obj: object) =>
+  btoa(JSON.stringify(obj)).replace(/=+$/, "").replace(/\+/g, "-").replace(/\//g, "_");
+
+export function Layout({ state, catalog, command: rawCommand, isPreview, getAnalyser, getChannelAnalyser, onConnectMidi, onStartPreview, onLoadSamples }: Props) {
+  // Ref to access current state inside Link callback (avoids stale closure)
+  const stateRef = useRef(state);
+  stateRef.current = state;
+
+  // Refs for auto-save (avoid stale closures in beforeunload / setInterval)
+  const volumeRef = useRef(0.7);
+  const channelVolumesRef = useRef<Record<number, number>>({ 9: 0.7, 0: 0.7, 1: 0.7 });
+  const activeDrumKitRef = useRef("0");
+  const activeSynthRef = useRef("0");
+  const activeBassRef = useRef("0");
+  const antiClipModeRef = useRef<"off" | "limiter" | "hybrid">("limiter");
+  const connectedDevices = Object.values(state.devices).filter(d => d.connected);
+  const anyConnected = connectedDevices.length > 0;
+  const [previewMode, setPreviewMode] = useState<PreviewMode>("kaos");
+
+  // Track title — BPM-aware name generator
+  const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];
+  const TRACK_TIERS = {
+    chill: {
+      adj: ["Ambient", "Floating", "Liquid", "Hazy", "Mellow", "Foggy", "Drifting", "Submerged", "Twilight", "Lunar", "Velvet", "Soft", "Glacial", "Faded", "Hollow", "Still", "Warm", "Dim", "Pale", "Slow"],
+      noun: ["Lagoon", "Current", "Horizon", "Echo", "Cloud", "Reef", "Haze", "Tide", "Mist", "Dusk", "Shore", "Depths", "Vapor", "Bloom", "Ether", "Drift", "Pool", "Shade", "Murmur", "Glow"],
+      solo: ["Solace", "Liminal", "Ether", "Lumen", "Abyss", "Zenith", "Horizon", "Stillness"],
+    },
+    groove: {
+      adj: ["Neon", "Chrome", "Analog", "Cosmic", "Electric", "Midnight", "Sonic", "Binary", "Lucid", "Urban", "Crystal", "Phantom", "Solar", "Deep", "Iron", "Bright", "Shadow", "Golden", "Pulse", "Silent"],
+      noun: ["Circuit", "Groove", "Signal", "Flux", "Orbit", "Grid", "Loop", "Wave", "Synapse", "Sector", "Void", "Prism", "Drone", "Tape", "Dial", "Spark", "Field", "Zone", "Phase", "Core"],
+      solo: ["Apex", "Nova", "Enigma", "Helix", "Cipher", "Matrix", "Strobe", "Nexus", "Praxis", "Vertigo"],
+    },
+    energy: {
+      adj: ["Hyper", "Atomic", "Blazing", "Rapid", "Savage", "Volatile", "Turbo", "Razor", "Fierce", "Brutal", "Harsh", "Burning", "Charged", "Wired", "Frantic", "Shattered", "Overdriven", "Raging", "Searing", "Lethal"],
+      noun: ["Storm", "Blast", "Rush", "Strike", "Surge", "Inferno", "Shockwave", "Rift", "Havoc", "Crush", "Riot", "Fury", "Tremor", "Impact", "Ignition", "Rampage", "Assault", "Voltage", "Reactor", "Meltdown"],
+      solo: ["Havoc", "Frenzy", "Blitz", "Onslaught", "Rampage", "Inferno", "Overload", "Reactor", "Shatter", "Quasar"],
+    },
+  };
+  const TRACK_MOD = ["MK2", "II", "Redux", "Zero", "Prime", "X", "One", "Dub", "Raw", "Mix", "Live", "Rework", "Edit", "Session", "Take"];
+  const TRACK_NUM = [0, 1, 7, 9, 19, 42, 76, 99, 101, 202, 303, 404, 606, 707, 808, 909, 999, 1984, 2049, 2077, 3000];
+  const generateTrackName = (bpm = 120) => {
+    const tier = bpm < 100 ? TRACK_TIERS.chill : bpm <= 140 ? TRACK_TIERS.groove : TRACK_TIERS.energy;
+    const r = Math.random();
+    if (r < 0.40) return `${pick(tier.adj)} ${pick(tier.noun)}`;
+    if (r < 0.67) return `${pick(tier.adj)} ${pick(tier.noun)} ${pick(TRACK_NUM)}`;
+    if (r < 0.95) return `${pick(tier.adj)} ${pick(tier.noun)} ${pick(TRACK_MOD)}`;
+    return pick(tier.solo);
+  };
+  const [trackName, setTrackName] = useState(() => getItem("mpump-track-name", "") || generateTrackName());
+  useEffect(() => { setItem("mpump-track-name", trackName); }, [trackName]);
+
+  const [showSettings, setShowSettings] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+  useEffect(() => {
+    if (!showMoreMenu) return;
+    const close = (e: MouseEvent) => {
+      if (!(e.target as HTMLElement).closest(".header-more-wrap")) setShowMoreMenu(false);
+    };
+    document.addEventListener("click", close);
+    return () => document.removeEventListener("click", close);
+  }, [showMoreMenu]);
+  const [bottomTransport, setBottomTransport] = useState(getBottomTransportEnabled);
+  const [volume, setVolume] = useState(0.7);
+  const support = useSupportPrompt();
+  const [scaleLock, setScaleLock] = useState(() => getItem("mpump-scale-lock", "chromatic"));
+  const [soloChannel, setSoloChannel] = useState<"drums" | "bass" | "synth" | null>(null);
+  const [channelVolumes, setChannelVolumes] = useState<Record<number, number>>({ 9: 0.7, 0: 0.7, 1: 0.7 });
+  const [antiClipMode, setAntiClipMode] = useState<"off" | "limiter" | "hybrid">("limiter");
+
+  // Keep auto-save refs in sync (volume, channelVolumes, antiClipMode)
+  useEffect(() => { volumeRef.current = volume; }, [volume]);
+  useEffect(() => { channelVolumesRef.current = channelVolumes; }, [channelVolumes]);
+  useEffect(() => { antiClipModeRef.current = antiClipMode; }, [antiClipMode]);
+
+  const [updateAvailable, setUpdateAvailable] = useState(false);
+  const { showTutorial, dismissTutorial } = useTutorial();
+  const [showHelp, setShowHelp] = useState(false);
+  const [showSessionLib, setShowSessionLib] = useState(false);
+  const [showJam, setShowJam] = useState(false);
+  const jam = useJam();
+  const jamReactions = useJamReactions();
+  const jamEnabled = true;
+  const pendingSyncSounds = useRef<{ dk?: string; sp?: string; bp?: string } | null>(null);
+  const prevMuteState = useRef<string>("");
+  const jamSyncedRef = useRef(false); // joiner: don't broadcast until sync received
+  const pendingSyncPayload = useRef<string | null>(null);
+  const jamApplyXYRef = useRef<((x: number, y: number) => void) | null>(null);
+  const jamFxRef = useRef<{ setFx: React.Dispatch<React.SetStateAction<import("../types").EffectParams>>; setEffectOrder: React.Dispatch<React.SetStateAction<import("../types").EffectName[]>> } | null>(null);
+  const [pendingMutes, setPendingMutes] = useState<Record<string, Set<string>>>({});
+
+  // Commands that should be bar-synced when quantize is on
+  const BAR_SYNC_TYPES = new Set([
+    "toggle_drums_mute", "toggle_bass_mute",
+    "set_drums_mute", "set_bass_mute",
+    "set_effect",
+  ]);
+
+  // Wrap command to broadcast to jam peers — all existing command() calls go through this
+  const command = useCallback((msg: ClientMessage) => {
+    // Don't broadcast until joiner has received sync from host
+    if (jam.status === "connected" && !jamSyncedRef.current) {
+      rawCommand(msg); // apply locally only
+      return;
+    }
+    // When quantize is on and in a jam, queue mutes/effects to bar boundary
+    if (jam.status === "connected" && jam.quantize && BAR_SYNC_TYPES.has(msg.type)) {
+      jam.queueAtBar(msg);
+      // Track pending state for immediate visual feedback
+      if (msg.type === "toggle_drums_mute" || msg.type === "set_drums_mute") {
+        const dev = (msg as { device: string }).device;
+        setPendingMutes(prev => {
+          const s = new Set(prev[dev] || []);
+          s.add("drums_mute");
+          return { ...prev, [dev]: s };
+        });
+      } else if (msg.type === "toggle_bass_mute" || msg.type === "set_bass_mute") {
+        const dev = (msg as { device: string }).device;
+        setPendingMutes(prev => {
+          const s = new Set(prev[dev] || []);
+          s.add("bass_mute");
+          return { ...prev, [dev]: s };
+        });
+      }
+      return; // don't apply yet — flushBarQueue will apply + broadcast at step 0
+    }
+
+    rawCommand(msg);
+    // Convert toggle mutes to explicit set mutes for jam (toggles desync between peers)
+    if (msg.type === "toggle_drums_mute" || msg.type === "toggle_bass_mute") {
+      const dev = (msg as { device: string }).device;
+      const ds = state.devices[dev];
+      if (ds) {
+        if (msg.type === "toggle_drums_mute") {
+          jam.broadcastCommand({ type: "set_drums_mute", device: dev, muted: !ds.drumsMuted } as ClientMessage);
+        } else {
+          jam.broadcastCommand({ type: "set_bass_mute", device: dev, muted: !ds.bassMuted } as ClientMessage);
+        }
+      }
+      return;
+    }
+    jam.broadcastCommand(msg);
+  }, [rawCommand, jam.broadcastCommand, jam.status, jam.quantize, jam.queueAtBar, state.devices]);
+
+  // Apply remote commands from jam peers
+  useEffect(() => {
+    jam.onRemoteCommand((msg: ClientMessage) => {
+      rawCommand(msg); // apply directly, skip broadcast (prevents feedback loop)
+      // Also sync React state that the engine doesn't manage
+      const m = msg as Record<string, unknown>;
+      if (m.type === "set_channel_volume") {
+        setChannelVolumes(prev => ({ ...prev, [m.channel as number]: m.volume as number }));
+      } else if (m.type === "set_volume") {
+        setVolume(m.volume as number);
+      } else if (m.type === "set_effect" && jamFxRef.current) {
+        const name = m.name as import("../types").EffectName;
+        const params = m.params as Record<string, unknown>;
+        jamFxRef.current.setFx(prev => ({ ...prev, [name]: { ...prev[name], ...params } }));
+      } else if (m.type === "set_effect_order" && jamFxRef.current) {
+        jamFxRef.current.setEffectOrder(m.order as import("../types").EffectName[]);
+      }
+    });
+  }, [rawCommand, jam.onRemoteCommand]);
+
+  // Apply remote play/stop state from jam peers
+  useEffect(() => {
+    jam.onPlayState((playing: boolean) => {
+      for (const d of Object.values(stateRef.current.devices)) {
+        const isPaused = d.paused;
+        if (playing && isPaused) rawCommand({ type: "toggle_pause", device: d.id } as ClientMessage);
+        else if (!playing && !isPaused) rawCommand({ type: "toggle_pause", device: d.id } as ClientMessage);
+      }
+    });
+  }, [rawCommand, jam.onPlayState]);
+
+  // Jam sync: host sends share payload to new joiners, joiner applies it
+  useEffect(() => {
+    // Host: register a function that builds the current share payload
+    jam.setSharePayloadGetter(() => {
+      try {
+        const g: Record<string, { gi: number; pi: number; bgi?: number; bpi?: number }> = {};
+        const mutes: Record<string, { drums: boolean; bass: boolean }> = {};
+        const volumes: Record<string, number> = {};
+        for (const d of Object.values(state.devices)) {
+          g[d.id] = { gi: d.genre_idx, pi: d.pattern_idx, bgi: d.bass_genre_idx, bpi: d.bass_pattern_idx };
+          mutes[d.id] = { drums: d.drumsMuted, bass: d.bassMuted };
+          volumes[d.id] = d.deviceVolume;
+        }
+        return btoa(JSON.stringify({
+          bpm: state.bpm, sw: state.swing, g, mutes, volumes,
+          dk: activeDrumKitRef.current, sp: activeSynthRef.current, bp: activeBassRef.current,
+        }));
+      } catch { return null; }
+    });
+
+    // Joiner: apply received share payload (or store if devices not ready yet)
+    jam.onSync((payload: string) => {
+      const devices = Object.values(stateRef.current.devices).filter(d => d.connected);
+      if (devices.length === 0) {
+        console.log("[jam] sync received but no devices yet — deferring");
+        pendingSyncPayload.current = payload;
+        return;
+      }
+      applySyncPayload(payload);
+      jamSyncedRef.current = true;
+    });
+  }, [jam, rawCommand, state]);
+
+  // Bar-sync: flush queued actions at step 0 and apply + broadcast them
+  useEffect(() => {
+    jam.onBarFlush((msgs: ClientMessage[]) => {
+      for (const msg of msgs) {
+        rawCommand(msg);
+        // Convert toggles to explicit for broadcast
+        if (msg.type === "toggle_drums_mute" || msg.type === "toggle_bass_mute") {
+          const dev = (msg as { device: string }).device;
+          const ds = stateRef.current.devices[dev];
+          if (ds) {
+            if (msg.type === "toggle_drums_mute") {
+              jam.broadcastCommand({ type: "set_drums_mute", device: dev, muted: !ds.drumsMuted } as ClientMessage);
+            } else {
+              jam.broadcastCommand({ type: "set_bass_mute", device: dev, muted: !ds.bassMuted } as ClientMessage);
+            }
+          }
+        } else {
+          jam.broadcastCommand(msg);
+        }
+      }
+      setPendingMutes({}); // clear pending visual state after flush
+    });
+  }, [rawCommand, jam]);
+
+  // Tick the bar queue on each step (drumsStep resolved later, use ref)
+  const drumsStepRef = useRef(-1);
+
+  // Apply remote XY pad movements from jam peers
+  useEffect(() => {
+    jam.onRemoteXY((x: number, y: number) => {
+      jamApplyXYRef.current?.(x, y);
+    });
+  }, [jam.onRemoteXY]);
+
+  // Receive reactions from jam peers
+  useEffect(() => {
+    jam.onReaction(jamReactions.handleRemoteReaction);
+  }, [jam.onReaction, jamReactions.handleRemoteReaction]);
+
+  // Force KAOS mode when jam/liveset connects (SYNTH disabled during jam)
+  useEffect(() => {
+    if (jam.status === "connected" && (previewMode === "synth" || (jam.role === "listener" && previewMode === "mixer"))) {
+      setPreviewMode("kaos");
+    }
+  }, [jam.status, jam.role, previewMode]);
+
+  // Apply a sync payload — extracted so it can be called immediately or deferred
+  const applySyncPayload = useCallback((payload: string) => {
+    try {
+      const data = JSON.parse(atob(payload));
+      if (data.bpm) rawCommand({ type: "set_bpm", bpm: data.bpm } as ClientMessage);
+      if (data.sw != null) rawCommand({ type: "set_swing", swing: data.sw } as ClientMessage);
+      if (data.g) {
+        const genres: Record<string, { gi: number; pi: number; bgi?: number; bpi?: number }> = data.g;
+        rawCommand({ type: "load_preset", bpm: data.bpm, genres } as unknown as ClientMessage);
+      }
+      if (data.mutes) {
+        for (const [dev, m] of Object.entries(data.mutes as Record<string, { drums: boolean; bass: boolean }>)) {
+          rawCommand({ type: "set_drums_mute", device: dev, muted: m.drums } as ClientMessage);
+          rawCommand({ type: "set_bass_mute", device: dev, muted: m.bass } as ClientMessage);
+        }
+      }
+      if (data.volumes) {
+        for (const [dev, vol] of Object.entries(data.volumes as Record<string, number>)) {
+          rawCommand({ type: "set_device_volume", device: dev, volume: vol } as ClientMessage);
+        }
+      }
+      if (data.dk != null || data.sp != null || data.bp != null) {
+        pendingSyncSounds.current = { dk: data.dk, sp: data.sp, bp: data.bp };
+      }
+      console.log("[jam] sync applied: bpm=" + data.bpm);
+    } catch (e) { console.error("[jam] sync error:", e); }
+  }, [rawCommand]);
+
+  // Apply deferred sync once devices are connected — poll until devices exist
+  useEffect(() => {
+    if (!pendingSyncPayload.current) return;
+    if (!anyConnected) return;
+    const payload = pendingSyncPayload.current;
+    pendingSyncPayload.current = null;
+    let attempt = 0;
+    const tryApply = () => {
+      const devices = Object.values(stateRef.current.devices).filter(d => d.connected);
+      if (devices.length > 0) {
+        console.log("[jam] deferred sync applying (attempt " + attempt + ")");
+        applySyncPayload(payload);
+        jamSyncedRef.current = true;
+        // Auto-play all paused devices
+        for (const d of devices) {
+          if (d.paused) rawCommand({ type: "toggle_pause", device: d.id } as ClientMessage);
+        }
+      } else if (attempt < 30) {
+        attempt++;
+        setTimeout(tryApply, 200);
+      }
+    };
+    setTimeout(tryApply, 200);
+  }, [anyConnected, applySyncPayload, rawCommand]);
+
+  // Auto-join/create jam room from URL param + open modal
+  const jamJoiningRef = useRef(false);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const jamRoom = params.get("jam");
+    if (!jamRoom) return;
+    if (jamRoom === "new") {
+      setShowJam(true);
+      return;
+    } else {
+      jamJoiningRef.current = true;
+      jam.joinRoom(jamRoom);
+      // Don't show modal — joiner goes straight into the session
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Clear joining flag once connected
+  useEffect(() => {
+    if (jam.status === "connected") jamJoiningRef.current = false;
+  }, [jam.status]);
+
+  const [showTutorialManual, setShowTutorialManual] = useState(false);
+  const logoClicksRef = useRef({ count: 0, timer: 0 });
+  const [logoFlash, setLogoFlash] = useState(0);
+  const [logoPulseMode, setLogoPulseMode] = useState(() => getItem("mpump-logo-pulse", "kick"));
+  const logoGlowRef = useRef(0);
+  const logoTransientRef = useRef(false);
+  const logoRafRef = useRef(0);
+  const logoPrevLevel = useRef(0);
+  const [logoKick, setLogoKick] = useState(false);
+  const handleLogoClick = () => {
+    const lc = logoClicksRef.current;
+    lc.count++;
+    setLogoFlash(f => f + 1);
+    window.clearTimeout(lc.timer);
+    lc.timer = window.setTimeout(() => {
+      if (lc.count >= 5) {
+        setShowMegaKaos(true);
+      } else if (lc.count === 4) {
+        setShowAbout(true);
+      } else if (lc.count === 3) {
+        // Random theme
+        const p = PALETTES[Math.floor(Math.random() * PALETTES.length)];
+        setItem("mpump-palette", p.id);
+        const root = document.documentElement;
+        root.style.setProperty("--bg", p.bg);
+        root.style.setProperty("--bg-panel", p.panel);
+        root.style.setProperty("--bg-cell", p.cell);
+        root.style.setProperty("--border", p.border);
+        root.style.setProperty("--text", p.text);
+        root.style.setProperty("--text-dim", p.dim);
+        root.style.setProperty("--preview", p.preview);
+        root.style.setProperty("--fg", p.text);
+        root.style.setProperty("--fg-dim", p.dim);
+        document.body.style.background = p.bg;
+        document.body.style.color = p.text;
+      } else if (lc.count === 2) {
+        // Cycle logo pulse mode
+        const modes = ["audio", "kick", "off"];
+        const next = modes[(modes.indexOf(logoPulseMode) + 1) % modes.length];
+        setLogoPulseMode(next);
+        setItem("mpump-logo-pulse", next);
+      }
+      // 1 click = just the flash animation (already triggered)
+      lc.count = 0;
+    }, 500);
+  };
+  const [cvEnabled, setCvEnabled] = useState(false);
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [shareQrUrl, setShareQrUrl] = useState<string | null>(null);
+  const [shareGestureNote, setShareGestureNote] = useState(false);
+  const [showLibrary, setShowLibrary] = useState(false);
+  const [showAbout, setShowAbout] = useState(false);
+  const [showMegaKaos, setShowMegaKaos] = useState(false);
+  const [showPrivacy, setShowPrivacy] = useState(false);
+  const [showSessionExport, setShowSessionExport] = useState(false);
+  const [mixFx, setMixFx] = useState<"shake" | "flash" | "both" | "">("");
+  const [activeDrumKit, setActiveDrumKit] = useState("0");
+  const [activeSynth, setActiveSynth] = useState("0");
+  const [activeBass, setActiveBass] = useState("0");
+  useEffect(() => { activeDrumKitRef.current = activeDrumKit; }, [activeDrumKit]);
+  useEffect(() => { activeSynthRef.current = activeSynth; }, [activeSynth]);
+  useEffect(() => { activeBassRef.current = activeBass; }, [activeBass]);
+  const [soundLock, setSoundLock] = useState<{ drums: boolean; synth: boolean; bass: boolean }>({ drums: false, synth: false, bass: false });
+  const [patternLock, setPatternLock] = useState<{ drums: boolean; synth: boolean; bass: boolean }>({ drums: false, synth: false, bass: false });
+  const [songModeOn, setSongModeOn] = useState(getSongModeEnabled);
+
+  // Ableton Link Bridge — runs at Layout level so it works even when Settings is closed
+  const [linkConnected, setLinkConnected] = useState(false);
+  useEffect(() => {
+    // Link Bridge off by default — users enable via Settings
+    enableLinkBridge(getBool("mpump-link-bridge", false));
+    let prevLinkBpm = 0;
+    let prevLinkPlaying: boolean | null = null;
+    const unsub = onLinkState((s) => {
+      setLinkConnected(s.connected);
+      if (s.connected && s.tempo >= 20 && s.tempo <= 300) {
+        const rounded = Math.round(s.tempo);
+        if (rounded !== prevLinkBpm) {
+          prevLinkBpm = rounded;
+          command({ type: "set_bpm", bpm: rounded });
+        }
+        // Sync play/stop — only react to changes
+        if (prevLinkPlaying !== null && s.playing !== prevLinkPlaying) {
+          const devices = Object.values(stateRef.current.devices).filter(d => d.connected);
+          for (const d of devices) {
+            if (s.playing && d.paused) command({ type: "toggle_pause", device: d.id });
+            else if (!s.playing && !d.paused) command({ type: "toggle_pause", device: d.id });
+          }
+        }
+        prevLinkPlaying = s.playing;
+      }
+    });
+    return unsub;
+  }, [command]);
+  // Push local BPM changes to Link so peers stay in sync
+  const prevLocalBpm = useRef(0);
+  useEffect(() => {
+    if (linkConnected && state.bpm !== prevLocalBpm.current) {
+      prevLocalBpm.current = state.bpm;
+      sendLinkTempo(state.bpm);
+    }
+  }, [state.bpm, linkConnected]);
+  const mixHistoryRef = useRef<Array<{ bpm: number; genres: Record<string, { gi: number; pi: number; bgi: number; bpi: number }>; dk: string; sp: string; bp: string }>>([]);
+  const mixCountRef = useRef(1);
+  const mixBpmCountRef = useRef(0);
+  const GENRE_LIST = ["techno","acid-techno","trance","dub-techno","idm","edm","drum-and-bass","house","breakbeat","jungle","garage","ambient","glitch","electro","downtempo"];
+  const [genreLock, setGenreLock] = useState<string | null>(null);
+  const genreLockName = genreLock ?? GENRE_LIST[0];
+  const sessionStartRef = useRef(Date.now());
+  const [sessionMin, setSessionMin] = useState(0);
+
+  // Listen for logo pulse setting changes
+  useEffect(() => {
+    const handler = () => setLogoPulseMode(getItem("mpump-logo-pulse", "audio"));
+    window.addEventListener("mpump-settings-changed", handler);
+    return () => window.removeEventListener("mpump-settings-changed", handler);
+  }, []);
+
+  // Logo audio pulse — bass glow + transient flash
+  const logoRef = useRef<HTMLPreElement>(null);
+  useEffect(() => {
+    if (logoPulseMode !== "audio" || !getAnalyser) {
+      if (logoRef.current) logoRef.current.style.cssText = "";
+      return;
+    }
+    const buf = new Uint8Array(128);
+    const tick = () => {
+      logoRafRef.current = requestAnimationFrame(tick);
+      const analyser = getAnalyser();
+      if (!analyser || !logoRef.current) return;
+      analyser.getByteFrequencyData(buf);
+      // Low-freq energy (first 8 bins ~ sub/bass)
+      let bass = 0;
+      for (let i = 0; i < 8; i++) bass += buf[i];
+      bass = bass / 8 / 255;
+      // Overall level for transient detection
+      let total = 0;
+      for (let i = 0; i < buf.length; i++) total += buf[i];
+      total = total / buf.length / 255;
+      const delta = total - logoPrevLevel.current;
+      logoPrevLevel.current = total;
+      if (delta > 0.08) logoTransientRef.current = true;
+      // Ignore low-level noise, fast attack / faster decay
+      const target = bass > 0.05 ? bass : 0;
+      const speed = target > logoGlowRef.current ? 0.4 : 0.15;
+      logoGlowRef.current += (target - logoGlowRef.current) * speed;
+      if (logoGlowRef.current < 0.02) logoGlowRef.current = 0;
+      const glow = logoGlowRef.current;
+      const flash = logoTransientRef.current && total > 0.1;
+      const active = glow > 0 || flash;
+      const scale = 1 + glow * 0.08 + (flash ? 0.06 : 0);
+      const shadowSize = Math.round(glow * 24 + (flash ? 14 : 0));
+      const el = logoRef.current;
+      el.style.transform = active ? `scale(${scale.toFixed(3)})` : "";
+      el.style.textShadow = shadowSize > 0 ? `0 0 ${shadowSize}px var(--preview)` : "none";
+      el.style.color = flash ? "#fff" : "";
+      el.style.opacity = active ? String((0.7 + glow * 0.3).toFixed(2)) : "";
+      if (flash) logoTransientRef.current = false;
+    };
+    logoRafRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(logoRafRef.current);
+  }, [logoPulseMode, getAnalyser]);
+
+  // Logo kick pulse — flash on actual kick hits (note 36)
+  const drumsDevice2 = connectedDevices.find(d => d.id === "preview_drums");
+  const drumsStep = drumsDevice2?.step ?? -1;
+  drumsStepRef.current = drumsStep;
+  const drumsMuted = drumsDevice2?.drumsMuted ?? false;
+  const drumData = drumsDevice2?.drum_data;
+  const prevStepRef = useRef(-1);
+  useEffect(() => {
+    if (logoPulseMode !== "kick") { setLogoKick(false); return; }
+    if (drumsMuted || drumsStep < 0 || !drumData) { setLogoKick(false); return; }
+    if (drumsStep !== prevStepRef.current) {
+      prevStepRef.current = drumsStep;
+      const hasKick = drumData[drumsStep]?.some(h => h.note === 36);
+      if (hasKick) {
+        setLogoKick(true);
+        const t = setTimeout(() => setLogoKick(false), 100);
+        return () => clearTimeout(t);
+      } else {
+        setLogoKick(false);
+      }
+    }
+  }, [logoPulseMode, drumsStep, drumsMuted, drumData]);
+
+  // Jam bar-sync: flush queued actions at step 0
+  const prevBarStepRef = useRef(-1);
+  useEffect(() => {
+    if (jam.status === "connected" && jam.quantize && drumsStep === 0 && prevBarStepRef.current !== 0) {
+      jam.flushBarQueue(0);
+    }
+    prevBarStepRef.current = drumsStep;
+  }, [drumsStep, jam]);
+
+  // Keyboard shortcuts (preview mode only)
+  const toggleAllPauseRef = useRef<() => void>(() => {});
+  const isListener = jam.status === "connected" && jam.role === "listener";
+  useKeyboard(state, command, !!isPreview && !isListener, isListener ? undefined : () => toggleAllPauseRef.current());
+
+  // Session timer — update every minute
+  useEffect(() => {
+    const id = setInterval(() => setSessionMin(Math.floor((Date.now() - sessionStartRef.current) / 60000)), 60000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Number keys switch preview mode
+  useEffect(() => {
+    if (!isPreview) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement || e.target instanceof HTMLTextAreaElement) return;
+      if ((e.metaKey || e.ctrlKey) && e.key === "s") {
+        e.preventDefault();
+        saveToLibrary();
+        return;
+      }
+      switch (e.key) {
+        case "1": setPreviewMode("kaos"); break;
+        case "2": setPreviewMode("synth"); break;
+        case "3": setPreviewMode("mixer"); break;
+        case "4": setPreviewMode("ease"); break;
+        case "?": setShowHelp(true); break;
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [isPreview]);
+
+  // Load state from URL query (?b=) or legacy hash (#) on mount
+  useEffect(() => {
+    if (!isPreview || !anyConnected) return;
+    const params = new URLSearchParams(window.location.search);
+    // URLSearchParams decodes + as space; restore for base64
+    const hash = (params.get("b") || "").replace(/ /g, "+") || window.location.hash.slice(1);
+    if (!hash) return;
+    let tid: number;
+    try {
+      const raw = JSON.parse(atob(hash.padEnd(Math.ceil(hash.length / 4) * 4, "=")));
+      const data = validateSharePayload(raw);
+      if (!data) {
+        console.warn("[mpump] Invalid share link payload — ignoring", raw);
+        alert("This share link appears to be invalid or corrupted.");
+        window.history.replaceState(null, "", window.location.pathname);
+        return;
+      }
+      tid = window.setTimeout(() => {
+        const genres: Record<string, { gi: number; pi: number; bgi: number; bpi: number }> = {};
+        for (const [k, v] of Object.entries(data.g)) genres[k] = { gi: v.gi, pi: v.pi, bgi: v.bgi ?? 0, bpi: v.bpi ?? 0 };
+        command({ type: "load_preset", bpm: data.bpm, genres });
+        if (data.sw != null) command({ type: "set_swing", swing: data.sw });
+        if (data.dk != null) handleDrumKitChange(data.dk);
+        if (data.sp != null) handleSynthChange(data.sp);
+        if (data.bp != null) handleBassChange(data.bp);
+        if (data.fx) {
+          for (let i = 0; i < EFFECT_ORDER.length && i < data.fx.length; i++) {
+            if (data.fx[i] === "1") {
+              command({ type: "set_effect", name: EFFECT_ORDER[i], params: { on: true } });
+            }
+          }
+        }
+        if (data.eo) {
+          setJSON("mpump-effect-order", data.eo);
+          command({ type: "set_effect_order", order: data.eo });
+        }
+        // Restore full effect params
+        if (data.fp) {
+          for (const [name, params] of Object.entries(data.fp)) {
+            command({ type: "set_effect", name: name as EffectName, params: params as Record<string, unknown> });
+          }
+          setJSON("mpump-effects", { ...getJSON("mpump-effects", {}), ...Object.fromEntries(Object.entries(data.fp).map(([n, p]) => [n, { ...p, on: data.fx ? data.fx[EFFECT_ORDER.indexOf(n as EffectName)] === "1" : false }])) });
+        }
+        // Restore synth params (decode compact short keys back to full names)
+        if (data.spp) command({ type: "set_synth_params", device: "preview_synth", params: decodeSynthParamsCompact(data.spp) });
+        if (data.bpp) command({ type: "set_synth_params", device: "preview_bass", params: decodeSynthParamsCompact(data.bpp) });
+        // Restore gesture
+        if (data.gs) {
+          const points = decodeGesture(data.gs);
+          if (points.length > 0) setJSON("mpump-gesture", points);
+        }
+        if (data.me) {
+          decodeSteps(data.me).forEach((s, i) => command({ type: "edit_step", device: "preview_synth", step: i, data: s }));
+        }
+        if (data.de) {
+          decodeDrumSteps(data.de).forEach((hits, i) => command({ type: "edit_drum_step", device: "preview_drums", step: i, hits }));
+        }
+        if (data.be) {
+          decodeSteps(data.be).forEach((s, i) => command({ type: "edit_step", device: "preview_bass", step: i, data: s }));
+        }
+        // Restore channel volumes
+        if (data.cv) {
+          const [dv, bv, sv] = data.cv.split(",").map(Number);
+          if (Number.isFinite(dv)) { command({ type: "set_channel_volume", channel: 9, volume: dv / 100 }); setChannelVolumes(prev => ({ ...prev, 9: dv / 100 })); }
+          if (Number.isFinite(bv)) { command({ type: "set_channel_volume", channel: 1, volume: bv / 100 }); setChannelVolumes(prev => ({ ...prev, 1: bv / 100 })); }
+          if (Number.isFinite(sv)) { command({ type: "set_channel_volume", channel: 0, volume: sv / 100 }); setChannelVolumes(prev => ({ ...prev, 0: sv / 100 })); }
+        }
+        // Restore mute states
+        if (data.mu && data.mu.length === 3) {
+          if (data.mu[0] === "1") command({ type: "set_drums_mute", device: "preview_drums", muted: true });
+          if (data.mu[1] === "1") command({ type: "set_bass_mute", device: "preview_bass", muted: true });
+          if (data.mu[2] === "1") command({ type: "set_drums_mute", device: "preview_synth", muted: true });
+        }
+        // Ensure music is playing after share link loads
+        for (const d of connectedDevices) {
+          if (d.paused) command({ type: "toggle_pause", device: d.id });
+        }
+      }, 300);
+      window.location.hash = "";
+    } catch { /* invalid hash */ }
+    return () => window.clearTimeout(tid);
+  }, [isPreview, anyConnected]);
+
+
+  // Match initial engine params to preset indices when devices connect
+  useEffect(() => {
+    const synth = connectedDevices.find(d => d.id === "preview_synth");
+    const drums = connectedDevices.find(d => d.id === "preview_drums");
+    if (synth?.synthParams) {
+      const idx = SYNTH_PRESETS.findIndex(p => p.params.oscType === synth.synthParams?.oscType && Math.abs(p.params.cutoff - (synth.synthParams?.cutoff ?? 0)) < 1);
+      if (idx >= 0) setActiveSynth(String(idx));
+    }
+    if (drums?.bassSynthParams) {
+      const idx = BASS_PRESETS.findIndex(p => p.params.oscType === drums.bassSynthParams?.oscType && Math.abs(p.params.cutoff - (drums.bassSynthParams?.cutoff ?? 0)) < 1);
+      if (idx >= 0) setActiveBass(String(idx));
+    }
+  }, [connectedDevices.length]); // only on connect, not every render
+
+  // Listen for song mode / visual fx settings changes
+  useEffect(() => {
+    const handler = () => setSongModeOn(getSongModeEnabled());
+    window.addEventListener("mpump-settings-changed", handler);
+    return () => window.removeEventListener("mpump-settings-changed", handler);
+  }, []);
+
+  // Listen for bottom transport setting changes
+  useEffect(() => {
+    const handler = () => setBottomTransport(getBottomTransportEnabled());
+    window.addEventListener("mpump-settings-changed", handler);
+    return () => window.removeEventListener("mpump-settings-changed", handler);
+  }, []);
+
+  // Send initial settings to engine when devices connect
+  useEffect(() => {
+    if (!anyConnected || !isPreview) return;
+    command({ type: "set_volume", volume });
+    for (const [ch, v] of Object.entries(channelVolumes)) {
+      command({ type: "set_channel_volume", channel: Number(ch), volume: v });
+    }
+    // Sync humanize/sidechain with localStorage (humanize on by default)
+    const humanize = getItem("mpump-humanize") === "" ? true : getBool("mpump-humanize");
+    const sidechain = getBool("mpump-sidechain");
+    const mono = getBool("mpump-mono");
+    command({ type: "set_humanize", on: humanize });
+    command({ type: "set_sidechain_duck", on: sidechain });
+    if (mono) command({ type: "set_mono", on: true });
+    // Set localStorage if first visit so UI matches
+    if (getItem("mpump-humanize") === "") setBool("mpump-humanize", true);
+    if (getItem("mpump-wave-tap") === "") setBool("mpump-wave-tap", true);
+    // Restore effect chain order
+    const savedOrder = getJSON<import("../types").EffectName[] | null>("mpump-effect-order", null);
+    if (savedOrder) command({ type: "set_effect_order", order: savedOrder });
+  }, [anyConnected]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Check for app updates every 5 minutes
+  useEffect(() => {
+    const check = () => {
+      fetch("version.json", { cache: "no-store" })
+        .then(r => r.json())
+        .then(data => { if (data.v && data.v !== __APP_VERSION__) setUpdateAvailable(true); })
+        .catch(() => {});
+    };
+    check();
+    const id = setInterval(check, 5 * 60 * 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const drumsDevice = connectedDevices.find(d => d.id === "preview_drums");
+
+  // Preset handler functions
+  // Apply a drum kit locally without broadcasting (used by both local change and remote receive)
+  const applyDrumKit = useCallback((val: string) => {
+    setActiveDrumKit(val);
+    if (val.startsWith("pack:")) {
+      const pack = SAMPLE_PACKS.find(p => p.id === val.slice(5));
+      if (pack) for (const [n, p] of Object.entries(pack.voices)) rawCommand({ type: "set_drum_voice", note: Number(n), params: p });
+    } else {
+      const preset = DRUM_KIT_PRESETS[parseInt(val)];
+      if (preset) for (const [n, p] of Object.entries(preset.voices)) rawCommand({ type: "set_drum_voice", note: Number(n), params: p });
+    }
+  }, [rawCommand]);
+
+  const applySynth = useCallback((val: string) => {
+    setActiveSynth(val);
+    const p = SYNTH_PRESETS[parseInt(val)];
+    if (p) rawCommand({ type: "set_synth_params", device: "preview_synth", params: { ...p.params, unison: p.params.unison ?? 1, unisonSpread: p.params.unisonSpread ?? 0, filterEnvDepth: p.params.filterEnvDepth ?? 0 } } as ClientMessage);
+  }, [rawCommand]);
+
+  const applyBass = useCallback((val: string) => {
+    setActiveBass(val);
+    const p = BASS_PRESETS[parseInt(val)];
+    if (p) rawCommand({ type: "set_synth_params", device: "preview_bass", params: { ...p.params, unison: p.params.unison ?? 1, unisonSpread: p.params.unisonSpread ?? 0, filterEnvDepth: p.params.filterEnvDepth ?? 0 } } as ClientMessage);
+  }, [rawCommand]);
+
+  // User-facing handlers: apply locally + broadcast preset ID to peers
+  const handleDrumKitChange = (val: string) => {
+    applyDrumKit(val);
+    jam.broadcastCommand({ type: "jam_set_drum_kit", id: val } as unknown as ClientMessage);
+  };
+  const handleSynthChange = (val: string) => {
+    applySynth(val);
+    jam.broadcastCommand({ type: "jam_set_synth", id: val } as unknown as ClientMessage);
+  };
+  const handleBassChange = (val: string) => {
+    applyBass(val);
+    jam.broadcastCommand({ type: "jam_set_bass", id: val } as unknown as ClientMessage);
+  };
+
+  // Handle remote sound preset changes — apply locally only (no re-broadcast)
+  useEffect(() => {
+    jam.onSoundChange((type: string, id: string) => {
+      console.log("[jam] remote sound change:", type, id);
+      if (type === "jam_set_drum_kit") applyDrumKit(id);
+      else if (type === "jam_set_synth") applySynth(id);
+      else if (type === "jam_set_bass") applyBass(id);
+    });
+  });
+
+  // Apply pending sound presets from jam sync (deferred until apply functions are available)
+  useEffect(() => {
+    const p = pendingSyncSounds.current;
+    if (!p) return;
+    pendingSyncSounds.current = null;
+    if (p.dk != null) applyDrumKit(p.dk);
+    if (p.sp != null) applySynth(p.sp);
+    if (p.bp != null) applyBass(p.bp);
+  });
+
+  const presetState = { activeDrumKit, activeSynth, activeBass, onDrumKitChange: handleDrumKitChange, onSynthChange: handleSynthChange, onBassChange: handleBassChange, soundLock, setSoundLock, patternLock, setPatternLock };
+
+  const handleVolumeChange = (v: number) => {
+    setVolume(v);
+    command({ type: "set_volume", volume: v });
+  };
+
+  const handleChannelVolumeChange = (ch: number, v: number) => {
+    setChannelVolumes(prev => ({ ...prev, [ch]: v }));
+    command({ type: "set_channel_volume", channel: ch, volume: v });
+  };
+
+
+  // Wrap command to intercept anti-clip mode changes for local state sync
+  const wrappedCommand = (msg: Parameters<typeof command>[0]) => {
+    if (msg.type === "set_anti_clip") setAntiClipMode(msg.mode);
+    command(msg);
+  };
+
+  const handleExportSession = () => {
+    heavyVibrate();
+    setShowSessionExport(true);
+  };
+
+  const doExportSession = (filename: string) => {
+    const session = exportSession(state, volume, channelVolumes, { activeDrumKit, activeSynth, activeBass }, antiClipMode);
+    // Override the default name in downloadSession by setting it on the session object
+    downloadSession(session, filename.endsWith(".json") ? filename : `${filename}.json`);
+  };
+
+  const applySession = useCallback((session: SessionData) => {
+    // Restore BPM and swing
+    command({ type: "set_bpm", bpm: session.bpm });
+    if (session.swing) command({ type: "set_swing", swing: session.swing });
+    // Restore volumes
+    setVolume(session.masterVolume ?? 0.5);
+    command({ type: "set_volume", volume: session.masterVolume ?? 0.5 });
+    if (session.channelVolumes) {
+      setChannelVolumes(session.channelVolumes);
+      for (const [ch, v] of Object.entries(session.channelVolumes)) {
+        command({ type: "set_channel_volume", channel: Number(ch), volume: v });
+      }
+    }
+    // Restore genres/patterns
+    const genres: Record<string, { gi: number; pi: number; bgi: number; bpi: number }> = {};
+    for (const [id, d] of Object.entries(session.devices)) {
+      genres[id] = { gi: d.genre_idx, pi: d.pattern_idx, bgi: d.bass_genre_idx, bpi: d.bass_pattern_idx };
+    }
+    command({ type: "load_preset", bpm: session.bpm, genres });
+    // Restore edited pattern data (overrides catalog patterns with saved edits)
+    for (const [id, d] of Object.entries(session.devices)) {
+      if (d.pattern_data || d.drum_data || d.bass_data) {
+        try {
+          command({ type: "bulk_set_pattern", device: id, pattern_data: d.pattern_data as any, drum_data: d.drum_data as any, bass_data: d.bass_data as any });
+        } catch (e) { console.warn("Failed to restore pattern for", id, e); }
+      }
+    }
+    // Restore sound presets (index first, then override with saved params if tweaked)
+    if (session.activeDrumKit) handleDrumKitChange(session.activeDrumKit);
+    if (session.activeSynth) handleSynthChange(session.activeSynth);
+    if (session.activeBass) handleBassChange(session.activeBass);
+    // Restore per-device synth params (captures knob tweaks beyond preset defaults)
+    for (const [id, d] of Object.entries(session.devices)) {
+      try {
+        if (d.synthParams) command({ type: "set_synth_params", device: id, params: d.synthParams as Record<string, unknown> });
+      } catch (e) { console.warn("Failed to restore synth params for", id, e); }
+    }
+    // Restore effects
+    if (session.effects) {
+      setJSON("mpump-effects", session.effects);
+      for (const [name, params] of Object.entries(session.effects)) {
+        command({ type: "set_effect", name: name as import("../types").EffectName, params: params as Record<string, unknown> });
+      }
+    }
+    // Restore settings
+    if (session.antiClipMode) {
+      setAntiClipMode(session.antiClipMode as typeof antiClipMode);
+      command({ type: "set_anti_clip", mode: session.antiClipMode as typeof antiClipMode });
+    }
+    if (session.effectOrder) { setJSON("mpump-effect-order", session.effectOrder); command({ type: "set_effect_order", order: session.effectOrder as import("../types").EffectName[] }); }
+    if (session.scaleLock) { setItem("mpump-scale-lock", session.scaleLock); setScaleLock(session.scaleLock); }
+    if (session.humanize) { setBool("mpump-humanize", true); command({ type: "set_humanize", on: true }); }
+    if (session.sidechainDuck) { setBool("mpump-sidechain", true); command({ type: "set_sidechain_duck", on: true }); }
+    if (session.metronome) { setBool("mpump-metronome", true); command({ type: "set_metronome", on: true }); }
+    if (session.arpMode && session.arpMode !== "off") {
+      setItem("mpump-arp-mode", session.arpMode);
+      setItem("mpump-arp-rate", session.arpRate ?? "1/8");
+      command({ type: "set_arp", enabled: true, mode: session.arpMode as import("../types").ArpMode, rate: (session.arpRate ?? "1/8") as import("../types").ArpRate });
+    }
+    if (session.gesture?.length) setJSON("mpump-gesture", session.gesture);
+    if (session.palette) {
+      setItem("mpump-palette", session.palette);
+      const p = PALETTES.find(p => p.id === session.palette);
+      if (p) applyPalette(p);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [command]);
+
+  const handleImportSession = async (file: File) => {
+    try {
+      const session = await readSessionFile(file);
+      applySession(session);
+    } catch (e) {
+      console.error("Failed to import session:", e);
+    }
+  };
+
+  // Save current state to the session library
+  const saveBtnRef = useRef<HTMLButtonElement>(null);
+  const saveToLibrary = useCallback(() => {
+    const session = exportSession(
+      stateRef.current,
+      volumeRef.current,
+      channelVolumesRef.current,
+      { activeDrumKit: activeDrumKitRef.current, activeSynth: activeSynthRef.current, activeBass: activeBassRef.current },
+      antiClipModeRef.current,
+    );
+    const name = getItem("mpump-track-name", "") || "Untitled";
+    saveSession(`${name} · ${stateRef.current.bpm} BPM`, session);
+    // Blink all save buttons
+    document.querySelectorAll(".header-save-btn, .header-save-mobile").forEach(el => {
+      el.classList.remove("blink");
+      void (el as HTMLElement).offsetWidth;
+      el.classList.add("blink");
+    });
+  }, []);
+
+  // Auto-save: persist session to localStorage every 30s and on tab close
+  const doAutoSave = useCallback(() => {
+    const session = exportSession(
+      stateRef.current,
+      volumeRef.current,
+      channelVolumesRef.current,
+      { activeDrumKit: activeDrumKitRef.current, activeSynth: activeSynthRef.current, activeBass: activeBassRef.current },
+      antiClipModeRef.current,
+    );
+    setJSON("mpump-autosave", session);
+    // Also save as last session for "Continue" on landing page
+    saveLastSession(session, getItem("mpump-track-name", "mix"));
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener("beforeunload", doAutoSave);
+    const id = setInterval(doAutoSave, 10_000);
+    return () => {
+      window.removeEventListener("beforeunload", doAutoSave);
+      clearInterval(id);
+    };
+  }, [doAutoSave]);
+
+  // Auto-restore: reload last auto-saved session once devices are connected and catalog loaded
+  const autoRestored = useRef(false);
+  useEffect(() => {
+    if (autoRestored.current || connectedDevices.length === 0 || !catalog) return;
+    autoRestored.current = true;
+    const saved = getJSON<SessionData | null>("mpump-autosave", null);
+    if (!saved) return;
+    const { palette, ...rest } = saved;
+    // Delay to ensure engine has finished initial setup
+    setTimeout(() => {
+      applySession({ ...rest, palette: "" });
+    }, 200);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [connectedDevices, catalog]);
+
+  // Start with a specific genre (from landing page pill)
+  useEffect(() => {
+    const genre = getItem("mpump-start-genre", "");
+    if (!genre || !catalog) return;
+    setItem("mpump-start-genre", "");
+    // Genre → BPM mapping (matches Engine.CURATED_STARTS)
+    const GENRE_BPM: Record<string, number> = {
+      "techno": 130, "acid-techno": 138, "trance": 140, "dub-techno": 118,
+      "idm": 135, "edm": 128, "drum-and-bass": 174, "house": 124,
+      "breakbeat": 140, "jungle": 170, "garage": 132, "ambient": 90,
+      "glitch": 130, "electro": 128, "downtempo": 95,
+    };
+    const bpm = GENRE_BPM[genre];
+    if (bpm) command({ type: "set_bpm", bpm });
+    // Find genre index and set on all devices
+    for (const d of connectedDevices) {
+      const genres = getDeviceGenres(catalog, d.id, d.mode);
+      const idx = genres.findIndex(g => g.name === genre);
+      if (idx >= 0) command({ type: "set_genre", device: d.id, idx });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [catalog]);
+
+  const allPaused = isPreview && connectedDevices.every(d => d.paused);
+  const isListenerMode = jam.status === "connected" && jam.role === "listener";
+
+  const toggleAllPause = () => {
+    pressVibrate();
+    // Determine target: if any device is playing, pause all; otherwise play all
+    const shouldPause = !allPaused;
+    for (const d of connectedDevices) {
+      if (shouldPause && !d.paused) {
+        rawCommand({ type: "toggle_pause", device: d.id }); // local only, no broadcast
+      } else if (!shouldPause && d.paused) {
+        rawCommand({ type: "toggle_pause", device: d.id });
+      }
+    }
+    // Broadcast explicit play/stop state to jam peers
+    jam.broadcastPlayState(!shouldPause);
+    // Push play/stop to Link so mloop follows
+    if (linkConnected) sendLinkPlaying(!shouldPause);
+  };
+
+  toggleAllPauseRef.current = toggleAllPause;
+
+  const loadPreset = (preset: SavedPreset) => {
+    command({ type: "load_preset", bpm: preset.state.bpm, genres: preset.state.genres });
+  };
+
+  const doMix = () => {
+    pressVibrate();
+    const mixFxPref = getItem("mpump-mix-fx", "both");
+    if (mixFxPref === "both") {
+      setMixFx("both");
+      setTimeout(() => setMixFx(""), 300);
+    } else if (mixFxPref !== "off") {
+      setMixFx(mixFxPref as "shake" | "flash");
+      setTimeout(() => setMixFx(""), 300);
+    }
+    if (isPreview) {
+      const snap: Record<string, { gi: number; pi: number; bgi: number; bpi: number }> = {};
+      for (const d of connectedDevices) {
+        snap[d.id] = { gi: d.genre_idx, pi: d.pattern_idx, bgi: d.bass_genre_idx, bpi: d.bass_pattern_idx };
+      }
+      const history = mixHistoryRef.current;
+      history.push({ bpm: state.bpm, genres: snap, dk: activeDrumKit, sp: activeSynth, bp: activeBass });
+      if (history.length > 3) history.shift();
+    }
+    mixCountRef.current++;
+    const anyLock = !!genreLock || patternLock.drums || patternLock.synth || patternLock.bass || soundLock.drums || soundLock.synth || soundLock.bass;
+    if (!anyLock) {
+      setTrackName(generateTrackName(state.bpm));
+      mixBpmCountRef.current++;
+      if (mixBpmCountRef.current >= 3) {
+        mixBpmCountRef.current = 0;
+        const randomBpm = 80 + Math.floor(Math.random() * 100); // 80–179
+        command({ type: "set_bpm", bpm: randomBpm });
+      }
+    }
+    if (allPaused) {
+      for (const d of connectedDevices) {
+        if (d.paused) command({ type: "toggle_pause", device: d.id });
+      }
+    }
+    if (genreLock && catalog) {
+      for (const d of connectedDevices) {
+        const pLocked = (d.mode === "drums" && patternLock.drums) || (d.mode === "bass" && patternLock.bass) || (d.mode === "synth" && patternLock.synth);
+        if (pLocked) continue;
+        const deviceGenres = d.mode === "bass"
+          ? getDeviceBassGenres(catalog)
+          : getDeviceGenres(catalog, d.id, d.mode);
+        const gi = deviceGenres.findIndex(g => g.name === genreLock);
+        if (gi >= 0) {
+          command({ type: "set_genre", device: d.id, idx: gi });
+          const pi = Math.floor(Math.random() * (deviceGenres[gi]?.patterns.length ?? 1));
+          command({ type: "set_pattern", device: d.id, idx: pi });
+        }
+      }
+    } else if (patternLock.drums || patternLock.synth || patternLock.bass) {
+      // Selective randomization — skip locked instruments
+      for (const d of connectedDevices) {
+        const pLocked = (d.mode === "drums" && patternLock.drums) || (d.mode === "bass" && patternLock.bass) || (d.mode === "synth" && patternLock.synth);
+        if (!pLocked) command({ type: "randomize_device", device: d.id });
+      }
+    } else {
+      command({ type: "randomize_all" });
+    }
+    if (isPreview) {
+      const ri = (len: number) => String(Math.random() < 0.15 ? 0 : 1 + Math.floor(Math.random() * (len - 1)));
+      setTimeout(() => {
+        if (!soundLock.drums) handleDrumKitChange(ri(DRUM_KIT_PRESETS.length));
+        if (!soundLock.synth) handleSynthChange(ri(SYNTH_PRESETS.length));
+        if (!soundLock.bass) handleBassChange(ri(BASS_PRESETS.length));
+      }, 100);
+      // Snap synth/bass pattern steps to locked scale (if not chromatic)
+      const sl = getItem("mpump-scale-lock", "chromatic");
+      if (sl !== "chromatic") {
+        setTimeout(() => {
+          for (const d of Object.values(stateRef.current.devices)) {
+            if (!d.connected) continue;
+            // Snap synth/melodic pattern
+            if (d.pattern_data) {
+              for (let i = 0; i < d.pattern_data.length; i++) {
+                const step = d.pattern_data[i];
+                if (step) {
+                  const snapped = snapToScale(step.semi, sl);
+                  if (snapped !== step.semi) {
+                    command({ type: "edit_step", device: d.id, step: i, data: { ...step, semi: snapped } });
+                  }
+                }
+              }
+            }
+            // Snap bass pattern (uses device_bass suffix)
+            if (d.bass_data) {
+              for (let i = 0; i < d.bass_data.length; i++) {
+                const step = d.bass_data[i];
+                if (step) {
+                  const snapped = snapToScale(step.semi, sl);
+                  if (snapped !== step.semi) {
+                    command({ type: "edit_step", device: `${d.id}_bass`, step: i, data: { ...step, semi: snapped } });
+                  }
+                }
+              }
+            }
+          }
+        }, 250); // wait for patterns to load
+      }
+      // After MIX settles, broadcast resulting state to jam peers
+      if (jam.status === "connected") {
+        setTimeout(() => {
+          const s = stateRef.current;
+          const g: Record<string, { gi: number; pi: number; bgi?: number; bpi?: number }> = {};
+          for (const d of Object.values(s.devices)) {
+            if (!d.connected) continue;
+            g[d.id] = { gi: d.genre_idx, pi: d.pattern_idx, bgi: d.bass_genre_idx, bpi: d.bass_pattern_idx };
+          }
+          jam.broadcastCommand({ type: "load_preset", bpm: s.bpm, genres: g } as unknown as ClientMessage);
+        }, 300);
+      }
+    }
+  };
+
+  return (
+    <div
+      className={`layout ${isPreview ? `mode-${previewMode}` : ""} ${mixFx ? `mix-fx-${mixFx}` : ""} ${bottomTransport ? "bottom-transport-active" : ""}`}
+    >
+      <header className="header">
+        <div className="title">
+          <pre ref={logoRef} className={`title-art ${logoFlash ? "logo-flash" : ""} ${logoKick ? "logo-kick" : ""}`} key={logoFlash} title="1× pulse · 2× beat sync · 3× theme · 4× credits" onClick={handleLogoClick}>{"█▀▄▀█ █▀█ █ █ █▀▄▀█ █▀█\n█ ▀ █ █▀▀ ▀▄▀ █ ▀ █ █▀▀"}</pre>
+          {linkConnected && <span style={{ color: "#66ff99", fontSize: 10, marginLeft: 2, verticalAlign: "top" }} title="Ableton Link connected">●</span>}
+        </div>
+        {/* Track title: between logo and VU */}
+        {isPreview && (
+          <div className="track-title-row track-title-header track-style-a" title="Click to rename">
+            <div className="track-title-marquee" onClick={(e) => {
+              const span = e.currentTarget.querySelector('.track-title-text') as HTMLElement;
+              if (!span || span.contentEditable === "true") return;
+              span.contentEditable = "true";
+              span.style.animation = "none";
+              span.style.cursor = "text";
+              span.focus();
+              const range = document.createRange();
+              range.selectNodeContents(span);
+              window.getSelection()?.removeAllRanges();
+              window.getSelection()?.addRange(range);
+              const done = () => {
+                span.contentEditable = "false";
+                span.style.animation = "";
+                span.style.cursor = "";
+                const text = span.textContent?.trim();
+                if (text) setTrackName(text);
+                else span.textContent = trackName;
+              };
+              span.onblur = done;
+              span.onkeydown = (ev) => { if (ev.key === "Enter") { ev.preventDefault(); span.blur(); } if (ev.key === "Escape") { span.textContent = trackName; span.blur(); } };
+            }}>
+              <span key={trackName} className="track-title-text">{trackName}</span>
+            </div>
+          </div>
+        )}
+        {isPreview && getAnalyser && <VuMeter getAnalyser={getAnalyser} />}
+        <div className="header-controls">
+          {/* Row 1: BPM, mode switcher, MIX, undo, play, rec */}
+          <div className="header-row header-row-transport">
+            {isPreview && catalog && (
+              <button className="lib-open-btn" title="Browse all patterns" onClick={() => setShowLibrary(true)}>
+                &#x266B;<span className="lib-open-text"> Library</span>
+              </button>
+            )}
+            {isPreview && (
+              <div className="mode-switcher" role="tablist" aria-label="Interface mode">
+                {HEADER_MODES.map((m) => {
+                  const isListenerMode = jam.status === "connected" && jam.role === "listener";
+                  const disabled = (jam.status === "connected" && m === "synth") || (isListenerMode && m !== "kaos");
+                  return (
+                    <button
+                      key={m}
+                      role="tab"
+                      aria-selected={previewMode === m}
+                      className={`mode-btn ${previewMode === m ? "active" : ""} ${disabled ? "mode-btn-disabled" : ""}`}
+                      title={disabled ? "SYNTH editing disabled during jam" : `Switch to ${MODE_LABELS[m]} mode`}
+                      onClick={() => { if (!disabled) setPreviewMode(m); }}
+                      style={disabled ? { opacity: 0.3, cursor: "not-allowed" } : undefined}
+                    >
+                      {MODE_LABELS[m]}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            <span style={isListenerMode ? { opacity: 0.6, pointerEvents: "none" } : undefined}><BpmControl bpm={state.bpm} command={command} /></span>
+          </div>
+          {/* Row 2: transport, share, settings */}
+          <div className="header-row header-row-tools">
+            <div className="header-transport-group">
+              <button
+                className={`shuffle-btn ${isPreview ? "shuffle-btn-preview" : ""}`}
+                title={`Randomize genre & pattern on all devices (R)\n${mixCountRef.current} mix${mixCountRef.current !== 1 ? "es" : ""} · ${sessionMin < 1 ? "<1m" : sessionMin < 60 ? `${sessionMin}m` : `${Math.floor(sessionMin / 60)}h${sessionMin % 60 > 0 ? ` ${sessionMin % 60}m` : ""}`}`}
+                onClick={doMix}
+                disabled={isListenerMode}
+                style={isListenerMode ? { opacity: 0.3, pointerEvents: "none" } : undefined}
+              >
+                &#x2684; MIX
+              </button>
+              {isPreview && (
+                <button
+                  className={`shuffle-btn shuffle-btn-undo ${mixHistoryRef.current.length === 0 ? "shuffle-btn-disabled" : ""}`}
+                  title={mixHistoryRef.current.length > 0 ? `Undo MIX (${mixHistoryRef.current.length} saved)` : "No MIX history"}
+                  disabled={mixHistoryRef.current.length === 0}
+                  onClick={() => {
+                    pressVibrate();
+                    const mixFxPref = getItem("mpump-mix-fx", "both");
+                    if (mixFxPref === "both") { setMixFx("both"); setTimeout(() => setMixFx(""), 300); }
+                    else if (mixFxPref !== "off") { setMixFx(mixFxPref as "shake" | "flash"); setTimeout(() => setMixFx(""), 300); }
+                    const prev = mixHistoryRef.current.pop();
+                    if (!prev) return;
+                    command({ type: "load_preset", bpm: prev.bpm, genres: prev.genres });
+                    setTimeout(() => {
+                      handleDrumKitChange(prev.dk);
+                      handleSynthChange(prev.sp);
+                      handleBassChange(prev.bp);
+                    }, 100);
+                  }}
+                >
+                  &#x21A9;
+                </button>
+              )}
+              {isPreview && (
+                <button
+                  className={`header-play-btn ${allPaused ? "" : "playing"}`}
+                  onClick={isListenerMode ? undefined : toggleAllPause}
+                  title={allPaused ? "Play all (Space)" : "Stop all (Space)"}
+                  style={isListenerMode ? { opacity: 0.3, pointerEvents: "none" } : undefined}
+                >
+                  {allPaused ? "▶" : "⏹"}
+                </button>
+              )}
+              {isPreview && getAnalyser && <Recorder getAnalyser={getAnalyser} onExport={support.onExport} />}
+              {isPreview && (
+                <button className="header-settings-btn header-share-btn" title="Share setup" aria-label="Share setup" onClick={() => {
+                  const g: Record<string, { gi: number; pi: number; bgi?: number; bpi?: number }> = {};
+                  for (const d of connectedDevices) {
+                    g[d.id] = { gi: d.genre_idx, pi: d.pattern_idx, bgi: d.bass_genre_idx, bpi: d.bass_pattern_idx };
+                  }
+                  const base: Record<string, unknown> = {
+                    bpm: state.bpm, sw: state.swing, dk: activeDrumKit, sp: activeSynth, bp: activeBass, g,
+                    tn: trackName,
+                  };
+                  // Synth params
+                  const synthDev = connectedDevices.find(d => d.id === "preview_synth");
+                  const bassDev = connectedDevices.find(d => d.id === "preview_bass");
+                  if (synthDev?.synthParams) base.spp = encodeSynthParamsCompact(synthDev.synthParams as unknown as Record<string, unknown>);
+                  if (bassDev?.synthParams) base.bpp = encodeSynthParamsCompact(bassDev.synthParams as unknown as Record<string, unknown>);
+                  // Mute states (drums/bass/synth)
+                  const drumsDev = connectedDevices.find(d => d.id === "preview_drums");
+                  const muBits = `${drumsDev?.drumsMuted ? "1" : "0"}${bassDev?.drumsMuted ? "1" : "0"}${synthDev?.drumsMuted ? "1" : "0"}`;
+                  if (muBits !== "000") base.mu = muBits;
+                  // Channel volumes (drums=ch9, bass=ch1, synth=ch0)
+                  const cv = `${Math.round((channelVolumes[9] ?? 0.7) * 100)},${Math.round((channelVolumes[1] ?? 0.7) * 100)},${Math.round((channelVolumes[0] ?? 0.7) * 100)}`;
+                  if (cv !== "70,70,70") base.cv = cv;
+                  // Pattern edits
+                  for (const d of connectedDevices) {
+                    if (!d.editing) continue;
+                    if (d.mode === "synth") base.me = encodeSteps(d.pattern_data);
+                    if (d.mode === "drums" || d.mode === "drums+bass") base.de = encodeDrumSteps(d.drum_data);
+                    if (d.mode === "bass") base.be = encodeSteps(d.pattern_data);
+                    if (d.mode === "drums+bass") base.be = encodeSteps(d.bass_data);
+                  }
+                  // Build URLs (no gesture — too large, not shareable)
+                  const shareLink = `https://s.mpump.live/?b=${toUrlSafeB64(base)}`;
+                  setShareUrl(shareLink);
+                  setShareQrUrl(shareLink);
+                  setShareGestureNote(false);
+                  support.onShare();
+                }}>
+                  ⤴ Share
+                </button>
+              )}
+              {isPreview && jamEnabled && (
+                <button
+                  className={`header-settings-btn jam-header-btn ${jam.status === "connected" ? "jam-active" : ""}`}
+                  title="Live jam"
+                  aria-label="Live jam"
+                  onClick={() => setShowJam(true)}
+                >
+                  {jam.status === "connected" ? (<>
+                    <span className={`jam-dot ${logoKick ? "kick" : ""}`} />
+                    {jam.roomType === "liveset"
+                      ? ` LIVE SET ${jam.peerCount}`
+                      : ` JAM ${jam.peerCount}/4`}
+                  </>) : (<><span className="jam-label-full">Jam/Live Set</span><span className="jam-label-short">Jam</span></>)}
+                </button>
+              )}
+            </div>
+            {/* Right-aligned group: pins, heart, more, settings */}
+            <div className="header-right-group">
+              {isPreview && <PresetManager state={state} onLoad={loadPreset} />}
+              {isPreview && <button className="header-settings-btn header-save-btn" title="Save session (Cmd+S)" aria-label="Save session" onClick={saveToLibrary}>💾</button>}
+              {isPreview && <button className="header-settings-btn header-sessions-btn" title="Sessions" aria-label="Sessions" onClick={() => setShowSessionLib(true)}>📂</button>}
+              {isPreview && (
+                <button className="header-settings-btn header-help-btn" onClick={() => setShowHelp(true)} title="Help" aria-label="Help">
+                  ?
+                </button>
+              )}
+              {isPreview && (
+                <button className="header-settings-btn header-save-mobile" onClick={saveToLibrary} title="Save session" aria-label="Save session">
+                  💾
+                </button>
+              )}
+              {isPreview && (
+                <div className="header-more-wrap">
+                  <button className="header-settings-btn" title="More actions" aria-label="More actions" onClick={() => setShowMoreMenu(v => !v)}>
+                    ⋯
+                  </button>
+                  {showMoreMenu && (
+                    <div className="header-more-menu" onClick={(e) => { if (!(e.target as HTMLElement).closest(".tap-tempo-btn") && !(e.target as HTMLElement).closest(".preset-mgr")) setShowMoreMenu(false); }}>
+                      <button className="more-menu-sessions" onClick={() => { setShowMoreMenu(false); setShowSessionLib(true); }}>📂 Sessions</button>
+                      <div className="more-menu-presets"><PresetManager state={state} onLoad={loadPreset} /></div>
+                      <button className="more-menu-fullscreen" onClick={() => {
+                        if (document.fullscreenElement) document.exitFullscreen();
+                        else document.documentElement.requestFullscreen().catch(() => {});
+                      }}>⛶ Fullscreen</button>
+                      <TapTempo command={command} />
+                      <button onClick={handleExportSession}>↓ Export session</button>
+                      <button onClick={() => {
+                        const input = document.createElement("input");
+                        input.type = "file"; input.accept = ".json";
+                        input.onchange = () => { if (input.files?.[0]) handleImportSession(input.files[0]); };
+                        input.click();
+                      }}>↑ Import session</button>
+                      {onConnectMidi && <button onClick={onConnectMidi}>🎹 Connect MIDI</button>}
+                      <button className="more-menu-help" onClick={() => { setShowMoreMenu(false); setShowHelp(true); }}>? Help</button>
+                      <button onClick={() => { setShowMoreMenu(false); setShowSettings(true); }}>⚙ Settings</button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>{/* /header-row-tools */}
+        </div>
+      </header>
+
+      {/* Update banner */}
+      {updateAvailable && (
+        <div className="update-banner" onClick={() => location.reload()}>
+          New version available — tap to update
+        </div>
+      )}
+
+
+      {/* Song editor at top (preview only, drums device) */}
+      {isPreview && songModeOn && catalog && (() => {
+        const drums = connectedDevices.find(d => d.id === "preview_drums");
+        if (!drums) return null;
+        const genres = getDeviceGenres(catalog, drums.id, drums.mode);
+        const bassGenres = getDeviceBassGenres(catalog);
+        const bassPatterns = bassGenres[drums.bass_genre_idx]?.patterns;
+        return (
+          <div style={{ padding: "0 16px 8px" }}>
+            <SongEditor accent={drums.accent} device={drums.id} genreList={genres} genreIdx={drums.genre_idx} patternIdx={drums.pattern_idx} bassPatterns={bassPatterns} bassPatternIdx={drums.bass_pattern_idx} hasBass={true} bpm={state.bpm} patternLength={drums.patternLength} command={command} />
+          </div>
+        );
+      })()}
+
+      <main className="panels">
+        {!anyConnected && !isPreview && (
+          <div className="no-devices">
+            <div className="no-devices-icon">no instruments detected</div>
+            <div className="no-devices-hint">
+              connect a MIDI device via USB
+            </div>
+            <div className="no-devices-hint">
+              devices are detected automatically when plugged in
+            </div>
+            {!isPreview && onStartPreview && (
+              <button className="midi-gate-btn midi-gate-btn-preview" style={{ marginTop: 16 }} onClick={() => onStartPreview!()}>
+                Play with built-in sounds
+              </button>
+            )}
+          </div>
+        )}
+
+        {isPreview && previewMode === "kaos" ? (
+          <>
+          <KaosPanel
+            devices={connectedDevices}
+            catalog={catalog}
+            command={command}
+            bpm={state.bpm}
+            volume={volume}
+            onVolumeChange={handleVolumeChange}
+            channelVolumes={channelVolumes}
+            onChannelVolumeChange={handleChannelVolumeChange}
+            presetState={presetState}
+            getAnalyser={getAnalyser}
+            getChannelAnalyser={getChannelAnalyser}
+            onMix={doMix}
+            onExport={support.onExport}
+            trackName={trackName}
+            onTrackNameChange={setTrackName}
+            onJamXY={jam.status === "connected" ? (x: number, y: number) => {
+              jam.broadcastXY(x, y);
+              if (jam.quantize) jam.recordXYStep(x, y, drumsStep);
+            } : undefined}
+            jamApplyXYRef={jamApplyXYRef}
+            jamFxRef={jamFxRef}
+            inJam={jam.status === "connected"}
+            isListener={jam.status === "connected" && jam.role === "listener"}
+            currentStep={drumsStep}
+            pendingMutes={pendingMutes}
+          />
+          </>
+        ) : isPreview && previewMode === "mixer" ? (
+          <MixerPanel
+            volume={volume}
+            onVolumeChange={handleVolumeChange}
+            channelVolumes={channelVolumes}
+            onChannelVolumeChange={handleChannelVolumeChange}
+            devices={connectedDevices}
+            command={wrappedCommand}
+            antiClipMode={antiClipMode}
+            getAnalyser={getAnalyser}
+            getChannelAnalyser={getChannelAnalyser}
+            pendingMutes={pendingMutes}
+          />
+        ) : (
+          connectedDevices.map(ds =>
+            isPreview && previewMode === "ease" ? (
+              <JadePanel
+                key={ds.id}
+                state={ds}
+                catalog={catalog}
+                command={command}
+                bpm={state.bpm}
+                presetState={presetState}
+              />
+            ) : (
+              <DevicePanel
+                key={ds.id}
+                state={ds}
+                catalog={catalog}
+                command={command}
+                onLoadSamples={onLoadSamples}
+                bpm={state.bpm}
+                presetState={presetState}
+                allDevices={connectedDevices}
+                scaleLock={scaleLock}
+                channelVolumes={channelVolumes}
+                onChannelVolumeChange={handleChannelVolumeChange}
+                onScaleLockChange={(v) => { setScaleLock(v); setItem("mpump-scale-lock", v); }}
+                soloChannel={soloChannel}
+                onSoloChange={setSoloChannel}
+                getChannelAnalyser={getChannelAnalyser}
+              />
+            )
+          )
+        )}
+      </main>
+
+      {showSettings && (
+        <Settings
+          volume={volume}
+          onVolumeChange={handleVolumeChange}
+          onClose={() => setShowSettings(false)}
+          swing={state.swing}
+          onSwingChange={(sw) => command({ type: "set_swing", swing: sw })}
+          previewMode={previewMode}
+          onPreviewModeChange={setPreviewMode}
+          shareData={(() => {
+            const g: Record<string, { gi: number; pi: number; bgi?: number; bpi?: number }> = {};
+            for (const d of connectedDevices) {
+              g[d.id] = { gi: d.genre_idx, pi: d.pattern_idx, bgi: d.bass_genre_idx, bpi: d.bass_pattern_idx };
+            }
+            const sd: Record<string, unknown> = { bpm: state.bpm, sw: state.swing, dk: activeDrumKit, sp: activeSynth, bp: activeBass, g };
+            const synthDev2 = connectedDevices.find(d => d.id === "preview_synth");
+            const bassDev2 = connectedDevices.find(d => d.id === "preview_bass");
+            if (synthDev2?.synthParams) sd.spp = encodeSynthParamsCompact(synthDev2.synthParams as unknown as Record<string, unknown>);
+            if (bassDev2?.synthParams) sd.bpp = encodeSynthParamsCompact(bassDev2.synthParams as unknown as Record<string, unknown>);
+            const drumsDev2 = connectedDevices.find(d => d.id === "preview_drums");
+            const muBits2 = `${drumsDev2?.drumsMuted ? "1" : "0"}${bassDev2?.drumsMuted ? "1" : "0"}${synthDev2?.drumsMuted ? "1" : "0"}`;
+            if (muBits2 !== "000") sd.mu = muBits2;
+            const cv2 = `${Math.round((channelVolumes[9] ?? 0.7) * 100)},${Math.round((channelVolumes[1] ?? 0.7) * 100)},${Math.round((channelVolumes[0] ?? 0.7) * 100)}`;
+            if (cv2 !== "70,70,70") sd.cv = cv2;
+            for (const d of connectedDevices) {
+              if (!d.editing) continue;
+              if (d.mode === "synth") sd.me = encodeSteps(d.pattern_data);
+              if (d.mode === "drums" || d.mode === "drums+bass") sd.de = encodeDrumSteps(d.drum_data);
+              if (d.mode === "bass") sd.be = encodeSteps(d.pattern_data);
+              if (d.mode === "drums+bass") sd.be = encodeSteps(d.bass_data);
+            }
+            return toUrlSafeB64(sd);
+          })()}
+          cvEnabled={cvEnabled}
+          onCVChange={isPreview ? (on) => { setCvEnabled(on); command({ type: "set_cv_enabled", on }); } : undefined}
+          antiClipMode={antiClipMode}
+          onAntiClipChange={isPreview ? (mode) => { setAntiClipMode(mode); command({ type: "set_anti_clip", mode }); } : undefined}
+          command={command}
+          onAbout={() => setShowAbout(true)}
+          onHelp={() => setShowHelp(true)}
+          onTutorial={() => setShowTutorialManual(true)}
+          onExportSession={isPreview ? handleExportSession : undefined}
+          onImportSession={isPreview ? handleImportSession : undefined}
+        />
+      )}
+
+      {shareUrl && (
+        <ShareModal url={shareUrl} qrUrl={shareQrUrl} gestureNote={shareGestureNote} getAnalyser={getAnalyser ?? undefined} currentStep={drumsStep} onOpen={() => { if (allPaused) toggleAllPause(); }} onClose={() => { setShareUrl(null); setShareQrUrl(null); setShareGestureNote(false); }} />
+      )}
+
+      {showJam && (
+        <JamModal
+          status={jam.status}
+          roomId={jam.roomId}
+          roomType={jam.roomType}
+          role={jam.role}
+          peerCount={jam.peerCount}
+          quantize={jam.quantize}
+          onToggleQuantize={jam.toggleQuantize}
+          onCreateRoom={async (type) => { jamSyncedRef.current = true; return jam.createRoom(type); }}
+          onJoinRoom={(id, type) => jam.joinRoom(id, type)}
+          onLeave={() => { jamSyncedRef.current = false; jam.leaveRoom(); setShowJam(false); }}
+          onDisconnect={() => { jamSyncedRef.current = false; jam.leaveRoom(); }}
+          onClose={() => setShowJam(false)}
+          isJoining={jamJoiningRef.current}
+        />
+      )}
+
+      {showLibrary && catalog && (
+        <PatternLibrary catalog={catalog} command={command} onClose={() => setShowLibrary(false)} />
+      )}
+
+      {isPreview && showHelp && (
+        <HelpModal onClose={() => setShowHelp(false)} onShowTutorial={() => { setShowHelp(false); setShowTutorialManual(true); }} onShowCredits={() => { setShowHelp(false); setShowAbout(true); }} />
+      )}
+
+      {isPreview && showSessionLib && (
+        <SessionLibrary onClose={() => setShowSessionLib(false)} onLoad={(data, name) => {
+          setShowSessionLib(false);
+          setTimeout(() => { try { applySession(data); setTrackName(name.replace(/ · \d+ BPM$/, "")); } catch(e) { console.error("Failed to load session:", e); } }, 50);
+        }} />
+      )}
+
+      {isPreview && (showTutorial || showTutorialManual) && (
+        <Tutorial onDismiss={() => { dismissTutorial(); setShowTutorialManual(false); }} />
+      )}
+
+      {showAbout && <AboutModal onClose={() => setShowAbout(false)} getAnalyser={getAnalyser} />}
+      {showMegaKaos && <MegaKaos devices={connectedDevices} command={command} getAnalyser={getAnalyser} onClose={() => setShowMegaKaos(false)} />}
+      {showPrivacy && <PrivacyModal onClose={() => setShowPrivacy(false)} />}
+
+      {showSessionExport && (
+        <SessionModal
+          defaultName={`mpump-session-${new Date().toISOString().slice(0, 16).replace(/[T:]/g, "-")}`}
+          onSave={doExportSession}
+          onClose={() => setShowSessionExport(false)}
+        />
+      )}
+
+      {/* Bottom transport bar (mobile setting) */}
+      {bottomTransport && isPreview && (
+        <div className="bottom-transport-bar">
+          <button
+            className={`shuffle-btn ${isPreview ? "shuffle-btn-preview" : ""}`}
+            title="MIX"
+            onClick={doMix}
+            disabled={isListenerMode}
+            style={isListenerMode ? { opacity: 0.3, pointerEvents: "none" } : undefined}
+          >
+            &#x2684; MIX
+          </button>
+          <button
+            className={`shuffle-btn shuffle-btn-undo ${mixHistoryRef.current.length === 0 ? "shuffle-btn-disabled" : ""}`}
+            title="Undo MIX"
+            disabled={mixHistoryRef.current.length === 0 || isListenerMode}
+            style={isListenerMode ? { opacity: 0.3, pointerEvents: "none" } : undefined}
+            onClick={() => {
+              pressVibrate();
+              const prev = mixHistoryRef.current.pop();
+              if (!prev) return;
+              command({ type: "load_preset", bpm: prev.bpm, genres: prev.genres });
+              setTimeout(() => { handleDrumKitChange(prev.dk); handleSynthChange(prev.sp); handleBassChange(prev.bp); }, 100);
+            }}
+          >
+            &#x21A9;
+          </button>
+          <button
+            className={`header-play-btn ${allPaused ? "" : "playing"}`}
+            onClick={isListenerMode ? undefined : toggleAllPause}
+            title={allPaused ? "Play all" : "Stop all"}
+            style={isListenerMode ? { opacity: 0.3, pointerEvents: "none" } : undefined}
+          >
+            {allPaused ? "▶" : "⏹"}
+          </button>
+          {getAnalyser && <Recorder getAnalyser={getAnalyser} />}
+        </div>
+      )}
+
+      <SupportPromptUI showModal={support.showModal} setShowModal={support.setShowModal} showToast={support.showToast} setShowToast={support.setShowToast} />
+
+      {jam.status === "connected" && (
+        <JamReactions
+          onSend={jam.sendReaction}
+          onRegisterAddFloat={jamReactions.registerAddFloat}
+          previewColor={getComputedStyle(document.documentElement).getPropertyValue("--preview").trim()}
+        />
+      )}
+
+      {/* Global footer */}
+      <footer className="app-footer" style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "0 6px" }}>
+        <span><span className="app-footer-link" onClick={() => setShowAbout(true)}>v{__APP_VERSION__}</span> · © 2026 · <a href="https://github.com/gdamdam/mpump" target="_blank" rel="noopener noreferrer">github.com/gdamdam/mpump</a></span>
+        <span><a className="app-footer-link" href="https://ko-fi.com/gdamdam" target="_blank" rel="noopener noreferrer" style={{ color: "#ff0000", fontWeight: 700, filter: "brightness(2)" }}>Support ♥</a> · <a className="app-footer-link" href="https://github.com/gdamdam/mpump/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">AGPL-3.0</a> · Built with Claude Code · <span className="app-footer-link" onClick={() => setShowPrivacy(true)}>No cookies · No personal data</span></span>
+      </footer>
+    </div>
+  );
+}

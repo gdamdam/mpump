@@ -1,0 +1,12 @@
+/* ── Responsive ───────────────────────────────────────────────────────── */
+
+@media (max-width: 480px) {
+  .step-cell {
+    min-height: 44px;
+  }
+
+  .drum-cell {
+    min-height: 40px;
+  }
+
+}
