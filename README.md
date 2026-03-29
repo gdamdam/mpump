@@ -288,7 +288,9 @@ The relay runs on [Fly.io](https://fly.io) and is fully open source in [`worker/
 
 ### Hosting
 
-mpump is hosted on [GitHub Pages](https://pages.github.com). The share relay runs on [Cloudflare Workers](https://workers.cloudflare.com). The jam relay runs on [Fly.io](https://fly.io).
+mpump is hosted on [GitHub Pages](https://pages.github.com). 
+
+The share relay runs on [Cloudflare Workers](https://workers.cloudflare.com). The jam relay runs on [Fly.io](https://fly.io).
 
 ---
 
