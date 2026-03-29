@@ -62,7 +62,7 @@ jobs:
 
             **Quick start:** Download for your platform, run the app, open mpump.live — sync starts automatically.
 
-            > **Open source & safe:** The Link Bridge is fully open source (GPL-3.0). It makes no internet connections — only local network UDP for Link peer discovery and localhost WebSocket for browser sync. All code is auditable at [github.com/gdamdam/mpump/tree/main/link-bridge](https://github.com/gdamdam/mpump/tree/main/link-bridge).
+            > **Open source & safe:** The Link Bridge is fully open source (AGPL-3.0). It makes no internet connections — only local network UDP for Link peer discovery and localhost WebSocket for browser sync. All code is auditable at [github.com/gdamdam/mpump/tree/main/link-bridge](https://github.com/gdamdam/mpump/tree/main/link-bridge).
 
             See [link-bridge/README.md](https://github.com/gdamdam/mpump/blob/main/link-bridge/README.md) for details.
           releaseDraft: false
