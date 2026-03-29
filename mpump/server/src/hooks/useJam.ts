@@ -55,12 +55,19 @@ export type JamRole = "peer" | "controller" | "listener";
 /** A 16-point XY loop — one position per sequencer step */
 export type XYLoop = ({ x: number; y: number } | null)[];
 
+export interface PeerInfo {
+  id: number;
+  name: string | null;
+}
+
 export interface JamState {
   status: JamStatus;
   roomId: string | null;
   roomType: RoomType;
   role: JamRole;
   peerCount: number;
+  peerList: PeerInfo[];
+  myPeerId: number | null;
   quantize: boolean;
 }
 
@@ -71,15 +78,17 @@ export function useJam() {
     roomType: "jam",
     role: "peer",
     peerCount: 0,
+    peerList: [],
+    myPeerId: null,
     quantize: true,
   });
 
   const wsRef = useRef<WebSocket | null>(null);
   const remoteRef = useRef(false); // feedback loop prevention
-  const commandHandlerRef = useRef<((msg: ClientMessage) => void) | null>(null);
-  const xyHandlerRef = useRef<((x: number, y: number) => void) | null>(null);
+  const commandHandlerRef = useRef<((msg: ClientMessage, sender?: PeerInfo) => void) | null>(null);
+  const xyHandlerRef = useRef<((x: number, y: number, sender?: PeerInfo) => void) | null>(null);
   const playStateHandlerRef = useRef<((playing: boolean) => void) | null>(null);
-  const soundChangeHandlerRef = useRef<((type: string, id: string) => void) | null>(null);
+  const soundChangeHandlerRef = useRef<((type: string, id: string, sender?: PeerInfo) => void) | null>(null);
   const reactionHandlerRef = useRef<((emoji: string) => void) | null>(null);
   const syncHandlerRef = useRef<((payload: string) => void) | null>(null);
   const getSharePayloadRef = useRef<(() => string | null) | null>(null);
@@ -100,7 +109,10 @@ export function useJam() {
   /** Connect to relay and join a room (with auto-retry for cold starts) */
   const roomTypeRef = useRef<RoomType>("jam");
 
-  const connect = useCallback((roomId: string, roomType: RoomType = "jam") => {
+  const nameRef = useRef<string | null>(null);
+
+  const connect = useCallback((roomId: string, roomType: RoomType = "jam", name?: string) => {
+    nameRef.current = name?.slice(0, 8).trim() || null;
     // Close existing connection
     if (wsRef.current) {
       wsRef.current.close();
@@ -126,7 +138,7 @@ export function useJam() {
       if (wsRef.current !== ws) { ws.close(); return; }
       console.log("[jam] relay connected, joining room:", roomId, "type:", roomTypeRef.current);
       retryRef.current = 0;
-      ws.send(JSON.stringify({ type: "join", room: roomId, roomType: roomTypeRef.current }));
+      ws.send(JSON.stringify({ type: "join", room: roomId, roomType: roomTypeRef.current, name: nameRef.current }));
       setState(s => ({ ...s, status: "connected" }));
     };
 
@@ -138,9 +150,10 @@ export function useJam() {
       if (msg.type === "peers") {
         const count = msg.count as number;
         const roomType = (msg.roomType as RoomType) || undefined;
+        const peerList = (msg.peerList as PeerInfo[]) || [];
         setState(s => {
           if (count > s.peerCount) trackEvent("jam-peer-joined");
-          return { ...s, peerCount: count, ...(roomType ? { roomType } : {}) };
+          return { ...s, peerCount: count, peerList, ...(roomType ? { roomType } : {}) };
         });
         return;
       }
@@ -148,8 +161,9 @@ export function useJam() {
       // Role assignment from relay
       if (msg.type === "role") {
         const role = msg.role as JamRole;
-        console.log("[jam] role assigned:", role);
-        setState(s => ({ ...s, role }));
+        const peerId = (msg.peerId as number) ?? null;
+        console.log("[jam] role assigned:", role, "peerId:", peerId);
+        setState(s => ({ ...s, role, myPeerId: peerId }));
         return;
       }
 
@@ -186,9 +200,11 @@ export function useJam() {
         return;
       }
 
+      const sender = msg.sender as PeerInfo | undefined;
+
       if (msg.type === "cmd" && msg.cmd) {
         const cmd = msg.cmd as Record<string, unknown>;
-        console.log("[jam] recv cmd:", cmd.type);
+        console.log("[jam] recv cmd:", cmd.type, sender?.name || "");
         // Explicit play/stop from peer — apply to all devices
         if (cmd.type === "jam_set_playing" && playStateHandlerRef.current) {
           playStateHandlerRef.current((cmd.playing as boolean) ?? false);
@@ -196,12 +212,12 @@ export function useJam() {
         }
         // Sound preset changes — receiver loads the full preset by ID
         if ((cmd.type === "jam_set_drum_kit" || cmd.type === "jam_set_synth" || cmd.type === "jam_set_bass") && soundChangeHandlerRef.current) {
-          soundChangeHandlerRef.current(cmd.type as string, cmd.id as string);
+          soundChangeHandlerRef.current(cmd.type as string, cmd.id as string, sender);
           return;
         }
         if (commandHandlerRef.current) {
           remoteRef.current = true;
-          commandHandlerRef.current(cmd as unknown as ClientMessage);
+          commandHandlerRef.current(cmd as unknown as ClientMessage, sender);
           remoteRef.current = false;
         }
         return;
@@ -209,7 +225,7 @@ export function useJam() {
 
       if (msg.type === "xy" && msg.x != null && msg.y != null) {
         if (xyHandlerRef.current) {
-          xyHandlerRef.current(msg.x as number, msg.y as number);
+          xyHandlerRef.current(msg.x as number, msg.y as number, sender);
         }
       }
 
@@ -247,19 +263,19 @@ export function useJam() {
   }, []);
 
   /** Create a new room (you're the first peer / host) */
-  const createRoom = useCallback(async (roomType: RoomType = "jam") => {
+  const createRoom = useCallback(async (roomType: RoomType = "jam", name?: string) => {
     const roomId = generateRoomId();
     isFirstPeerRef.current = true;
     trackEvent(roomType === "liveset" ? "liveset-create" : "jam-create");
-    connect(roomId, roomType);
+    connect(roomId, roomType, name);
     return roomId;
   }, [generateRoomId, connect]);
 
   /** Join an existing room */
-  const joinRoom = useCallback(async (roomId: string, roomType: RoomType = "jam") => {
+  const joinRoom = useCallback(async (roomId: string, roomType: RoomType = "jam", name?: string) => {
     isFirstPeerRef.current = false;
     trackEvent(roomType === "liveset" ? "liveset-join" : "jam-join");
-    connect(roomId, roomType);
+    connect(roomId, roomType, name);
   }, [connect]);
 
   /** Leave the current room */
@@ -307,12 +323,12 @@ export function useJam() {
   }, []);
 
   /** Register handler for incoming remote commands */
-  const onRemoteCommand = useCallback((handler: (msg: ClientMessage) => void) => {
+  const onRemoteCommand = useCallback((handler: (msg: ClientMessage, sender?: PeerInfo) => void) => {
     commandHandlerRef.current = handler;
   }, []);
 
   /** Register handler for incoming remote XY */
-  const onRemoteXY = useCallback((handler: (x: number, y: number) => void) => {
+  const onRemoteXY = useCallback((handler: (x: number, y: number, sender?: PeerInfo) => void) => {
     xyHandlerRef.current = handler;
   }, []);
 
@@ -322,7 +338,7 @@ export function useJam() {
   }, []);
 
   /** Register handler for incoming sound preset changes */
-  const onSoundChange = useCallback((handler: (type: string, id: string) => void) => {
+  const onSoundChange = useCallback((handler: (type: string, id: string, sender?: PeerInfo) => void) => {
     soundChangeHandlerRef.current = handler;
   }, []);
 

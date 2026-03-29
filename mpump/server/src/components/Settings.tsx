@@ -310,6 +310,10 @@ export function Settings({ volume, onVolumeChange, onClose, swing, onSwingChange
                 <span className="settings-toggle-dot" />Humanize
               </button>
             )}
+            <button className={`settings-toggle ${getBool("mpump-jam-identity", true) ? "on" : ""}`} title="Show names and colored trails in jam sessions"
+              onClick={() => { const next = !getBool("mpump-jam-identity", true); setBool("mpump-jam-identity", next); window.dispatchEvent(new Event("mpump-settings-changed")); }}>
+              <span className="settings-toggle-dot" />Jam Names
+            </button>
             {command && (
               <button className={`settings-toggle ${getBool("mpump-sidechain") ? "on" : ""}`} title="Auto-duck bass and synth on kick hits"
                 onClick={() => { const next = !getBool("mpump-sidechain"); setBool("mpump-sidechain", next); command({ type: "set_sidechain_duck", on: next }); window.dispatchEvent(new Event("mpump-settings-changed")); }}>

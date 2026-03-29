@@ -49,7 +49,9 @@ interface Props {
   trackName?: string;
   onTrackNameChange?: (name: string) => void;
   onJamXY?: (x: number, y: number) => void;
-  jamApplyXYRef?: React.MutableRefObject<((x: number, y: number) => void) | null>;
+  jamApplyXYRef?: React.MutableRefObject<((x: number, y: number, sender?: import("../hooks/useJam").PeerInfo) => void) | null>;
+  peerList?: import("../hooks/useJam").PeerInfo[];
+  myPeerId?: number | null;
   jamFxRef?: React.MutableRefObject<{ setFx: React.Dispatch<React.SetStateAction<EffectParams>>; setEffectOrder: React.Dispatch<React.SetStateAction<EffectName[]>> } | null>;
   inJam?: boolean;
   isListener?: boolean;
@@ -60,8 +62,9 @@ interface Props {
   jamXYLoopRef?: React.MutableRefObject<{ x: number; y: number }[] | null>;
 }
 
-interface TouchPoint { x: number; y: number; age: number }
+interface TouchPoint { x: number; y: number; age: number; senderId?: number; senderName?: string | null }
 
+const PEER_COLORS = ["#66ff99", "#ff6699", "#6699ff", "#ffcc66"];
 const EFFECT_LABELS: Record<EffectName, string> = {
   delay: "DELAY",
   distortion: "DIST",
@@ -73,7 +76,7 @@ const EFFECT_LABELS: Record<EffectName, string> = {
   bitcrusher: "CRUSH",
 };
 
-export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChange, channelVolumes, onChannelVolumeChange, presetState, getAnalyser, getChannelAnalyser, onMix, onExport, trackName, onTrackNameChange, onJamXY, jamApplyXYRef, jamFxRef, inJam, isListener, pendingMutes, currentStep, jamXYLoopRef }: Props) {
+export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChange, channelVolumes, onChannelVolumeChange, presetState, getAnalyser, getChannelAnalyser, onMix, onExport, trackName, onTrackNameChange, onJamXY, jamApplyXYRef, peerList, myPeerId, jamFxRef, inJam, isListener, pendingMutes, currentStep, jamXYLoopRef }: Props) {
   const drumsDevice = devices.find(d => d.id === "preview_drums");
   const bassDevice = devices.find(d => d.id === "preview_bass");
   const synthDevice = devices.find(d => d.id === "preview_synth");
@@ -473,11 +476,11 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
   const applyXYRef = useRef(applyXY);
   applyXYRef.current = applyXY;
   // Expose applyXY + visual update + trails to parent for receiving remote jam XY
-  if (jamApplyXYRef) jamApplyXYRef.current = (x: number, y: number) => {
+  if (jamApplyXYRef) jamApplyXYRef.current = (x: number, y: number, sender?) => {
     applyXY(x, y);
     setPos({ x, y });
     posRef.current = { x, y };
-    const newTrails = [...trailsRef.current.slice(-30), { x, y, age: Date.now() }];
+    const newTrails = [...trailsRef.current.slice(-30), { x, y, age: Date.now(), senderId: sender?.id, senderName: sender?.name }];
     trailsRef.current = newTrails;
     setTrails(newTrails);
   };
@@ -494,7 +497,8 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
     const ny = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
     setPos({ x: nx, y: ny });
     posRef.current = { x: nx, y: ny };
-    const newTrails = [...trailsRef.current.slice(-30), { x: nx, y: ny, age: Date.now() }];
+    const myName = myPeerId != null ? (peerList || []).find(p => p.id === myPeerId)?.name : undefined;
+    const newTrails = [...trailsRef.current.slice(-30), { x: nx, y: ny, age: Date.now(), senderId: myPeerId ?? undefined, senderName: myName }];
     trailsRef.current = newTrails;
     setTrails(newTrails);
     // Capture gesture points while recording (start timer on first touch)
@@ -636,7 +640,7 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
       {/* Unified channel cards: sound + genre + pattern in one block */}
       <div className="kaos-selectors">
         {drumsDevice && (
-          <div className="kaos-selector">
+          <div className="kaos-selector" data-jam="drums">
             <div className="kaos-sel-header">
               {getChannelAnalyser && <SignalLed getAnalyser={() => getChannelAnalyser(9)} />}
               <span className="kaos-sel-label">DRUMS</span>
@@ -676,7 +680,7 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
           </div>
         )}
         {bassDevice && (
-          <div className="kaos-selector">
+          <div className="kaos-selector" data-jam="bass">
             <div className="kaos-sel-header">
               {getChannelAnalyser && <SignalLed getAnalyser={() => getChannelAnalyser(1)} />}
               <span className="kaos-sel-label">BASS</span>
@@ -713,7 +717,7 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
           </div>
         )}
         {synthDevice && (
-          <div className="kaos-selector">
+          <div className="kaos-selector" data-jam="synth">
             <div className="kaos-sel-header">
               {getChannelAnalyser && <SignalLed getAnalyser={() => getChannelAnalyser(0)} />}
               <span className="kaos-sel-label">SYNTH</span>
@@ -766,9 +770,16 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
       >
         <canvas ref={waveCanvasRef} className="kaos-wave-bg" />
         <div className="kaos-grid" />
-        {trails.map((t, i) => (
-          <div key={i} className="kaos-trail" style={{ left: `${t.x * 100}%`, top: `${t.y * 100}%`, opacity: Math.max(0, 1 - (Date.now() - t.age) / 800) }} />
-        ))}
+        {trails.map((t, i) => {
+          const peerIdx = getBool("mpump-jam-identity", true) && t.senderId != null ? (peerList || []).findIndex(p => p.id === t.senderId) : -1;
+          const color = peerIdx >= 0 ? PEER_COLORS[peerIdx % PEER_COLORS.length] : undefined;
+          const opacity = Math.max(0, 1 - (Date.now() - t.age) / 800);
+          return (
+            <div key={i} className="kaos-trail" style={{ left: `${t.x * 100}%`, top: `${t.y * 100}%`, opacity, background: color }}>
+              {getBool("mpump-jam-identity", true) && t.senderName && opacity > 0.2 && <span className="kaos-trail-name" style={{ color: color || "var(--preview)" }}>{t.senderName}</span>}
+            </div>
+          );
+        })}
         {pos && (
           <>
             <div className="kaos-crosshair-h" style={{ top: `${pos.y * 100}%` }} />
@@ -825,7 +836,7 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
       {/* Effects rack */}
       <div className="kaos-fx">
         <div className="kaos-fx-label">EFFECTS <span className="kaos-fx-hint">tap on/off · hold or right-click to edit</span></div>
-        <div className="kaos-fx-grid">
+        <div className="kaos-fx-grid" data-jam="effects">
           {(Object.keys(EFFECT_LABELS) as EffectName[]).map((n) => {
             const chainIdx = fx[n].on ? effectOrder.filter(e => fx[e].on).indexOf(n) : -1;
             return (

@@ -280,6 +280,17 @@
   box-shadow: 0 0 8px var(--preview);
   pointer-events: none;
 }
+.kaos-trail-name {
+  position: absolute;
+  top: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  pointer-events: none;
+  text-shadow: 0 0 4px #000, 0 0 8px #000;
+}
 
 .kaos-crosshair-h {
   position: absolute;

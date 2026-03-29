@@ -16,8 +16,9 @@ import { WebSocketServer } from "ws";
 
 const PORT = process.env.PORT || 4444;
 
-// Room state: { type, controller, peers: Set<ws> }
+// Room state: { type, controller, peers: Map<ws, { id, name }> }
 const rooms = new Map();
+let nextPeerId = 0;
 
 const MAX_JAM = 4;
 const MAX_LIVESET = 50; // 1 controller + 49 listeners
@@ -57,10 +58,16 @@ wss.on("connection", (ws) => {
     if (msg.type === "join") {
       roomId = msg.room;
       const roomType = msg.roomType || "jam"; // "jam" or "liveset"
+      let peerName = (msg.name || "").slice(0, 8).trim() || null;
+      // Disambiguate duplicate names within the room
+      if (peerName && rooms.has(roomId)) {
+        const existing = [...rooms.get(roomId).peers.values()].filter(p => p.name === peerName);
+        if (existing.length > 0) peerName = `${peerName} ${existing.length + 1}`;
+      }
 
       if (!rooms.has(roomId)) {
         // First peer creates the room
-        rooms.set(roomId, { type: roomType, controller: ws, peers: new Set() });
+        rooms.set(roomId, { type: roomType, controller: ws, peers: new Map() });
         role = roomType === "liveset" ? "controller" : "peer";
       } else {
         const room = rooms.get(roomId);
@@ -74,29 +81,30 @@ wss.on("connection", (ws) => {
       }
 
       const room = rooms.get(roomId);
-      room.peers.add(ws);
+      const peerId = nextPeerId++;
+      room.peers.set(ws, { id: peerId, name: peerName });
 
-      // Notify all peers of new count
-      const count = room.peers.size;
-      for (const peer of room.peers) {
-        peer.send(JSON.stringify({ type: "peers", count, roomType: room.type }));
+      // Build peer list and notify all
+      const peerList = [...room.peers.values()].map(p => ({ id: p.id, name: p.name }));
+      for (const [peer] of room.peers) {
+        peer.send(JSON.stringify({ type: "peers", count: room.peers.size, roomType: room.type, peerList }));
       }
 
       // Ask controller/host to send sync to the new joiner
       if (room.peers.size > 1) {
-        const host = room.controller || [...room.peers][0];
+        const host = room.controller || [...room.peers.keys()][0];
         if (host !== ws && host.readyState === 1) {
           host.send(JSON.stringify({ type: "sync_request" }));
         }
       }
 
-      // Tell the joiner their role
-      ws.send(JSON.stringify({ type: "role", role }));
+      // Tell the joiner their role and assigned ID
+      ws.send(JSON.stringify({ type: "role", role, peerId }));
 
       return;
     }
 
-    // Relay messages
+    // Relay messages — inject sender identity
     if (roomId && rooms.has(roomId)) {
       const room = rooms.get(roomId);
 
@@ -105,9 +113,20 @@ wss.on("connection", (ws) => {
         try { const m = JSON.parse(raw); if (m.type !== "reaction") return; } catch { return; }
       }
 
-      // Broadcast to all other peers in room
-      const data = raw.toString();
-      for (const peer of room.peers) {
+      // Inject sender info into forwarded message
+      const senderInfo = room.peers.get(ws);
+      let data;
+      if (senderInfo) {
+        try {
+          const parsed = JSON.parse(raw);
+          parsed.sender = { id: senderInfo.id, name: senderInfo.name };
+          data = JSON.stringify(parsed);
+        } catch { data = raw.toString(); }
+      } else {
+        data = raw.toString();
+      }
+
+      for (const [peer] of room.peers) {
         if (peer !== ws && peer.readyState === 1) {
           peer.send(data);
         }
@@ -125,12 +144,13 @@ wss.on("connection", (ws) => {
       } else {
         // If controller left in liveset, promote next peer
         if (room.type === "liveset" && room.controller === ws) {
-          room.controller = [...room.peers][0];
+          room.controller = [...room.peers.keys()][0];
           room.controller.send(JSON.stringify({ type: "role", role: "controller" }));
         }
-        // Notify remaining peers
-        for (const peer of room.peers) {
-          peer.send(JSON.stringify({ type: "peers", count: room.peers.size, roomType: room.type }));
+        // Notify remaining peers with updated peer list
+        const peerList = [...room.peers.values()].map(p => ({ id: p.id, name: p.name }));
+        for (const [peer] of room.peers) {
+          peer.send(JSON.stringify({ type: "peers", count: room.peers.size, roomType: room.type, peerList }));
         }
       }
     }

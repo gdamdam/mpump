@@ -149,9 +149,69 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
   const prevMuteState = useRef<string>("");
   const jamSyncedRef = useRef(false); // joiner: don't broadcast until sync received
   const pendingSyncPayload = useRef<string | null>(null);
-  const jamApplyXYRef = useRef<((x: number, y: number) => void) | null>(null);
+  const jamApplyXYRef = useRef<((x: number, y: number, sender?: import("../hooks/useJam").PeerInfo) => void) | null>(null);
   const jamFxRef = useRef<{ setFx: React.Dispatch<React.SetStateAction<import("../types").EffectParams>>; setEffectOrder: React.Dispatch<React.SetStateAction<import("../types").EffectName[]>> } | null>(null);
   const [pendingMutes, setPendingMutes] = useState<Record<string, Set<string>>>({});
+
+  // Action bubbles: show who did what in jam mode
+  interface ActionBubble { id: number; name: string; action: string; color: string; ts: number; x: number; y: number }
+  const [actionBubbles, setActionBubbles] = useState<ActionBubble[]>([]);
+  const nextBubbleId = useRef(0);
+  const PEER_COLORS = ["#c8ffd9", "#ff6699", "#6699ff", "#ffcc66"];
+
+  const peerListRef = useRef(jam.peerList);
+  peerListRef.current = jam.peerList;
+
+  /** Resolve which device section a command targets: drums/bass/synth/effects */
+  const deviceToJam = (cmd: Record<string, unknown>): string | null => {
+    const t = cmd.type as string;
+    // Sound preset commands
+    if (t === "jam_set_drum_kit") return "drums";
+    if (t === "jam_set_bass") return "bass";
+    if (t === "jam_set_synth") return "synth";
+    // Effect commands
+    if (t === "set_effect" || t === "set_effect_order") return "effects";
+    // Device field
+    const dev = cmd.device as string;
+    if (dev?.includes("drums")) return "drums";
+    if (dev?.includes("bass")) return "bass";
+    if (dev?.includes("synth")) return "synth";
+    // Channel-based commands: 9=drums, 1=bass, 0=synth
+    const ch = cmd.channel as number;
+    if (ch === 9) return "drums";
+    if (ch === 1) return "bass";
+    if (ch === 0) return "synth";
+    return null;
+  };
+
+  const addActionBubble = useCallback((sender: import("../hooks/useJam").PeerInfo, action: string, cmd: Record<string, unknown>) => {
+    const pl = peerListRef.current;
+    const peerIdx = pl.findIndex(p => p.id === sender.id);
+    const color = PEER_COLORS[peerIdx >= 0 ? peerIdx % PEER_COLORS.length : 0];
+    const displayName = sender.name || `Peer ${peerIdx >= 0 ? peerIdx + 1 : "?"}`;
+    const id = nextBubbleId.current++;
+
+    // Find position — use device section, place bubble below it
+    const jamTarget = deviceToJam(cmd);
+    const cmdType = cmd.type as string;
+    let el: Element | null = null;
+    if (jamTarget) {
+      el = document.querySelector(`[data-jam='${jamTarget}']`);
+    }
+    if (!el && cmdType === "set_bpm") {
+      el = document.querySelector(".bpm-display");
+    }
+    if (!el) el = document.querySelector(".kaos-pad");
+
+    const rect = el?.getBoundingClientRect();
+    const x = rect ? rect.left + rect.width / 2 : window.innerWidth / 2;
+    const y = rect ? rect.bottom + 4 : 48;
+
+    setActionBubbles(prev => [...prev.slice(-4), { id, name: displayName, action, color, ts: Date.now(), x, y }]);
+    setTimeout(() => setActionBubbles(prev => prev.filter(b => b.id !== id)), 1500);
+  }, []);
+  const addActionBubbleRef = useRef(addActionBubble);
+  addActionBubbleRef.current = addActionBubble;
 
   // Commands that should be bar-synced when quantize is on
   const BAR_SYNC_TYPES = new Set([
@@ -208,8 +268,22 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
 
   // Apply remote commands from jam peers
   useEffect(() => {
-    jam.onRemoteCommand((msg: ClientMessage) => {
+    jam.onRemoteCommand((msg: ClientMessage, sender?) => {
       rawCommand(msg); // apply directly, skip broadcast (prevents feedback loop)
+      // Show action bubble for named peers
+      if (sender) {
+        const m2 = msg as Record<string, unknown>;
+        const ACTION_LABELS: Record<string, string> = {
+          set_genre: "genre", set_pattern: "pattern", set_bpm: "BPM", set_effect: "FX",
+          set_drums_mute: "mute", set_bass_mute: "mute", set_swing: "swing",
+          load_preset: "MIX", jam_set_drum_kit: "kit", jam_set_synth: "synth", jam_set_bass: "bass",
+          set_effect_order: "FX chain", set_key: "key", set_octave: "octave",
+          set_channel_volume: "vol", set_device_volume: "vol", set_volume: "vol",
+          set_channel_pan: "pan", set_sidechain_duck: "duck", set_drive: "drive",
+        };
+        const label = ACTION_LABELS[m2.type as string];
+        if (label) addActionBubbleRef.current(sender, label, m2);
+      }
       // Also sync React state that the engine doesn't manage
       const m = msg as Record<string, unknown>;
       if (m.type === "set_channel_volume") {
@@ -299,8 +373,8 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
 
   // Apply remote XY pad movements from jam peers
   useEffect(() => {
-    jam.onRemoteXY((x: number, y: number) => {
-      jamApplyXYRef.current?.(x, y);
+    jam.onRemoteXY((x: number, y: number, sender) => {
+      jamApplyXYRef.current?.(x, y, sender);
     });
   }, [jam.onRemoteXY]);
 
@@ -356,7 +430,8 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
       if (devices.length > 0) {
         console.log("[jam] deferred sync applying (attempt " + attempt + ")");
         applySyncPayload(payload);
-        jamSyncedRef.current = true;
+        // Delay enabling broadcast so React re-renders from sync don't trigger outbound commands
+        setTimeout(() => { jamSyncedRef.current = true; }, 500);
         // Auto-play all paused devices
         for (const d of devices) {
           if (d.paused) rawCommand({ type: "toggle_pause", device: d.id } as ClientMessage);
@@ -371,6 +446,7 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
 
   // Auto-join/create jam room from URL param + open modal
   const jamJoiningRef = useRef(false);
+  const pendingJamRoomRef = useRef<string | null>(null);
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const jamRoom = params.get("jam");
@@ -379,9 +455,14 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
       setShowJam(true);
       return;
     } else {
-      jamJoiningRef.current = true;
-      jam.joinRoom(jamRoom);
-      // Don't show modal — joiner goes straight into the session
+      if (getBool("mpump-jam-identity", true)) {
+        // Show modal so user can enter name before joining
+        pendingJamRoomRef.current = jamRoom;
+        setShowJam(true);
+      } else {
+        jamJoiningRef.current = true;
+        jam.joinRoom(jamRoom);
+      }
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -808,11 +889,15 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
 
   // Handle remote sound preset changes — apply locally only (no re-broadcast)
   useEffect(() => {
-    jam.onSoundChange((type: string, id: string) => {
+    jam.onSoundChange((type: string, id: string, sender?) => {
       console.log("[jam] remote sound change:", type, id);
       if (type === "jam_set_drum_kit") applyDrumKit(id);
       else if (type === "jam_set_synth") applySynth(id);
       else if (type === "jam_set_bass") applyBass(id);
+      if (sender) {
+        const labels: Record<string, string> = { jam_set_drum_kit: "kit", jam_set_synth: "synth", jam_set_bass: "bass" };
+        addActionBubbleRef.current(sender, labels[type] || "sound", { type } as Record<string, unknown>);
+      }
     });
   });
 
@@ -1436,6 +1521,8 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
               if (jam.quantize) jam.recordXYStep(x, y, drumsStep);
             } : undefined}
             jamApplyXYRef={jamApplyXYRef}
+            peerList={jam.peerList}
+            myPeerId={jam.myPeerId}
             jamFxRef={jamFxRef}
             inJam={jam.status === "connected"}
             isListener={jam.status === "connected" && jam.role === "listener"}
@@ -1547,10 +1634,13 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
           roomType={jam.roomType}
           role={jam.role}
           peerCount={jam.peerCount}
+          peerList={jam.peerList}
+          myPeerId={jam.myPeerId}
           quantize={jam.quantize}
           onToggleQuantize={jam.toggleQuantize}
-          onCreateRoom={async (type) => { jamSyncedRef.current = true; return jam.createRoom(type); }}
-          onJoinRoom={(id, type) => jam.joinRoom(id, type)}
+          onCreateRoom={async (type, name) => { jamSyncedRef.current = true; return jam.createRoom(type, name); }}
+          onJoinRoom={(id, type, name) => { pendingJamRoomRef.current = null; jam.joinRoom(id, type, name); }}
+          pendingJamRoom={pendingJamRoomRef.current}
           onLeave={() => { jamSyncedRef.current = false; jam.leaveRoom(); setShowJam(false); }}
           onDisconnect={() => { jamSyncedRef.current = false; jam.leaveRoom(); }}
           onClose={() => setShowJam(false)}
@@ -1635,8 +1725,18 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
           onSend={jam.sendReaction}
           onRegisterAddFloat={jamReactions.registerAddFloat}
           previewColor={getComputedStyle(document.documentElement).getPropertyValue("--preview").trim()}
+          myName={jam.peerList.find(p => p.id === jam.myPeerId)?.name || null}
+          myColor={PEER_COLORS[Math.max(0, jam.peerList.findIndex(p => p.id === jam.myPeerId)) % PEER_COLORS.length]}
+          onNameChange={(n) => { /* name is read-only after join for now */ }}
         />
       )}
+
+      {/* Action bubbles from jam peers */}
+      {actionBubbles.map(b => (
+        <div key={b.id} className="jam-action-bubble" style={{ left: b.x, top: b.y, borderColor: b.color, color: b.color }}>
+          <span className="jam-action-bubble-name">{b.name}</span> {b.action}
+        </div>
+      ))}
 
       {/* Global footer */}
       <footer className="app-footer" style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "0 6px" }}>

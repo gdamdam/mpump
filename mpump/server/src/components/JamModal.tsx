@@ -3,7 +3,8 @@
  */
 
 import { useState, useRef } from "react";
-import type { JamStatus, RoomType, JamRole } from "../hooks/useJam";
+import type { JamStatus, RoomType, JamRole, PeerInfo } from "../hooks/useJam";
+import { getItem, setItem, getBool } from "../utils/storage";
 
 interface Props {
   status: JamStatus;
@@ -11,22 +12,27 @@ interface Props {
   roomType: RoomType;
   role: JamRole;
   peerCount: number;
+  peerList: PeerInfo[];
+  myPeerId: number | null;
   quantize: boolean;
   onToggleQuantize: () => void;
-  onCreateRoom: (type: RoomType) => Promise<string>;
-  onJoinRoom: (id: string, type?: RoomType) => void;
+  onCreateRoom: (type: RoomType, name?: string) => Promise<string>;
+  onJoinRoom: (id: string, type?: RoomType, name?: string) => void;
   onLeave: () => void;
   onDisconnect: () => void; // leave room but keep modal open
   onClose: () => void;
   isJoining?: boolean; // true when auto-joining via URL (skip idle pills)
+  pendingJamRoom?: string | null; // room ID from URL, waiting for name input
 }
 
 const PEER_COLORS = ["#66ff99", "#ff6699", "#6699ff", "#ffcc66"];
 
-export function JamModal({ status, roomId, roomType, role, peerCount, quantize, onToggleQuantize, onCreateRoom, onJoinRoom, onLeave, onDisconnect, onClose, isJoining }: Props) {
+export function JamModal({ status, roomId, roomType, role, peerCount, peerList, myPeerId, quantize, onToggleQuantize, onCreateRoom, onJoinRoom, onLeave, onDisconnect, onClose, isJoining, pendingJamRoom }: Props) {
   const [joinId, setJoinId] = useState("");
   const [copied, setCopied] = useState(false);
   const [tab, setTab] = useState<RoomType>("jam");
+  const jamIdEnabled = getBool("mpump-jam-identity", true);
+  const [name, setName] = useState(() => jamIdEnabled ? (getItem("jam-name") || "") : "");
   const inputRef = useRef<HTMLInputElement>(null);
   const mountTime = useRef(Date.now());
   // Reset copied state when room changes
@@ -55,15 +61,18 @@ export function JamModal({ status, roomId, roomType, role, peerCount, quantize, 
   };
 
   const handleCreate = async () => {
-    await onCreateRoom(tab);
-    // Don't auto-copy — let user click "Copy invite link" manually
+    const n = name.trim().slice(0, 8);
+    if (n) setItem("jam-name", n);
+    await onCreateRoom(tab, n || undefined);
   };
 
   const handleJoin = () => {
     const id = joinId.trim();
     if (!id) return;
+    const n = name.trim().slice(0, 8);
+    if (n) setItem("jam-name", n);
     const match = id.match(/[?&]jam=([a-z0-9]+)/);
-    onJoinRoom(match ? match[1] : id);
+    onJoinRoom(match ? match[1] : id, undefined, n || undefined);
   };
 
   return (
@@ -112,6 +121,25 @@ export function JamModal({ status, roomId, roomType, role, peerCount, quantize, 
           </div>
         )}
 
+        {status === "idle" && !isJoining && pendingJamRoom && jamIdEnabled && (
+          <div className="jam-modal-body" style={{ paddingTop: 0 }}>
+            <p className="jam-modal-desc" style={{ color: "var(--text)" }}>You're joining a jam session</p>
+            <input
+              className="jam-join-input"
+              placeholder="Your name (optional)"
+              value={name}
+              maxLength={8}
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") { const n = name.trim().slice(0, 8); if (n) setItem("jam-name", n); onJoinRoom(pendingJamRoom, undefined, n || undefined); } }}
+              style={{ textAlign: "center" }}
+              autoFocus
+            />
+            <button className="jam-btn-primary" onClick={() => { const n = name.trim().slice(0, 8); if (n) setItem("jam-name", n); onJoinRoom(pendingJamRoom, undefined, n || undefined); }}>
+              Join
+            </button>
+          </div>
+        )}
+
         {status === "idle" && !isJoining && (
           <div className="jam-modal-body" style={{ paddingTop: 0 }}>
             <p className="jam-modal-desc" style={{ color: "var(--text)" }}>
@@ -123,6 +151,15 @@ export function JamModal({ status, roomId, roomType, role, peerCount, quantize, 
                 You control, they listen and watch.
               </>)}
             </p>
+
+            {jamIdEnabled && <input
+              className="jam-join-input"
+              placeholder="Your name (optional)"
+              value={name}
+              maxLength={8}
+              onChange={(e) => setName(e.target.value)}
+              style={{ textAlign: "center" }}
+            />}
 
             <button className="jam-btn-primary" onClick={handleCreate}>
               {tab === "jam" ? "Create Jam Room" : "Start Live Set"}
@@ -163,8 +200,10 @@ export function JamModal({ status, roomId, roomType, role, peerCount, quantize, 
                   : `Connected ${peerCount}/4`}
               </div>
               <div className="jam-peer-dots">
-                {roomType === "jam" && Array.from({ length: Math.min(peerCount, 4) }, (_, i) => (
-                  <span key={i} className="jam-peer-dot" style={{ background: PEER_COLORS[i % PEER_COLORS.length] }} title={i === 0 ? "You" : `Peer ${i}`} />
+                {peerList.map((p, i) => (
+                  <span key={p.id} className="jam-peer-dot" style={{ background: PEER_COLORS[i % PEER_COLORS.length] }} title={p.id === myPeerId ? "You" : (p.name || `Peer ${i + 1}`)}>
+                    {jamIdEnabled && p.name ? <span className="jam-peer-name">{p.name}{p.id === myPeerId ? " (you)" : ""}</span> : null}
+                  </span>
                 ))}
               </div>
             </div>

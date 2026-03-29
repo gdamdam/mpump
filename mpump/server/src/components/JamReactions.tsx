@@ -10,6 +10,9 @@ interface Props {
   onSend: (emoji: string) => void;
   onRegisterAddFloat: (fn: (emoji: string) => void) => void;
   previewColor?: string;
+  myName?: string | null;
+  myColor?: string;
+  onNameChange?: (name: string) => void;
 }
 
 interface FloatingEmoji {
@@ -23,7 +26,7 @@ const REACTIONS = ["🔥", "❤️", "🔊", "🤟"];
 const FLOAT_DURATION = 2000;
 const THROTTLE_MS = 300; // prevent spam
 
-export function JamReactions({ onSend, onRegisterAddFloat, previewColor = "#66ff99" }: Props) {
+export function JamReactions({ onSend, onRegisterAddFloat, previewColor = "#66ff99", myName, myColor, onNameChange }: Props) {
   const [floats, setFloats] = useState<FloatingEmoji[]>([]);
   const [energy, setEnergy] = useState(0);
   const [flash, setFlash] = useState(false);
@@ -102,8 +105,11 @@ export function JamReactions({ onSend, onRegisterAddFloat, previewColor = "#66ff
         </div>
       )}
 
-      {/* Reaction buttons */}
+      {/* Reaction buttons + name */}
       <div className="jam-reaction-bar">
+        {myName && (
+          <span className="jam-reaction-name-label" style={{ color: myColor }}>{myName}</span>
+        )}
         {REACTIONS.map(emoji => (
           <button
             key={emoji}

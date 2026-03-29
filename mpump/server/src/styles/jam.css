@@ -261,6 +261,7 @@
 .jam-reaction-bar {
   display: flex;
   gap: 4px;
+  align-items: center;
   justify-content: center;
   background: var(--bg-panel);
   border: 1px solid var(--border);
@@ -285,6 +286,44 @@
 }
 .jam-reaction-btn:active {
   transform: scale(0.9);
+}
+
+/* ── Peer name in reaction bar ── */
+.jam-reaction-name-label {
+  font-size: 15px;
+  font-weight: 800;
+  padding: 0 8px 0 4px;
+  border-right: 1px solid var(--border);
+  margin-right: 2px;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+}
+
+/* ── Action bubbles ── */
+.jam-action-bubble {
+  position: fixed;
+  z-index: 8000;
+  transform: translateX(-50%);
+  background: var(--bg-panel);
+  border: 1px solid;
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  pointer-events: none;
+  white-space: nowrap;
+  animation: jam-bubble-pop 1.5s ease-out forwards;
+}
+.jam-action-bubble-name {
+  font-weight: 800;
+}
+@keyframes jam-bubble-pop {
+  0% { opacity: 0; transform: translateX(-50%) scale(0.8); }
+  10% { opacity: 1; transform: translateX(-50%) scale(1); }
+  70% { opacity: 1; }
+  100% { opacity: 0; transform: translateX(-50%) translateY(10px); }
 }
 
 @media (max-width: 500px) {
@@ -333,12 +372,27 @@
 .jam-peer-dots {
   display: flex;
   gap: 6px;
+  flex-wrap: wrap;
 }
 .jam-peer-dot {
   width: 12px;
   height: 12px;
   border-radius: 50%;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  position: relative;
+}
+.jam-peer-dot:has(.jam-peer-name) {
+  width: auto;
+  height: auto;
+  border-radius: 10px;
+  padding: 2px 8px;
+}
+.jam-peer-name {
+  font-size: 10px;
+  font-weight: 700;
+  color: #000;
+  white-space: nowrap;
 }
 
 /* Quantize toggle */
