@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html><head><title>WebSocket Jam Test</title><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body>
+<h2>WebSocket Relay Test</h2>
+<div id="log" style="font-family:monospace;white-space:pre;background:#111;color:#0f0;padding:10px;height:300px;overflow:auto;font-size:12px"></div>
+<button id="btnCreate">Create Room</button>
+<button id="btnJoin">Join Room</button>
+<input id="roomInput" placeholder="room id" size="20">
+<button id="btnSend">Send Test</button>
+<script>
+const RELAY = 'ws://' + location.hostname + ':4444';
+const log = (msg) => {
+  const el = document.getElementById('log');
+  el.textContent += msg + '\n';
+  el.scrollTop = el.scrollHeight;
+};
+
+let ws = null;
+let roomId = null;
+
+function connect(room) {
+  roomId = room;
+  ws = new WebSocket(RELAY);
+  ws.onopen = () => {
+    log('Connected to relay');
+    ws.send(JSON.stringify({ type: 'join', room: roomId }));
+    log('Joined room: ' + roomId);
+  };
+  ws.onmessage = (e) => {
+    const msg = JSON.parse(e.data);
+    if (msg.type === 'peers') {
+      log('Peers in room: ' + msg.count);
+    } else {
+      log('RECV: ' + JSON.stringify(msg));
+    }
+  };
+  ws.onclose = () => log('Disconnected from relay');
+  ws.onerror = (e) => log('WS ERROR');
+}
+
+document.getElementById('btnCreate').onclick = () => {
+  const id = Math.random().toString(36).slice(2, 8);
+  document.getElementById('roomInput').value = id;
+  connect(id);
+};
+
+document.getElementById('btnJoin').onclick = () => {
+  const id = document.getElementById('roomInput').value.trim();
+  if (id) connect(id);
+};
+
+document.getElementById('btnSend').onclick = () => {
+  if (!ws || ws.readyState !== 1) { log('Not connected'); return; }
+  const msg = { type: 'cmd', data: { action: 'set_bpm', bpm: 140 }, time: Date.now() };
+  ws.send(JSON.stringify(msg));
+  log('SENT: ' + JSON.stringify(msg));
+};
+</script>
+</body></html>

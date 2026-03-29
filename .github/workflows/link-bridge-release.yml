@@ -1,0 +1,70 @@
+name: Link Bridge Release
+
+on:
+  push:
+    tags:
+      - 'link-bridge-v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest
+            args: --target aarch64-apple-darwin
+            rust_target: aarch64-apple-darwin
+          - platform: macos-latest
+            args: --target x86_64-apple-darwin
+            rust_target: x86_64-apple-darwin
+          - platform: ubuntu-22.04
+            args: ''
+            rust_target: ''
+          - platform: windows-latest
+            args: ''
+            rust_target: ''
+
+    runs-on: ${{ matrix.platform }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Linux dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust_target }}
+
+      - name: Install npm dependencies
+        working-directory: link-bridge
+        run: npm install
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: link-bridge
+          tagName: ${{ github.ref_name }}
+          releaseName: 'mpump Link Bridge ${{ github.ref_name }}'
+          releaseBody: |
+            Companion app for [mpump.live](https://mpump.live) — bridges Ableton Link to the browser.
+
+            **Quick start:** Download for your platform, run the app, open mpump.live — sync starts automatically.
+
+            > **Open source & safe:** The Link Bridge is fully open source (AGPL-3.0). It makes no internet connections — only local network UDP for Link peer discovery and localhost WebSocket for browser sync. All code is auditable at [github.com/gdamdam/mpump/tree/main/link-bridge](https://github.com/gdamdam/mpump/tree/main/link-bridge).
+
+            See [link-bridge/README.md](https://github.com/gdamdam/mpump/blob/main/link-bridge/README.md) for details.
+          releaseDraft: false
+          prerelease: false
+          args: ${{ matrix.args }}

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head><title>Trystero MQTT Debug</title></head>
+<body>
+<pre id="log"></pre>
+<script type="module">
+import { joinRoom, selfId } from 'https://esm.sh/@trystero-p2p/mqtt@0.23.0';
+
+const log = (msg) => {
+  const el = document.getElementById('log');
+  el.textContent += new Date().toISOString().slice(11,19) + ' ' + msg + '\n';
+  console.log(msg);
+};
+
+const roomId = new URLSearchParams(location.search).get('room') || 'test-' + Math.random().toString(36).slice(2,6);
+log('selfId: ' + selfId);
+log('joining room: ' + roomId);
+
+const room = joinRoom({ appId: 'mpump-jam' }, roomId);
+
+room.onPeerJoin(id => log('PEER JOINED: ' + id));
+room.onPeerLeave(id => log('PEER LEFT: ' + id));
+
+const [send, onMsg] = room.makeAction('ping');
+onMsg((data, peerId) => log('GOT PING from ' + peerId + ': ' + JSON.stringify(data)));
+
+setInterval(() => {
+  send({ ts: Date.now() });
+  log('sent ping, peers: ' + JSON.stringify(Object.keys(room.getPeers())));
+}, 5000);
+
+log('waiting... copy this URL to another window:');
+log(location.origin + location.pathname + '?room=' + roomId);
+</script>
+</body>
+</html>

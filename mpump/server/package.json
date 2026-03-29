@@ -1,0 +1,41 @@
+{
+  "name": "mpump-server",
+  "private": true,
+  "version": "1.2.3",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build && node scripts/post-build.cjs",
+    "preview": "vite preview",
+    "export-patterns": "cd ../.. && python3 mpump/server/scripts/export_patterns.py",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed"
+  },
+  "dependencies": {
+    "@ffmpeg/ffmpeg": "^0.12.15",
+    "@ffmpeg/util": "^0.12.2",
+    "mp4-muxer": "^5.2.2",
+    "qrcode": "^1.5.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "ws": "^8.20.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.2",
+    "@types/qrcode": "^1.5.6",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@types/webmidi": "^2.1.0",
+    "@vitejs/plugin-basic-ssl": "^2.3.0",
+    "@vitejs/plugin-react": "^4.5.1",
+    "@vitest/coverage-v8": "^4.1.2",
+    "gh-pages": "^6.3.0",
+    "jsdom": "^29.0.0",
+    "typescript": "~5.6.3",
+    "vite": "^6.0.0",
+    "vitest": "^4.1.0"
+  }
+}
