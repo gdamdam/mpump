@@ -1,0 +1,2 @@
+# Hide build/generation scripts from GitHub language stats
+mpump/server/scripts/*.py linguist-detectable=false

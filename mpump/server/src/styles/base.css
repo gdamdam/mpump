@@ -1,0 +1,145 @@
+/* ── Reset & variables ─────────────────────────────────────────────────── */
+
+:root {
+  --bg: #0d1117;
+  --bg-panel: #161b22;
+  --bg-cell: #21262d;
+  --border: #30363d;
+  --text: #e6edf3;
+  --text-dim: #7d8590;
+  --s1: #58a6ff;
+  --t8: #f0883e;
+  --j6: #3fb950;
+  --accent-bright: #e6a817;
+  --preview: #66ff99;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  font-family: "SF Mono", "Menlo", "Consolas", monospace;
+  font-size: 14px;
+  background: var(--bg);
+  color: var(--text);
+  overflow-x: hidden;
+  /* iOS safe areas */
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+  overscroll-behavior-x: none;
+}
+
+body {
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+           env(safe-area-inset-bottom) env(safe-area-inset-left);
+  transition: background 0.3s, color 0.3s;
+}
+
+* {
+  transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:active {
+  transform: scale(0.96);
+}
+
+/* ── Loading spinner ──────────────────────────────────────────────────── */
+
+.loading-spinner {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+}
+
+.loading-spinner-ring {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--border);
+  border-top-color: var(--preview);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loading-logo {
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--preview);
+  animation: logo-pulse 1.2s ease-in-out infinite;
+}
+@keyframes logo-pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+
+.loading-share-hint {
+  font-size: 12px;
+  color: var(--preview); opacity: 0.7;
+  margin-top: 10px;
+  animation: logo-pulse 1.2s ease-in-out infinite;
+}
+
+.loading-bar {
+  width: 120px;
+  height: 2px;
+  background: var(--border);
+  border-radius: 1px;
+  margin-top: 12px;
+  overflow: hidden;
+}
+
+.loading-bar-fill {
+  width: 40%;
+  height: 100%;
+  background: var(--preview);
+  border-radius: 1px;
+  animation: loading-slide 1.2s ease-in-out infinite;
+}
+
+@keyframes loading-slide {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(350%); }
+}
+
+/* ── Info value flash on change ──────────────────────────────────────── */
+
+.info-val-flash {
+  animation: val-flash 0.3s ease-out;
+}
+@keyframes val-flash {
+  from { opacity: 0.3; transform: translateY(-2px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.step-cell.step-pressing,
+.drum-cell.drum-pressing {
+  animation: long-press-fill 0.5s linear forwards;
+}
+
+@keyframes long-press-fill {
+  0% { box-shadow: inset 0 0 0 0 var(--preview); }
+  100% { box-shadow: inset 0 0 0 20px color-mix(in srgb, var(--preview) 30%, transparent); }
+}

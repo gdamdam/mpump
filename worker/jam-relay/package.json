@@ -1,0 +1,11 @@
+{
+  "name": "mpump-jam-relay",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node jam-relay.mjs"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

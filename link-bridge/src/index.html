@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>mpump Link Bridge</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #111;
+      color: #ccc;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      user-select: none;
+      -webkit-user-select: none;
+      overflow: hidden;
+    }
+    h1 {
+      font-size: 15px;
+      font-weight: 600;
+      color: #0f0;
+      letter-spacing: 0.5px;
+      margin-top: 24px;
+      margin-bottom: 24px;
+    }
+    .section {
+      width: 240px;
+      margin-bottom: 16px;
+    }
+    .label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #666;
+      margin-bottom: 4px;
+    }
+    .value {
+      font-size: 28px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: #eee;
+    }
+    .value.small {
+      font-size: 18px;
+    }
+    .status-row {
+      display: flex;
+      justify-content: space-between;
+      width: 240px;
+      margin-bottom: 16px;
+    }
+    .status-item {
+      text-align: center;
+      flex: 1;
+    }
+    .status-item .value {
+      font-size: 18px;
+    }
+    .dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 6px;
+      vertical-align: middle;
+      background: #333;
+    }
+    .dot.on { background: #0f0; }
+    .dot.playing { background: #0f0; animation: pulse 0.6s ease-in-out infinite alternate; }
+    @keyframes pulse { from { opacity: 1; } to { opacity: 0.3; } }
+
+    button {
+      width: 240px;
+      padding: 12px;
+      font-size: 14px;
+      font-weight: 600;
+      border: 1px solid #0f0;
+      background: transparent;
+      color: #0f0;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-bottom: 16px;
+      transition: background 0.15s, color 0.15s;
+    }
+    button:hover { background: #0f0; color: #111; }
+    button:active { background: #0c0; }
+    button.playing { background: #0f0; color: #111; }
+
+    .url {
+      font-size: 11px;
+      color: #555;
+      font-family: 'SF Mono', 'Menlo', monospace;
+      margin-top: auto;
+      margin-bottom: 16px;
+    }
+    .url span { color: #0f0; }
+  </style>
+</head>
+<body>
+  <h1>mpump Link Bridge</h1>
+
+  <div class="section">
+    <div class="label">Tempo</div>
+    <div class="value" id="tempo">--</div>
+  </div>
+
+  <div class="status-row">
+    <div class="status-item">
+      <div class="label">Link peers</div>
+      <div class="value" id="peers">0</div>
+    </div>
+    <div class="status-item">
+      <div class="label">Browsers</div>
+      <div class="value" id="clients">0</div>
+    </div>
+  </div>
+
+  <div class="section" style="text-align:center;">
+    <div class="label">Transport</div>
+    <div style="margin-top:4px;">
+      <span class="dot" id="play-dot"></span>
+      <span class="value small" id="transport">Stopped</span>
+    </div>
+  </div>
+
+  <button id="toggle-btn" onclick="togglePlay()">Start</button>
+
+  <div class="url">connect at <span>ws://localhost:19876</span></div>
+
+  <script>
+    // Connect to the Link Bridge WS server running in the Tauri backend.
+    let ws = null;
+    let state = { tempo: 0, beat: 0, phase: 0, playing: false, peers: 0, clients: 0 };
+
+    function connect() {
+      ws = new WebSocket('ws://127.0.0.1:19876');
+      ws.onopen = () => {};
+      ws.onclose = () => setTimeout(connect, 1000);
+      ws.onerror = () => {};
+      ws.onmessage = (e) => {
+        try {
+          const msg = JSON.parse(e.data);
+          if (msg.type === 'link') {
+            state = { ...state, ...msg };
+            render();
+          }
+        } catch (_) {}
+      };
+    }
+
+    function render() {
+      document.getElementById('tempo').textContent = state.tempo.toFixed(1);
+      document.getElementById('peers').textContent = state.peers;
+      document.getElementById('clients').textContent = state.clients ?? 0;
+
+      const dot = document.getElementById('play-dot');
+      const transport = document.getElementById('transport');
+      const btn = document.getElementById('toggle-btn');
+
+      if (state.playing) {
+        transport.textContent = 'Playing';
+        dot.className = 'dot playing';
+        btn.textContent = 'Stop';
+        btn.classList.add('playing');
+      } else {
+        transport.textContent = 'Stopped';
+        dot.className = 'dot';
+        btn.textContent = 'Start';
+        btn.classList.remove('playing');
+      }
+    }
+
+    function togglePlay() {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'set_playing', playing: !state.playing }));
+      }
+    }
+
+    connect();
+  </script>
+</body>
+</html>

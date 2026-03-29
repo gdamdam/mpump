@@ -1,0 +1,518 @@
+/* ── Step grid (melodic) ──────────────────────────────────────────────── */
+
+.step-grid-wrap {
+  margin: 6px 0;
+}
+
+.step-grid {
+  display: flex;
+  gap: 2px;
+  height: 56px;
+  align-items: flex-end;
+}
+
+.step-note-row {
+  display: flex;
+  gap: 2px;
+  margin-top: 1px;
+}
+
+.step-note-cell {
+  flex: 1;
+  text-align: center;
+  position: relative;
+  min-height: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.step-note-cell.bar-start {
+  margin-left: 4px;
+}
+
+.step-note-cell.bar-start:first-child {
+  margin-left: 0;
+}
+
+.step-note-cell.editable {
+  cursor: pointer;
+}
+
+.step-note-cell.editable:hover .step-note-label {
+  opacity: 1;
+}
+
+.step-cell {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  position: relative;
+  background: var(--bg-cell);
+  border-radius: 2px;
+  overflow: hidden;
+  transition: background 0.06s, opacity 0.06s;
+}
+
+.step-cell.active {
+  background: #2d333b;
+}
+
+.step-cell.bar-start {
+  margin-left: 4px;
+}
+
+.step-cell.bar-start:first-child {
+  margin-left: 0;
+}
+
+.step-bar {
+  width: 100%;
+  border-radius: 1px 1px 0 0;
+  transition: height 0.15s, background 0.06s;
+  pointer-events: none;
+}
+
+.slide-marker {
+  pointer-events: none;
+}
+
+.rest-bar {
+  height: 2px !important;
+  background: var(--border);
+}
+
+.slide-marker {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  opacity: 0.8;
+}
+
+/* ── Step note label & dropdown ───────────────────────────────────────── */
+
+.step-note-label {
+  font-size: 7px;
+  line-height: 1;
+  text-align: center;
+  opacity: 0.85;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.step-note-dropdown {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  font-size: 9px;
+  padding: 1px;
+  background: var(--bg-card, #1a1a2e);
+  color: #fff;
+  border: 1px solid;
+  border-radius: 3px;
+  min-width: 42px;
+  max-height: 120px;
+  cursor: pointer;
+}
+
+/* ── Drum grid ────────────────────────────────────────────────────────── */
+
+.drum-grid {
+  margin: 6px 0;
+}
+
+.drum-row, .bass-grid {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-bottom: 2px;
+}
+
+.bass-grid-wrap {
+  margin: 6px 0;
+}
+
+.bass-grid-wrap > .bass-grid {
+  margin-bottom: 0;
+}
+
+.bass-note-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-top: 1px;
+}
+
+.bass-note-cell {
+  flex: 1;
+  text-align: center;
+  position: relative;
+  min-height: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bass-note-cell.bar-start {
+  margin-left: 4px;
+}
+
+.bass-note-cell.bar-start:first-child {
+  margin-left: 0;
+}
+
+.bass-note-cell.editable {
+  cursor: pointer;
+}
+
+.bass-note-cell.editable:hover .step-note-label {
+  opacity: 1;
+}
+
+.drum-label {
+  width: 22px;
+  font-size: 9px;
+  color: var(--preview); opacity: 0.7;
+  text-align: right;
+}
+.drum-label-btn {
+  cursor: pointer;
+  user-select: none;
+}
+.drum-label-btn:hover {
+  color: var(--text);
+}
+.drum-label-muted {
+  text-decoration: line-through;
+  opacity: 0.6;
+  border: 1px solid #d63030;
+  border-radius: 3px;
+  padding: 0 2px;
+  color: #d63030;
+}
+.drum-row-muted .drum-steps {
+  opacity: 0.3;
+  flex-shrink: 0;
+  margin-right: 4px;
+}
+
+.drum-steps {
+  display: flex;
+  gap: 2px;
+  flex: 1;
+}
+
+.drum-cell {
+  flex: 1;
+  height: 14px;
+  background: var(--bg-cell);
+  border-radius: 2px;
+  transition: background 0.06s, opacity 0.06s;
+  position: relative;
+}
+
+.drum-cell.active:not(.hit) {
+  background: #2d333b;
+}
+
+.drum-cell.bar-start {
+  margin-left: 4px;
+}
+
+.drum-cell.bar-start:first-child {
+  margin-left: 0;
+}
+
+/* ── Picker (bottom sheet) ────────────────────────────────────────────── */
+
+.picker-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 100;
+  display: flex;
+  align-items: flex-end;
+  animation: fadeIn 0.15s ease-out;
+}
+
+.picker-sheet {
+  width: 100%;
+  max-height: 70dvh;
+  background: var(--bg-panel);
+  border-top: 1px solid var(--border);
+  border-radius: 16px 16px 0 0;
+  display: flex;
+  flex-direction: column;
+  animation: slideUp 0.2s ease-out;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.picker-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.picker-title {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.picker-close {
+  font-size: 24px;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--preview); opacity: 0.7;
+}
+
+.picker-list {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 8px;
+}
+
+.picker-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  padding: 12px;
+  min-height: 44px;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  margin-bottom: 4px;
+  text-align: left;
+  transition: border-color 0.1s;
+}
+
+.picker-item.selected {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.picker-item-label {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.picker-item-desc {
+  font-size: 11px;
+  color: var(--preview); opacity: 0.7;
+  margin-top: 2px;
+  line-height: 1.3;
+}
+
+/* ── Editable cells ───────────────────────────────────────────────────── */
+
+.step-cell.editable,
+.drum-cell.editable {
+  cursor: pointer;
+}
+
+.step-cell.editable:active,
+.drum-cell.editable:active {
+  filter: brightness(1.4);
+}
+
+/* ── Editing badge + action bar ───────────────────────────────────────── */
+
+.editing-badge {
+  font-size: 6px;
+  font-weight: 700;
+  background: var(--accent-bright);
+  color: #000;
+  padding: 1px 4px;
+  border-radius: 2px;
+  letter-spacing: 0.5px;
+  text-align: center;
+  align-self: center;
+  margin-top: 1px;
+  line-height: 1.4;
+}
+
+.device-tools-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 6px 0;
+  flex-wrap: wrap;
+  overflow: visible;
+}
+.device-tool-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--preview);
+  opacity: 0.7;
+  position: relative;
+}
+.device-tools-row .kaos-dropdown-menu,
+.device-tools-row .kaos-dropdown .kaos-dropdown-menu {
+  top: auto !important;
+  bottom: calc(100% + 4px) !important;
+  left: 0 !important;
+  right: auto !important;
+  transform: none !important;
+  z-index: 300;
+  gap: 4px;
+}
+.device-tool-select {
+  font-size: 11px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--bg-cell);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.edit-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.edit-btn {
+  flex: 1;
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  min-height: 44px;
+  text-align: center;
+}
+
+.edit-btn.discard {
+  background: var(--bg-cell);
+  color: var(--preview);
+  opacity: 0.7;
+}
+
+.edit-btn.save {
+  color: #000;
+}
+
+/* ── Step editor ──────────────────────────────────────────────────────── */
+
+.editor-body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.editor-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.editor-row.column {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.editor-label {
+  font-size: 12px;
+  color: var(--preview); opacity: 0.7;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.editor-control {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.editor-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  background: var(--bg-cell);
+  font-size: 18px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.editor-value {
+  font-size: 16px;
+  font-weight: 700;
+  min-width: 40px;
+  text-align: center;
+}
+
+.editor-chips {
+  display: flex;
+  gap: 6px;
+}
+
+.editor-chip {
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--bg-cell);
+}
+
+.editor-toggle {
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  background: var(--bg-cell);
+  min-width: 60px;
+  text-align: center;
+}
+
+.editor-toggle.on {
+  color: #000;
+}
+
+.editor-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.editor-action-btn {
+  flex: 1;
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  min-height: 44px;
+  text-align: center;
+}
+
+.editor-action-btn.delete {
+  background: var(--bg-cell);
+  color: #f85149;
+}
+
+@media (min-width: 768px) {
+  .picker-sheet {
+    max-width: 480px;
+    margin: 0 auto;
+    border-radius: 16px;
+    margin-bottom: 10dvh;
+  }
+
+  .picker-backdrop {
+    align-items: center;
+  }
+}

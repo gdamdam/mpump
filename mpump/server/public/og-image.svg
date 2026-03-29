@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#0b1a0b"/>
+  <!-- Grid pattern background -->
+  <g opacity="0.06">
+    <line x1="75" y1="0" x2="75" y2="630" stroke="#66ff99" stroke-width="1" />
+    <line x1="150" y1="0" x2="150" y2="630" stroke="#66ff99" stroke-width="1" />
+    <line x1="225" y1="0" x2="225" y2="630" stroke="#66ff99" stroke-width="1" />
+    <line x1="300" y1="0" x2="300" y2="630" stroke="#66ff99" stroke-width="1" />
+    <line x1="375" y1="0" x2="375" y2="630" stroke="#66ff99" stroke-width="1" />
+    <line x1="450" y1="0" x2="450" y2="630" stroke="#66ff99" stroke-width="1" />
+    <line x1="525" y1="0" x2="525" y2="630" stroke="#66ff99" stroke-width="1" />
+    <line x1="600" y1="0" x2="600" y2="630" stroke="#66ff99" stroke-width="1" />
+    <line x1="0" y1="79" x2="1200" y2="79" stroke="#66ff99" stroke-width="1" />
+    <line x1="0" y1="158" x2="1200" y2="158" stroke="#66ff99" stroke-width="1" />
+    <line x1="0" y1="237" x2="1200" y2="237" stroke="#66ff99" stroke-width="1" />
+    <line x1="0" y1="316" x2="1200" y2="316" stroke="#66ff99" stroke-width="1" />
+    <line x1="0" y1="395" x2="1200" y2="395" stroke="#66ff99" stroke-width="1" />
+    <line x1="0" y1="474" x2="1200" y2="474" stroke="#66ff99" stroke-width="1" />
+    <line x1="0" y1="553" x2="1200" y2="553" stroke="#66ff99" stroke-width="1" />
+  </g>
+  <!-- Step sequencer hint -->
+  <g transform="translate(80, 180)" opacity="0.15">
+    <rect x="0" y="0" width="24" height="60" rx="3" fill="#66ff99"/>
+    <rect x="30" y="0" width="24" height="60" rx="3" fill="#1a3a1a"/>
+    <rect x="60" y="0" width="24" height="60" rx="3" fill="#1a3a1a"/>
+    <rect x="90" y="0" width="24" height="60" rx="3" fill="#66ff99"/>
+    <rect x="120" y="0" width="24" height="60" rx="3" fill="#1a3a1a"/>
+    <rect x="150" y="0" width="24" height="60" rx="3" fill="#1a3a1a"/>
+    <rect x="180" y="0" width="24" height="60" rx="3" fill="#66ff99"/>
+    <rect x="210" y="0" width="24" height="60" rx="3" fill="#1a3a1a"/>
+    <rect x="0" y="70" width="24" height="60" rx="3" fill="#1a3a1a"/>
+    <rect x="30" y="70" width="24" height="60" rx="3" fill="#1a3a1a"/>
+    <rect x="60" y="70" width="24" height="60" rx="3" fill="#66ff99"/>
+    <rect x="90" y="70" width="24" height="60" rx="3" fill="#1a3a1a"/>
+    <rect x="120" y="70" width="24" height="60" rx="3" fill="#1a3a1a"/>
+    <rect x="150" y="70" width="24" height="60" rx="3" fill="#66ff99"/>
+    <rect x="180" y="70" width="24" height="60" rx="3" fill="#1a3a1a"/>
+    <rect x="210" y="70" width="24" height="60" rx="3" fill="#1a3a1a"/>
+    <rect x="0" y="140" width="24" height="60" rx="3" fill="#1a3a1a"/>
+    <rect x="30" y="140" width="24" height="60" rx="3" fill="#66ff99"/>
+    <rect x="60" y="140" width="24" height="60" rx="3" fill="#1a3a1a"/>
+    <rect x="90" y="140" width="24" height="60" rx="3" fill="#1a3a1a"/>
+    <rect x="120" y="140" width="24" height="60" rx="3" fill="#66ff99"/>
+    <rect x="150" y="140" width="24" height="60" rx="3" fill="#1a3a1a"/>
+    <rect x="180" y="140" width="24" height="60" rx="3" fill="#1a3a1a"/>
+    <rect x="210" y="140" width="24" height="60" rx="3" fill="#66ff99"/>
+  </g>
+  <!-- XY pad hint -->
+  <g transform="translate(380, 180)" opacity="0.1">
+    <rect width="140" height="140" rx="8" fill="none" stroke="#66ff99" stroke-width="2"/>
+    <circle cx="90" cy="40" r="6" fill="#66ff99" opacity="0.8"/>
+    <path d="M30 120 Q50 60 90 40" fill="none" stroke="#66ff99" stroke-width="2" opacity="0.5"/>
+  </g>
+  <!-- Logo (block pixel font matching app header) -->
+  <text x="560" y="200" font-family="monospace" font-size="36" font-weight="900" fill="#66ff99" xml:space="preserve">█▀▄▀█ █▀█ █ █ █▀▄▀█ █▀█</text>
+  <text x="560" y="240" font-family="monospace" font-size="36" font-weight="900" fill="#66ff99" xml:space="preserve">█ ▀ █ █▀▀ ▀▄▀ █ ▀ █ █▀▀</text>
+  <!-- Tagline -->
+  <text x="560" y="310" font-family="monospace" font-size="18" font-weight="700" fill="#8b949e" letter-spacing="1">INSTANT BROWSER GROOVEBOX</text>
+  <text x="560" y="340" font-family="monospace" font-size="18" font-weight="700" fill="#8b949e" letter-spacing="1">GENERATE BEATS. SHAPE THEM YOURS. SHARE INSTANTLY.</text>
+  <!-- Features -->
+  <text x="560" y="390" font-family="monospace" font-size="16" font-weight="700" fill="#66ff99" letter-spacing="1">460 PATTERNS</text>
+  <text x="730" y="390" font-family="monospace" font-size="16" font-weight="700" fill="#66ff99" letter-spacing="1">15 GENRES</text>
+  <text x="880" y="390" font-family="monospace" font-size="16" font-weight="700" fill="#66ff99" letter-spacing="1">42 SOUNDS</text>
+  <!-- Dots -->
+  <circle cx="715" cy="385" r="3" fill="#484f58"/>
+  <circle cx="865" cy="385" r="3" fill="#484f58"/>
+  <!-- CTA -->
+  <rect x="560" y="430" width="240" height="48" rx="24" fill="#66ff99"/>
+  <text x="616" y="461" font-family="monospace" font-size="16" font-weight="700" fill="#0b1a0b" letter-spacing="1">NO INSTALL NEEDED</text>
+  <!-- URL -->
+  <text x="560" y="540" font-family="monospace" font-size="18" fill="#484f58" letter-spacing="2">mpump.live</text>
+  <!-- Waveform decoration -->
+  <g transform="translate(560, 470)" opacity="0.3">
+    <rect x="0" y="5" width="4" height="10" rx="2" fill="#66ff99"/>
+    <rect x="8" y="2" width="4" height="16" rx="2" fill="#66ff99"/>
+    <rect x="16" y="0" width="4" height="20" rx="2" fill="#66ff99"/>
+    <rect x="24" y="3" width="4" height="14" rx="2" fill="#66ff99"/>
+    <rect x="32" y="6" width="4" height="8" rx="2" fill="#66ff99"/>
+    <rect x="40" y="1" width="4" height="18" rx="2" fill="#66ff99"/>
+    <rect x="48" y="4" width="4" height="12" rx="2" fill="#66ff99"/>
+    <rect x="56" y="0" width="4" height="20" rx="2" fill="#66ff99"/>
+    <rect x="64" y="5" width="4" height="10" rx="2" fill="#66ff99"/>
+    <rect x="72" y="2" width="4" height="16" rx="2" fill="#66ff99"/>
+  </g>
+</svg>
