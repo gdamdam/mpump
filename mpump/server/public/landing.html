@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>mpump — A groove you can resend</title>
+  <title>mpump — browser groovebox where grooves live in links</title>
   <meta name="description" content="Make a groove. Send a link. Open, change, and resend. A minimal instrument for evolving sound." />
   <meta property="og:title" content="mpump — A groove you can resend" />
   <meta property="og:description" content="Make a groove. Send a link. Open, change, and resend. A browser instrument for making and sharing electronic music. No install. No account." />
@@ -107,7 +107,7 @@
       transition: background 0.1s;
     }
     .seq-step.on { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 6px rgba(102,255,153,0.5); }
-    .seq-step.dim-on { background: rgba(102,255,153,0.3); border-color: rgba(102,255,153,0.3); }
+    .seq-step.dim-on { background: rgba(102,255,153,0.45); border-color: rgba(102,255,153,0.45); }
 
     /* ── page body ── */
     .page { max-width: 1200px; margin: 0 auto; }
@@ -129,14 +129,15 @@
       gap: 4px;
       border-right: 1px solid var(--border);
       padding: 16px 8px;
-      background: rgba(102,255,153,0.02);
+      background: rgba(102,255,153,0.05);
     }
     .row-tag {
       font-family: var(--mono);
       font-size: 9px;
       letter-spacing: 1.5px;
       text-transform: uppercase;
-      color: var(--dim);
+      color: var(--accent);
+      opacity: 0.6;
       writing-mode: vertical-lr;
       transform: rotate(180deg);
     }
@@ -152,7 +153,7 @@
       border-radius: 1px;
       background: var(--border);
     }
-    .row-mini-step.on { background: var(--accent); opacity: 0.7; }
+    .row-mini-step.on { background: var(--accent); opacity: 1; }
 
     .row-content {
       padding: 48px 56px;

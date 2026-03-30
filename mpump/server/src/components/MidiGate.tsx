@@ -66,7 +66,7 @@ export function MidiGate({ midiState, onConnectMidi, onPreview, midiSupported }:
         }, 400);
       }}>{"█▀▄▀█ █▀█ █ █ █▀▄▀█ █▀█\n█ ▀ █ █▀▀ ▀▄▀ █ ▀ █ █▀▀"}</pre>
 
-      <div className="midi-gate-subtitle">A groove you can resend</div>
+      <div className="midi-gate-subtitle">Grooves live in a link</div>
 
       <button className="midi-gate-btn-preview" title="Start playing with browser audio"
         onClick={() => { trackEvent("play-start"); setLogoKey(k => k + 1); clearTimeout(flashTimer.current); flashTimer.current = window.setTimeout(() => onPreview(), 450); }}>
