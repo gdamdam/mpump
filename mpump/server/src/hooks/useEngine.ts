@@ -203,6 +203,15 @@ export function useEngine() {
       case "set_drive":
         engine.setDrive(msg.db);
         break;
+      case "set_eq": {
+        const m = msg as Record<string, unknown>;
+        engine.setEQ(m.low as number, m.mid as number, m.high as number);
+        break;
+      }
+      case "set_master_boost": {
+        engine.setMasterBoost((msg as Record<string, unknown>).gain as number);
+        break;
+      }
       case "set_channel_pan":
         engine.setChannelPan(msg.channel, msg.pan);
         break;

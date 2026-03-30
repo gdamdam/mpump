@@ -20,6 +20,24 @@
   padding: 0;
 }
 
+/* ── Global slider thumb (8px everywhere) ── */
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none !important;
+  width: 8px !important;
+  height: 8px !important;
+  border-radius: 50% !important;
+  background: var(--preview) !important;
+  cursor: pointer;
+}
+input[type="range"]::-moz-range-thumb {
+  width: 8px !important;
+  height: 8px !important;
+  border-radius: 50% !important;
+  background: var(--preview) !important;
+  border: none !important;
+  cursor: pointer;
+}
+
 html, body {
   font-family: "SF Mono", "Menlo", "Consolas", monospace;
   font-size: 14px;

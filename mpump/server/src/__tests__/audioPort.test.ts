@@ -48,6 +48,7 @@ class MockAudioContext {
       type: "lowpass",
       frequency: { value: 1000, setValueAtTime: vi.fn(), linearRampToValueAtTime: vi.fn(), exponentialRampToValueAtTime: vi.fn() },
       Q: { value: 1, setValueAtTime: vi.fn() },
+      gain: { value: 0, setValueAtTime: vi.fn() },
       connect: vi.fn(),
       disconnect: vi.fn(),
     };
@@ -169,9 +170,9 @@ describe("AudioPort", () => {
     expect(() => port.setEffect("reverb", { on: true })).not.toThrow();
   });
 
-  it("getEffects returns all 8 effects", () => {
+  it("getEffects returns all 9 effects", () => {
     const fx = port.getEffects();
-    expect(Object.keys(fx).length).toBe(8);
+    expect(Object.keys(fx).length).toBe(9);
   });
 
   it("close does not throw", () => {

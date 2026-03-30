@@ -405,6 +405,9 @@ export function MixerPanel({
 
   // Drive
   const [drive, setDrive] = useState(0);
+  const [eqLow, setEqLow] = useState(3); // match AudioPort default
+  const [eqMid, setEqMid] = useState(0);
+  const [eqHigh, setEqHigh] = useState(0);
 
   // Anti-clip
   const toggleAntiClip = () => {
@@ -497,12 +500,16 @@ export function MixerPanel({
               </div>
               <div className="mx-pan-section">
                 <div className="mx-pan-label">{panLabel(pan)}</div>
-                <input
-                  type="range" min={-1} max={1} step={0.05}
-                  value={pan}
-                  onChange={(e) => setPan(def.ch, parseFloat(e.target.value))}
-                  className="mx-pan-slider"
-                />
+                <div className="mx-pan-row">
+                  <span className="mx-pan-lr">L</span>
+                  <input
+                    type="range" min={-1} max={1} step={0.05}
+                    value={pan}
+                    onChange={(e) => setPan(def.ch, parseFloat(e.target.value))}
+                    className="mx-pan-slider"
+                  />
+                  <span className="mx-pan-lr">R</span>
+                </div>
               </div>
               {def.ch !== 1 && (
                 <button
@@ -542,7 +549,32 @@ export function MixerPanel({
             >{antiClipMode === "off" ? "LIMIT" : "LIMIT"}</button>
           </div>
           <div className="mx-pan-section">
-            <div className="mx-pan-label" style={{ opacity: 0.5 }}>DRV</div>
+            <div className="mx-pan-label" style={{ opacity: 0.5 }}>DRV {drive > 0 ? "+" : ""}{drive.toFixed(1)}</div>
+            <svg className="mx-drv-vis" viewBox="0 0 80 24" width={80} height={24}>
+              {/* Before: clean sine */}
+              {(() => {
+                const gain = Math.pow(10, drive / 20);
+                const pts = Array.from({ length: 40 }, (_, i) => {
+                  const t = i / 39;
+                  const x = 2 + t * 36;
+                  const y = 12 - Math.sin(t * Math.PI * 2) * 8;
+                  return `${x},${y}`;
+                }).join(" ");
+                const ptsD = Array.from({ length: 40 }, (_, i) => {
+                  const t = i / 39;
+                  const x = 42 + t * 36;
+                  const raw = Math.sin(t * Math.PI * 2) * gain;
+                  const clipped = Math.max(-1, Math.min(1, raw));
+                  const y = 12 - clipped * 8;
+                  return `${x},${y}`;
+                }).join(" ");
+                return <>
+                  <line x1={40} y1={2} x2={40} y2={22} stroke="rgba(102,255,153,0.15)" strokeWidth={0.5} />
+                  <polyline points={pts} fill="none" stroke="rgba(102,255,153,0.3)" strokeWidth={1} />
+                  <polyline points={ptsD} fill="none" stroke="#66ff99" strokeWidth={1.5} />
+                </>;
+              })()}
+            </svg>
             <input
               type="range" min={-6} max={12} step={0.5}
               value={drive}
@@ -551,37 +583,32 @@ export function MixerPanel({
               title={`${drive > 0 ? "+" : ""}${drive.toFixed(1)} dB`}
             />
           </div>
+          <div className="mx-eq-section">
+            <div className="mx-eq-row">
+              <span className="mx-eq-label">LOW</span>
+              <input type="range" min={-12} max={12} step={1} value={eqLow} className="mx-eq-slider"
+                onChange={(e) => { const v = parseFloat(e.target.value); setEqLow(v); command({ type: "set_eq", low: v, mid: eqMid, high: eqHigh } as ClientMessage); }}
+                title={`${eqLow > 0 ? "+" : ""}${eqLow} dB`} />
+              <span className="mx-eq-val">{eqLow > 0 ? "+" : ""}{eqLow}</span>
+            </div>
+            <div className="mx-eq-row">
+              <span className="mx-eq-label">MID</span>
+              <input type="range" min={-12} max={12} step={1} value={eqMid} className="mx-eq-slider"
+                onChange={(e) => { const v = parseFloat(e.target.value); setEqMid(v); command({ type: "set_eq", low: eqLow, mid: v, high: eqHigh } as ClientMessage); }}
+                title={`${eqMid > 0 ? "+" : ""}${eqMid} dB`} />
+              <span className="mx-eq-val">{eqMid > 0 ? "+" : ""}{eqMid}</span>
+            </div>
+            <div className="mx-eq-row">
+              <span className="mx-eq-label">HIGH</span>
+              <input type="range" min={-12} max={12} step={1} value={eqHigh} className="mx-eq-slider"
+                onChange={(e) => { const v = parseFloat(e.target.value); setEqHigh(v); command({ type: "set_eq", low: eqLow, mid: eqMid, high: v } as ClientMessage); }}
+                title={`${eqHigh > 0 ? "+" : ""}${eqHigh} dB`} />
+              <span className="mx-eq-val">{eqHigh > 0 ? "+" : ""}{eqHigh}</span>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* ── Effects bar ── */}
-      <div className="mx-fx-section">
-        <div className="mx-fx-header" onClick={() => setFxCollapsed(v => !v)}>
-          <span className="mx-fx-title">EFFECTS</span>
-          <span className="mx-fx-chain">
-            {effectOrder.filter(n => fx[n].on).map(n => EFFECT_LABELS[n]).join(" \u2192 ") || "none"}
-          </span>
-          <span className="mx-fx-toggle">{fxCollapsed ? "\u25B6" : "\u25BC"}</span>
-        </div>
-        {!fxCollapsed && (
-          <div className="mx-fx-grid">
-            {(Object.keys(EFFECT_LABELS) as EffectName[]).map((n) => (
-              <button
-                key={n}
-                className={`mx-fx-btn ${fx[n].on ? "active" : ""}`}
-                title={`${EFFECT_LABELS[n]}: ${fx[n].on ? "on" : "off"} (hold or right-click to edit)`}
-                onClick={() => toggleFx(n)}
-                onContextMenu={(e) => fxContextMenu(e, n)}
-                onPointerDown={() => fxPointerDown(n)}
-                onPointerUp={fxPointerUp}
-                onPointerLeave={fxPointerUp}
-              >
-                {EFFECT_LABELS[n]}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
 
       {/* Effect editor modal */}
       {editingFx && (

@@ -385,6 +385,7 @@ export function DevicePanel({ state, catalog, command, onLoadSamples, bpm, prese
             <div className="info-row">
               <span className="info-key">pattern</span>
               <KaosDropdown className="kaos-dropdown-pat" value={state.pattern_idx} onChange={(idx: number) => command({ type: "set_pattern", device, idx })} options={patternList.map((p, i) => ({ label: p.name, value: i })).sort((a, b) => a.label.localeCompare(b.label))} />
+              {isPreview && presetState && presetState.patternLock.drums && <button className={`sound-lock-btn ${presetState.stepPatternLock.drums ? "locked" : ""}`} title={presetState.stepPatternLock.drums ? "Unlock drums pattern from MIX" : "Lock drums pattern from MIX"} onClick={() => presetState.setStepPatternLock(prev => ({ ...prev, drums: !prev.drums }))}>{presetState.stepPatternLock.drums ? "\u{1F512}" : "\u{1F513}"}</button>}
             </div>
             {patInfo?.desc && <div className="info-desc">{patInfo.desc}</div>}
             {isPreview && patternList.length > 1 && (
@@ -448,13 +449,11 @@ export function DevicePanel({ state, catalog, command, onLoadSamples, bpm, prese
           {/* Humanize toggle (drums, preview only) */}
           {isPreview && (
             <div className="device-tools-row">
-              <label className="device-tool-label">
-                <input type="checkbox" checked={getBool("mpump-humanize")} onChange={(e) => {
-                  setBool("mpump-humanize", e.target.checked);
-                  command({ type: "set_humanize", on: e.target.checked });
-                }} />
-                Humanize
-              </label>
+              <button className={`device-tool-btn ${getBool("mpump-humanize") ? "active" : ""}`} title="Subtle random velocity variation (±15%)" onClick={() => {
+                const next = !getBool("mpump-humanize");
+                setBool("mpump-humanize", next);
+                command({ type: "set_humanize", on: next });
+              }}>Humanize</button>
             </div>
           )}
 
@@ -492,6 +491,7 @@ export function DevicePanel({ state, catalog, command, onLoadSamples, bpm, prese
               <div className="info-row">
                 <span className="info-key">pattern</span>
                 <KaosDropdown className="kaos-dropdown-pat" value={state.bass_pattern_idx} onChange={(idx: number) => command({ type: "set_pattern", device: "preview_bass", idx })} options={(bassPatternList ?? []).map((p, i) => ({ label: p.name, value: i })).sort((a, b) => a.label.localeCompare(b.label))} />
+                {isPreview && presetState && presetState.patternLock.bass && <button className={`sound-lock-btn ${presetState.stepPatternLock.bass ? "locked" : ""}`} title={presetState.stepPatternLock.bass ? "Unlock bass pattern from MIX" : "Lock bass pattern from MIX"} onClick={() => presetState.setStepPatternLock(prev => ({ ...prev, bass: !prev.bass }))}>{presetState.stepPatternLock.bass ? "\u{1F512}" : "\u{1F513}"}</button>}
               </div>
               {state.hasKey && keys && (
                 <div className="key-octave-row">
@@ -602,6 +602,7 @@ export function DevicePanel({ state, catalog, command, onLoadSamples, bpm, prese
           <div className="info-row">
             <span className="info-key">pattern</span>
             <KaosDropdown className="kaos-dropdown-pat" value={state.pattern_idx} onChange={(idx: number) => command({ type: "set_pattern", device, idx })} options={patternList.map((p, i) => ({ label: p.name, value: i })).sort((a, b) => a.label.localeCompare(b.label))} />
+            {isPreview && presetState && presetState.patternLock[mode === "bass" ? "bass" : "synth"] && <button className={`sound-lock-btn ${presetState.stepPatternLock[mode === "bass" ? "bass" : "synth"] ? "locked" : ""}`} title={`${presetState.stepPatternLock[mode === "bass" ? "bass" : "synth"] ? "Unlock" : "Lock"} ${mode} pattern from MIX`} onClick={() => presetState.setStepPatternLock(prev => ({ ...prev, [mode === "bass" ? "bass" : "synth"]: !prev[mode === "bass" ? "bass" : "synth"] }))}>{presetState.stepPatternLock[mode === "bass" ? "bass" : "synth"] ? "\u{1F512}" : "\u{1F513}"}</button>}
           </div>
           {patInfo?.desc && <div className="info-desc">{patInfo.desc}</div>}
           {state.hasKey && keys && (
@@ -669,38 +670,26 @@ export function DevicePanel({ state, catalog, command, onLoadSamples, bpm, prese
         </>
       )}
 
-      {/* Scale lock + Arpeggiator + Duck (preview synth only) */}
+      {/* Arpeggiator (preview synth/bass only) */}
       {isPreview && (mode === "synth" || mode === "bass") && (
         <div className="device-tools-row">
-          <span className="device-tool-label" title="Arpeggiator">
-            Arp
-            <KaosDropdown className="kaos-dropdown-pat" value={getItem(`mpump-arp-mode-${device}`, "off")} onChange={(val: string) => {
-              setItem(`mpump-arp-mode-${device}`, val);
-              if (val === "off") {
-                command({ type: "set_arp", enabled: false, mode: "up", rate: "1/8", device });
-              } else {
-                const rate = (getItem(`mpump-arp-rate-${device}`, "1/8")) as import("../types").ArpRate;
-                command({ type: "set_arp", enabled: true, mode: val as import("../types").ArpMode, rate, device });
-              }
-            }} options={[{ label: "Off", value: "off" }, { label: "Up", value: "up" }, { label: "Down", value: "down" }, { label: "Up-Down", value: "up-down" }, { label: "Random", value: "random" }]} />
-          </span>
+          <span className="device-tool-label">Arp</span>
+          <KaosDropdown className="kaos-dropdown-arp" value={getItem(`mpump-arp-mode-${device}`, "off")} onChange={(val: string) => {
+            setItem(`mpump-arp-mode-${device}`, val);
+            if (val === "off") {
+              command({ type: "set_arp", enabled: false, mode: "up", rate: "1/8", device });
+            } else {
+              const rate = (getItem(`mpump-arp-rate-${device}`, "1/8")) as import("../types").ArpRate;
+              command({ type: "set_arp", enabled: true, mode: val as import("../types").ArpMode, rate, device });
+            }
+          }} options={[{ label: "Off", value: "off" }, { label: "Up", value: "up" }, { label: "Down", value: "down" }, { label: "Up-Down", value: "up-down" }, { label: "Random", value: "random" }]} />
           {getItem(`mpump-arp-mode-${device}`) && getItem(`mpump-arp-mode-${device}`) !== "off" && (
-            <span className="device-tool-label" title="Arpeggiator rate">
-              Rate
-              <KaosDropdown className="kaos-dropdown-pat" value={getItem(`mpump-arp-rate-${device}`, "1/8")} onChange={(val: string) => {
-                setItem(`mpump-arp-rate-${device}`, val);
-                const mode = (getItem(`mpump-arp-mode-${device}`, "up")) as import("../types").ArpMode;
-                command({ type: "set_arp", enabled: true, mode, rate: val as import("../types").ArpRate, device });
-              }} options={[{ label: "1/4", value: "1/4" }, { label: "1/8", value: "1/8" }, { label: "1/16", value: "1/16" }]} />
-            </span>
+            <KaosDropdown className="kaos-dropdown-arp" value={getItem(`mpump-arp-rate-${device}`, "1/8")} onChange={(val: string) => {
+              setItem(`mpump-arp-rate-${device}`, val);
+              const mode = (getItem(`mpump-arp-mode-${device}`, "up")) as import("../types").ArpMode;
+              command({ type: "set_arp", enabled: true, mode, rate: val as import("../types").ArpRate, device });
+            }} options={[{ label: "1/4", value: "1/4" }, { label: "1/8", value: "1/8" }, { label: "1/16", value: "1/16" }]} />
           )}
-          <label className="device-tool-label" title="Duck synth/bass on kick hits">
-            <input type="checkbox" checked={getBool("mpump-sidechain")} onChange={(e) => {
-              setBool("mpump-sidechain", e.target.checked);
-              command({ type: "set_sidechain_duck", on: e.target.checked });
-            }} />
-            Duck
-          </label>
         </div>
       )}
 
@@ -712,11 +701,11 @@ export function DevicePanel({ state, catalog, command, onLoadSamples, bpm, prese
           </button>
           <button
             className="edit-btn save"
-            title="Save pattern to Extras"
-            style={{ background: accent, color: "#000" }}
+            title="Save pattern"
+   style={{ background: accent, color: "#000" }}
             onClick={() => setShowSave(true)}
           >
-            Save to Extras
+            +Save
           </button>
         </div>
       )}

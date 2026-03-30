@@ -15,7 +15,7 @@
   display: grid;
   grid-template-columns: 1fr 1fr 1fr 2px 1.3fr;
   gap: 8px;
-  align-items: start;
+  align-items: stretch;
 }
 
 .mx-divider {
@@ -189,6 +189,18 @@
   letter-spacing: 0.5px;
 }
 
+.mx-pan-row {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  justify-content: center;
+}
+.mx-pan-lr {
+  font-size: 7px;
+  font-weight: 700;
+  color: var(--text-dim);
+  opacity: 0.5;
+}
 .mx-pan-slider {
   width: 80%;
   max-width: 60px;
@@ -223,6 +235,7 @@
 /* ── Master strip — needle meter ── */
 .mx-strip-master {
   padding-top: 8px;
+  overflow: hidden;
 }
 
 .mx-master-vu {
@@ -292,6 +305,69 @@
   opacity: 1;
   border-color: #ff4444;
   text-shadow: 0 0 6px rgba(255,68,68,0.5);
+}
+
+.mx-drv-vis {
+  display: block;
+  margin: 0 auto;
+  border-radius: 3px;
+  background: rgba(0,0,0,0.2);
+}
+
+/* ── Master EQ ── */
+.mx-eq-section {
+  width: 100%;
+  padding: 4px 6px;
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+  overflow: hidden;
+}
+.mx-eq-row {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 16px;
+}
+.mx-eq-label {
+  font-size: 7px;
+  font-weight: 700;
+  color: var(--preview);
+  opacity: 0.6;
+  width: 22px;
+  text-align: right;
+  flex-shrink: 0;
+}
+.mx-eq-slider {
+  flex: 1;
+  min-width: 0;
+  height: 2px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: var(--border);
+  border-radius: 2px;
+}
+.mx-eq-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--preview);
+  cursor: pointer;
+}
+.mx-eq-slider::-moz-range-thumb {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--preview);
+  border: none;
+  cursor: pointer;
+}
+.mx-eq-val {
+  font-size: 7px;
+  color: var(--text-dim);
+  width: 18px;
+  text-align: right;
+  flex-shrink: 0;
 }
 
 /* ── Effects bar ── */

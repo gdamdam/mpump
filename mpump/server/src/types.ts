@@ -288,7 +288,9 @@ export type ClientMessage =
   | { type: "set_channel_mono"; channel: number; on: boolean }
   | { type: "set_arp"; enabled: boolean; mode: ArpMode; rate: ArpRate; device?: string }
   | { type: "set_effect_order"; order: EffectName[] }
-  | { type: "set_duck_params"; depth: number; release: number };
+  | { type: "set_duck_params"; depth: number; release: number }
+  | { type: "set_eq"; low: number; mid: number; high: number }
+  | { type: "set_master_boost"; gain: number };
 
 export type ArpMode = "up" | "down" | "up-down" | "random";
 export type ArpRate = "1/4" | "1/8" | "1/16";

@@ -22,7 +22,7 @@ export function SaveDialog({ accent, deviceLabel, onSave, onClose }: Props) {
       <div className="picker-sheet save-dialog">
         <div className="picker-header">
           <span className="picker-title" style={{ color: accent }}>
-            Save to Extras
+            Save Pattern
           </span>
           <button className="picker-close" onClick={onClose}>&times;</button>
         </div>

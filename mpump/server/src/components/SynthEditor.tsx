@@ -19,20 +19,24 @@ const OSC_LABELS: Record<OscType, string> = {
   triangle: "TRI",
 };
 
-/** Render a tiny SVG of the ADSR envelope shape. */
+/** Render a tiny SVG of the ADSR envelope shape. Standard fixed-segment layout. */
 function AdsrCurve({ attack, decay, sustain, release, accent }: {
   attack: number; decay: number; sustain: number; release: number; accent: string;
 }) {
-  // Normalize to SVG coords (width=120, height=40)
-  const w = 120, h = 40, pad = 2;
-  const totalTime = attack + decay + 0.3 + release; // 0.3 = sustain hold
-  const scale = (w - pad * 2) / totalTime;
+  const w = 200, h = 50, pad = 4;
+  // Each segment gets a proportional share of 4 equal slots, clamped
+  const segW = (w - pad * 2) / 4;
+  const norm = (v: number, max: number) => Math.max(0.05, Math.min(1, v / max));
+  const aW = norm(attack, 2) * segW;
+  const dW = norm(decay, 2) * segW;
+  const sW = segW; // sustain hold is always fixed width
+  const rW = norm(release, 3) * segW;
 
   const x0 = pad;
-  const x1 = pad + attack * scale;          // end of attack
-  const x2 = x1 + decay * scale;            // end of decay
-  const x3 = x2 + 0.3 * scale;             // end of sustain hold
-  const x4 = x3 + release * scale;          // end of release
+  const x1 = x0 + aW;
+  const x2 = x1 + dW;
+  const x3 = x2 + sW;
+  const x4 = x3 + rW;
 
   const yTop = pad;
   const yBot = h - pad;
@@ -41,7 +45,7 @@ function AdsrCurve({ attack, decay, sustain, release, accent }: {
   const path = `M ${x0},${yBot} L ${x1},${yTop} L ${x2},${ySus} L ${x3},${ySus} L ${x4},${yBot}`;
 
   return (
-    <svg className="adsr-curve" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none">
+    <svg className="adsr-curve" viewBox={`0 0 ${w} ${h}`}>
       <path d={path} fill="none" stroke={accent} strokeWidth="2" strokeLinejoin="round" />
       <path d={`${path} L ${x0},${yBot}`} fill={accent} fillOpacity="0.15" />
       {/* Phase markers */}
@@ -244,60 +248,73 @@ export function SynthEditor({ params, accent, label, onChange, hideVoices }: Pro
         >LFO {params.lfoOn ? "●" : "○"} {lfoOpen ? "▾" : "▸"}</div>
         {lfoOpen && (
           <>
-            <div className="synth-sub-row" style={{ marginBottom: 6 }}>
+            {/* Row 1: ON/OFF + Shape */}
+            <div className="synth-sub-row" style={{ marginBottom: 4 }}>
               <button
                 className={`synth-osc-btn ${params.lfoOn ? "active" : ""}`}
-                title="Toggle LFO on/off"
                 style={params.lfoOn ? { background: accent, color: "#000" } : undefined}
                 onClick={() => onChange({ lfoOn: !params.lfoOn })}
-              >
-                {params.lfoOn ? "ON" : "OFF"}
-              </button>
-            </div>
-            <div className="synth-sub-row" style={{ marginBottom: 6 }}>
+              >{params.lfoOn ? "ON" : "OFF"}</button>
               {(["sine", "square", "triangle", "sawtooth"] as LfoShape[]).map((s) => (
-                <button
-                  key={s}
+                <button key={s}
                   className={`synth-osc-btn ${params.lfoShape === s ? "active" : ""}`}
-                  title={`LFO shape: ${s}`}
                   style={params.lfoShape === s ? { background: accent, color: "#000" } : undefined}
                   onClick={() => onChange({ lfoShape: s })}
-                >
-                  {s === "sawtooth" ? "SAW" : s === "triangle" ? "TRI" : s === "square" ? "SQR" : "SIN"}
-                </button>
+                >{s === "sawtooth" ? "SAW" : s === "triangle" ? "TRI" : s === "square" ? "SQR" : "SIN"}</button>
               ))}
             </div>
-            <div className="synth-sub-row" style={{ marginBottom: 6 }}>
+            {/* Row 2: Target + Sync */}
+            <div className="synth-sub-row" style={{ marginBottom: 4 }}>
               {(["cutoff", "pitch", "both"] as LfoTarget[]).map((t) => (
-                <button
-                  key={t}
+                <button key={t}
                   className={`synth-osc-btn ${params.lfoTarget === t ? "active" : ""}`}
-                  title={`LFO target: ${t}`}
                   style={params.lfoTarget === t ? { background: accent, color: "#000" } : undefined}
                   onClick={() => onChange({ lfoTarget: t })}
-                >
-                  {t.toUpperCase()}
-                </button>
+                >{t.toUpperCase()}</button>
               ))}
-            </div>
-            <div className="synth-sub-row" style={{ marginBottom: 6 }}>
               <button
                 className={`synth-osc-btn ${!params.lfoSync ? "active" : ""}`}
-                title="Free-running LFO rate in Hz"
                 style={!params.lfoSync ? { background: accent, color: "#000" } : undefined}
                 onClick={() => onChange({ lfoSync: false })}
-              >
-                FREE
-              </button>
+              >FREE</button>
               <button
                 className={`synth-osc-btn ${params.lfoSync ? "active" : ""}`}
-                title="Tempo-synced LFO rate"
                 style={params.lfoSync ? { background: accent, color: "#000" } : undefined}
                 onClick={() => onChange({ lfoSync: true })}
-              >
-                SYNC
-              </button>
+              >SYNC</button>
             </div>
+            {/* Row 3: Full-width LFO waveform */}
+            {(() => {
+              const w = 200, h = 40;
+              const shape = params.lfoShape;
+              const depth = params.lfoOn ? params.lfoDepth : 0.3;
+              // Map division/rate to visual cycles
+              const DIV_CYCLES: Record<string, number> = { "2": 0.5, "1": 1, "1/2": 2, "1/4": 4, "1/8": 8, "1/16": 16, "1/4d": 3, "1/8d": 6 };
+              const rawCycles = params.lfoSync
+                ? (DIV_CYCLES[params.lfoDivision] ?? 2)
+                : 0.5 + (params.lfoRate / 20) * 6;
+              const cycles = Math.min(rawCycles, 8);
+              const pts = Array.from({ length: 80 }, (_, i) => {
+                const t = i / 79;
+                let y = 0;
+                const phase = t * cycles;
+                switch (shape) {
+                  case "sine": y = Math.sin(phase * Math.PI * 2); break;
+                  case "square": y = Math.sin(phase * Math.PI * 2) >= 0 ? 1 : -1; break;
+                  case "triangle": y = 2 * Math.abs(2 * (phase % 1) - 1) - 1; break;
+                  case "sawtooth": y = 2 * (phase % 1) - 1; break;
+                }
+                return `${4 + t * (w - 8)},${h / 2 - y * depth * (h / 2 - 4)}`;
+              }).join(" ");
+              return (
+                <svg className="lfo-curve" viewBox={`0 0 ${w} ${h}`} style={{ opacity: params.lfoOn ? 1 : 0.3 }}>
+                  <rect x={0} y={0} width={w} height={h} fill="rgba(0,0,0,0.2)" rx={4} />
+                  <line x1={4} y1={h / 2} x2={w - 4} y2={h / 2} stroke="rgba(102,255,153,0.15)" strokeWidth={1} />
+                  <polyline points={pts} fill="none" stroke={accent} strokeWidth={1.5} />
+                </svg>
+              );
+            })()}
+            {/* Row 4: Rate + Depth sliders */}
             <div className="synth-knobs">
               {params.lfoSync ? (
                 <label className="synth-knob">

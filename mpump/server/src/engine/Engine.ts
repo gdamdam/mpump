@@ -1428,6 +1428,14 @@ export class Engine {
     if (this.audioPort) this.audioPort.setDuckParams(depth, release);
   }
 
+  setEQ(low: number, mid: number, high: number): void {
+    if (this.audioPort) this.audioPort.setEQ(low, mid, high);
+  }
+
+  setMasterBoost(gain: number): void {
+    if (this.audioPort) this.audioPort.setMasterBoost(gain);
+  }
+
   setDrive(db: number): void {
     if (this.audioPort) this.audioPort.setDrive(db);
   }
