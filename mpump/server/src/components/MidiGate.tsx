@@ -70,7 +70,7 @@ export function MidiGate({ midiState, onConnectMidi, onPreview, midiSupported }:
 
       <button className="midi-gate-btn-preview" title="Start playing with browser audio"
         onClick={() => { trackEvent("play-start"); setLogoKey(k => k + 1); clearTimeout(flashTimer.current); flashTimer.current = window.setTimeout(() => onPreview(), 450); }}>
-        ▶ Open mpump
+        Open
       </button>
 
       <div className="midi-gate-intro">
