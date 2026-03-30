@@ -62,6 +62,10 @@ export class AudioPort {
   private cv: CVOutput;
   /** Master output node for VU metering. */
   private master: GainNode;
+  private eqLow: BiquadFilterNode;
+  private eqMid: BiquadFilterNode;
+  private eqHigh: BiquadFilterNode;
+  private masterBoost: GainNode;
   private analyser: AnalyserNode;
   /** Effects state */
   private fx: EffectParams = JSON.parse(JSON.stringify(DEFAULT_EFFECTS));
@@ -89,9 +93,30 @@ export class AudioPort {
     this.ctx = new AC();
     this.kit = buildKit(this.ctx);
 
-    // Master → [effects chain] → fxOutput → limiter → analyser → destination
+    // Master → [effects chain] → fxOutput → EQ → masterBoost → limiter → analyser → destination
     this.master = this.ctx.createGain();
     this.fxOutput = this.ctx.createGain();
+
+    // 3-band master EQ
+    this.eqLow = this.ctx.createBiquadFilter();
+    this.eqLow.type = "lowshelf";
+    this.eqLow.frequency.value = 150;
+    this.eqLow.gain.value = 3; // slight bass boost by default
+
+    this.eqMid = this.ctx.createBiquadFilter();
+    this.eqMid.type = "peaking";
+    this.eqMid.frequency.value = 1000;
+    this.eqMid.Q.value = 0.7;
+    this.eqMid.gain.value = 0;
+
+    this.eqHigh = this.ctx.createBiquadFilter();
+    this.eqHigh.type = "highshelf";
+    this.eqHigh.frequency.value = 5000;
+    this.eqHigh.gain.value = 0;
+
+    // Master gain boost (before limiter)
+    this.masterBoost = this.ctx.createGain();
+    this.masterBoost.gain.value = 1.5; // +3.5dB default boost
 
     // Soft clipper: tanh curve for gentle peak rounding (hybrid mode only)
     this.softClip = this.ctx.createWaveShaper();
@@ -611,24 +636,34 @@ export class AudioPort {
   private rebuildAntiClipChain(): void {
     // Disconnect all paths from fxOutput to analyser
     try { this.fxOutput.disconnect(); } catch { /* */ }
+    try { this.eqLow.disconnect(); } catch { /* */ }
+    try { this.eqMid.disconnect(); } catch { /* */ }
+    try { this.eqHigh.disconnect(); } catch { /* */ }
+    try { this.masterBoost.disconnect(); } catch { /* */ }
     try { this.driveGain.disconnect(); } catch { /* */ }
     try { this.softClip.disconnect(); } catch { /* */ }
     try { this.limiter.disconnect(); } catch { /* */ }
 
+    // Common: fxOutput → EQ (low→mid→high) → masterBoost → ...
+    this.fxOutput.connect(this.eqLow);
+    this.eqLow.connect(this.eqMid);
+    this.eqMid.connect(this.eqHigh);
+    this.eqHigh.connect(this.masterBoost);
+
     if (this.antiClipMode === "off") {
-      // Clean: fxOutput → drive → analyser → destination
-      this.fxOutput.connect(this.driveGain);
+      // Clean: ... → masterBoost → drive → analyser
+      this.masterBoost.connect(this.driveGain);
       this.driveGain.connect(this.analyser);
     } else if (this.antiClipMode === "limiter") {
-      // Limiter: fxOutput → drive → limiter → analyser → destination
-      this.fxOutput.connect(this.driveGain);
+      // Limiter: ... → masterBoost → drive → limiter → analyser
+      this.masterBoost.connect(this.driveGain);
       this.driveGain.connect(this.limiter);
       this.limiter.connect(this.analyser);
     } else {
-      // Hybrid: fxOutput → drive → softClip → limiter → analyser → destination
+      // Hybrid: ... → masterBoost → drive → softClip → limiter → analyser
       this.softClip.curve = makeSoftClipCurve(true);
       this.softClip.oversample = "2x";
-      this.fxOutput.connect(this.driveGain);
+      this.masterBoost.connect(this.driveGain);
       this.driveGain.connect(this.softClip);
       this.softClip.connect(this.limiter);
       this.limiter.connect(this.analyser);
@@ -656,6 +691,22 @@ export class AudioPort {
 
   getDuckParams(): { depth: number; release: number } {
     return { depth: this.duckDepth, release: this.duckRelease };
+  }
+
+  /** Set master 3-band EQ gains in dB (-12 to +12). */
+  setEQ(low: number, mid: number, high: number): void {
+    this.eqLow.gain.value = Math.max(-12, Math.min(12, low));
+    this.eqMid.gain.value = Math.max(-12, Math.min(12, mid));
+    this.eqHigh.gain.value = Math.max(-12, Math.min(12, high));
+  }
+
+  getEQ(): { low: number; mid: number; high: number } {
+    return { low: this.eqLow.gain.value, mid: this.eqMid.gain.value, high: this.eqHigh.gain.value };
+  }
+
+  /** Set master output boost (linear gain, e.g. 1.0 = unity, 2.0 = +6dB). */
+  setMasterBoost(gain: number): void {
+    this.masterBoost.gain.value = Math.max(0.5, Math.min(3, gain));
   }
 
   /** Enable/disable metronome click. */
