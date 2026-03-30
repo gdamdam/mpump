@@ -1,8 +1,8 @@
 <h1 align="center">mpump</h1>
-<p align="center"><strong>Browser groovebox. Drums, bass, synth, effects. Ready in seconds.</strong><br><br>Pick a genre, get a groove, make it yours, send it as a link.<br>Curated patterns across 15 genres. No install. No account. Free.</p>
+<p align="center"><strong>A groove you can resend.</strong><br><br>Browser instrument for techno, acid, and dub. Make something, send it as a link. Open it, change it, send it back different.<br>No install. No account. Free.</p>
 
 <p align="center">
-  <a href="https://github.com/gdamdam/mpump"><img src="https://img.shields.io/badge/version-1.3.5-blue" alt="Version"></a>
+  <a href="https://github.com/gdamdam/mpump"><img src="https://img.shields.io/badge/version-1.3.6-blue" alt="Version"></a>
   <a href="https://github.com/gdamdam/mpump/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue" alt="License"></a>
   <br>
   <img src="https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=white" alt="React">

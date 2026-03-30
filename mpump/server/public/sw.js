@@ -1,5 +1,5 @@
 // Cache version — bump this on every deploy to invalidate old caches
-const CACHE_VERSION = "1.3.5";
+const CACHE_VERSION = "1.3.6";
 const CACHE = `mpump-${CACHE_VERSION}`;
 
 // Pre-cache essential assets on install for offline support

@@ -78,7 +78,7 @@ export function MidiGate({ midiState, onConnectMidi, onPreview, midiSupported }:
       </div>
 
       <div className="midi-gate-featured">
-        <span className="midi-gate-pill">Instant Grooves</span>
+        <span className="midi-gate-pill">Working Grooves</span>
         <span className="midi-gate-pill">Playable Links</span>
         <span className="midi-gate-pill">Jam &amp; Live Set</span>
       </div>
