@@ -74,6 +74,132 @@ const EFFECT_NAMES: Record<EffectName, string> = {
   duck: "Sidechain Duck",
 };
 
+function EffectVis({ name, params }: { name: EffectName; params: Record<string, number | boolean | string> }) {
+  const w = 200, h = 60;
+  const bg = <rect x={0} y={0} width={w} height={h} fill="rgba(0,0,0,0.3)" rx={4} />;
+  const col = "#66ff99";
+  const dim = "rgba(102,255,153,0.15)";
+  const fill = "rgba(102,255,153,0.1)";
+
+  switch (name) {
+    case "duck": {
+      const depth = params.depth as number, release = params.release as number;
+      const topY = h * 0.1, bottomY = h * (0.1 + (depth) * 0.8);
+      const ax = w * 0.08, relW = 0.2 + (release - 0.01) / 0.29 * 0.7;
+      const rx = ax + w * relW;
+      const d = `M0,${topY} L${ax},${bottomY} Q${(ax + rx) / 2},${bottomY} ${rx},${topY} L${w},${topY}`;
+      return <svg className="fx-vis" viewBox={`0 0 ${w} ${h}`}>{bg}
+        <line x1={0} y1={topY} x2={w} y2={topY} stroke={dim} strokeWidth={1} strokeDasharray="3,3" />
+        <path d={d} fill={fill} stroke={col} strokeWidth={2} />
+        <circle cx={ax} cy={bottomY} r={3} fill={col} />
+        <text x={ax} y={h - 2} fill="rgba(102,255,153,0.5)" fontSize={8} textAnchor="middle">kick</text>
+      </svg>;
+    }
+    case "delay": {
+      const fb = params.feedback as number, mix = params.mix as number;
+      const taps = 5;
+      return <svg className="fx-vis" viewBox={`0 0 ${w} ${h}`}>{bg}
+        {Array.from({ length: taps }, (_, i) => {
+          const x = 20 + i * 38, amp = mix * Math.pow(fb, i);
+          const barH = amp * h * 0.8;
+          return <rect key={i} x={x} y={h - barH - 4} width={8} height={barH} rx={2} fill={col} opacity={0.3 + amp * 0.7} />;
+        })}
+        <text x={w / 2} y={h - 2} fill="rgba(102,255,153,0.4)" fontSize={7} textAnchor="middle">echo taps</text>
+      </svg>;
+    }
+    case "reverb": {
+      const decay = params.decay as number, mix = params.mix as number;
+      const decayW = 0.3 + (decay - 0.5) / 4.5 * 0.6;
+      const pts = Array.from({ length: 30 }, (_, i) => {
+        const t = i / 29;
+        const env = Math.exp(-t / decayW) * mix;
+        return `${10 + t * (w - 20)},${h * 0.1 + (1 - env) * h * 0.75}`;
+      }).join(" ");
+      return <svg className="fx-vis" viewBox={`0 0 ${w} ${h}`}>{bg}
+        <polyline points={pts} fill="none" stroke={col} strokeWidth={2} />
+        <line x1={10} y1={h * 0.1} x2={10} y2={h * 0.85} stroke={dim} strokeWidth={1} />
+        <text x={w / 2} y={h - 2} fill="rgba(102,255,153,0.4)" fontSize={7} textAnchor="middle">decay</text>
+      </svg>;
+    }
+    case "compressor": {
+      const thresh = params.threshold as number, ratio = params.ratio as number;
+      const threshN = 1 + thresh / 60; // 0-1 normalized (-60 to 0)
+      const pts: string[] = [];
+      for (let i = 0; i <= 20; i++) {
+        const inp = i / 20;
+        const out = inp <= threshN ? inp : threshN + (inp - threshN) / ratio;
+        pts.push(`${10 + inp * (w - 20)},${h * 0.9 - out * h * 0.8}`);
+      }
+      return <svg className="fx-vis" viewBox={`0 0 ${w} ${h}`}>{bg}
+        <line x1={10} y1={h * 0.9} x2={w - 10} y2={h * 0.1} stroke={dim} strokeWidth={1} strokeDasharray="3,3" />
+        <polyline points={pts.join(" ")} fill="none" stroke={col} strokeWidth={2} />
+        <line x1={10 + threshN * (w - 20)} y1={h * 0.05} x2={10 + threshN * (w - 20)} y2={h * 0.95} stroke="rgba(255,100,100,0.4)" strokeWidth={1} strokeDasharray="2,2" />
+        <text x={w / 2} y={h - 2} fill="rgba(102,255,153,0.4)" fontSize={7} textAnchor="middle">threshold</text>
+      </svg>;
+    }
+    case "distortion": {
+      const drive = params.drive as number;
+      const k = drive / 100;
+      const pts = Array.from({ length: 40 }, (_, i) => {
+        const x = (i / 39) * 2 - 1; // -1 to 1
+        const y = k > 0 ? Math.tanh(x * (1 + k * 5)) : x;
+        return `${10 + (i / 39) * (w - 20)},${h / 2 - y * h * 0.35}`;
+      }).join(" ");
+      return <svg className="fx-vis" viewBox={`0 0 ${w} ${h}`}>{bg}
+        <line x1={10} y1={h / 2} x2={w - 10} y2={h / 2} stroke={dim} strokeWidth={1} />
+        <polyline points={pts} fill="none" stroke={col} strokeWidth={2} />
+      </svg>;
+    }
+    case "highpass": {
+      const cutoff = params.cutoff as number, q = params.q as number;
+      const cutN = (cutoff - 20) / 1980;
+      const pts = Array.from({ length: 40 }, (_, i) => {
+        const f = i / 39;
+        let gain = f < cutN ? Math.pow(f / Math.max(cutN, 0.01), 2) : 1;
+        if (q > 1 && Math.abs(f - cutN) < 0.15) gain *= 1 + (q - 1) * 0.15 * (1 - Math.abs(f - cutN) / 0.15);
+        return `${10 + f * (w - 20)},${h * 0.9 - gain * h * 0.75}`;
+      }).join(" ");
+      return <svg className="fx-vis" viewBox={`0 0 ${w} ${h}`}>{bg}
+        <polyline points={pts} fill="none" stroke={col} strokeWidth={2} />
+        <line x1={10 + cutN * (w - 20)} y1={h * 0.05} x2={10 + cutN * (w - 20)} y2={h * 0.95} stroke="rgba(255,100,100,0.4)" strokeWidth={1} strokeDasharray="2,2" />
+      </svg>;
+    }
+    case "chorus":
+    case "phaser": {
+      const rate = params.rate as number, depth = params.depth as number;
+      const maxRate = name === "chorus" ? 10 : 5;
+      const cycles = 1 + (rate / maxRate) * 3;
+      const amp = name === "chorus" ? Math.min(depth / 0.01, 1) : Math.min(depth / 3000, 1);
+      const pts = Array.from({ length: 60 }, (_, i) => {
+        const t = i / 59;
+        const y = Math.sin(t * Math.PI * 2 * cycles) * amp;
+        return `${10 + t * (w - 20)},${h / 2 - y * h * 0.35}`;
+      }).join(" ");
+      return <svg className="fx-vis" viewBox={`0 0 ${w} ${h}`}>{bg}
+        <line x1={10} y1={h / 2} x2={w - 10} y2={h / 2} stroke={dim} strokeWidth={1} />
+        <polyline points={pts} fill="none" stroke={col} strokeWidth={2} />
+        <text x={w / 2} y={h - 2} fill="rgba(102,255,153,0.4)" fontSize={7} textAnchor="middle">LFO</text>
+      </svg>;
+    }
+    case "bitcrusher": {
+      const bits = params.bits as number;
+      const levels = Math.pow(2, bits);
+      const pts = Array.from({ length: 60 }, (_, i) => {
+        const t = i / 59;
+        const sine = Math.sin(t * Math.PI * 4);
+        const crushed = Math.round(sine * levels / 2) / (levels / 2);
+        return `${10 + t * (w - 20)},${h / 2 - crushed * h * 0.35}`;
+      }).join(" ");
+      return <svg className="fx-vis" viewBox={`0 0 ${w} ${h}`}>{bg}
+        <line x1={10} y1={h / 2} x2={w - 10} y2={h / 2} stroke={dim} strokeWidth={1} />
+        <polyline points={pts} fill="none" stroke={col} strokeWidth={2} />
+      </svg>;
+    }
+    default:
+      return null;
+  }
+}
+
 export function EffectEditor({ name, params, onUpdate, onClose }: Props) {
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -118,29 +244,8 @@ export function EffectEditor({ name, params, onUpdate, onClose }: Props) {
             )}
           </div>
         )}
-        {/* Duck envelope visualization */}
-        {name === "duck" && (() => {
-          const depth = p.depth as number;
-          const release = p.release as number;
-          const w = 200, h = 60;
-          const duckTo = 1 - depth;
-          // Normalize release to visual width (0.01-0.3s → 20%-90% of width)
-          const relW = 0.2 + (release - 0.01) / 0.29 * 0.7;
-          const attackX = w * 0.08; // quick attack
-          const bottomY = h * (1 - duckTo * 0.15); // ducked level
-          const topY = h * 0.1; // full volume
-          const releaseEndX = attackX + w * relW;
-          const d = `M0,${topY} L${attackX},${bottomY} Q${(attackX + releaseEndX) / 2},${bottomY} ${releaseEndX},${topY} L${w},${topY}`;
-          return (
-            <svg className="fx-duck-envelope" viewBox={`0 0 ${w} ${h}`} width={w} height={h}>
-              <rect x={0} y={0} width={w} height={h} fill="rgba(0,0,0,0.3)" rx={4} />
-              <line x1={0} y1={topY} x2={w} y2={topY} stroke="rgba(102,255,153,0.15)" strokeWidth={1} strokeDasharray="3,3" />
-              <path d={d} fill="rgba(102,255,153,0.1)" stroke="#66ff99" strokeWidth={2} />
-              <circle cx={attackX} cy={bottomY} r={3} fill="#66ff99" />
-              <text x={attackX} y={h - 2} fill="rgba(102,255,153,0.5)" fontSize={8} textAnchor="middle">kick</text>
-            </svg>
-          );
-        })()}
+        {/* Effect visualization */}
+        <EffectVis name={name} params={p} />
         {sliders.map((s) => {
           // Hide time slider when delay is synced
           if (name === "delay" && s.key === "time" && p.sync) return null;

@@ -15,7 +15,7 @@
 .midi-gate-logo {
   margin: 0;
   font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
-  font-size: 10px;
+  font-size: 18px;
   line-height: 1.15;
   font-weight: 700;
   color: var(--preview);
@@ -33,16 +33,18 @@
 }
 
 .midi-gate-title {
-  font-size: 16px;
+  font-size: 20px;
   font-weight: 700;
   color: var(--text);
+  letter-spacing: 2px;
+  text-transform: uppercase;
 }
 
 .midi-gate-body {
-  font-size: 13px;
+  font-size: 16px;
   color: var(--preview); opacity: 0.7;
-  max-width: 360px;
-  line-height: 1.5;
+  max-width: 400px;
+  line-height: 1.6;
 }
 
 .midi-gate-btn {

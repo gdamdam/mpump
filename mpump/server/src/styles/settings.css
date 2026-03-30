@@ -182,10 +182,13 @@
   text-align: right;
 }
 
-.fx-duck-envelope {
+.fx-vis {
   display: block;
   margin: 4px auto 8px;
   border-radius: 4px;
+  width: 100%;
+  max-width: 200px;
+  height: auto;
 }
 
 /* ── Settings panel ──────────────────────────────────────────────────── */
