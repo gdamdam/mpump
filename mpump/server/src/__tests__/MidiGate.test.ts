@@ -28,14 +28,14 @@ describe("MidiGate – exports (source verification)", () => {
 });
 
 describe("MidiGate – tagline pills", () => {
-  it("component source contains 'Instant Grooves'", async () => {
+  it("component source contains 'Working Grooves'", async () => {
     const fs = await import("fs");
     const path = await import("path");
     const src = fs.readFileSync(
       path.resolve(__dirname, "../components/MidiGate.tsx"),
       "utf-8",
     );
-    expect(src).toContain("Instant Grooves");
+    expect(src).toContain("Working Grooves");
   });
 });
 
