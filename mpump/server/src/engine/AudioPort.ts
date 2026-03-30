@@ -257,11 +257,18 @@ export class AudioPort {
         return comp;
       }
       case "bitcrusher": {
+        // Pre-gain drives signal harder into quantization for more audible crush
+        const preGain = this.ctx.createGain();
+        preGain.gain.value = 1 + (16 - this.fx.bitcrusher.bits) * 0.15; // lower bits = more boost
         const ws = this.ctx.createWaveShaper();
         ws.curve = makeBitcrushCurve(this.fx.bitcrusher.bits);
-        prev.connect(ws);
-        this.fxNodes.push(ws);
-        return ws;
+        const postGain = this.ctx.createGain();
+        postGain.gain.value = 1 / preGain.gain.value; // compensate volume
+        prev.connect(preGain);
+        preGain.connect(ws);
+        ws.connect(postGain);
+        this.fxNodes.push(preGain, ws, postGain);
+        return postGain;
       }
       case "chorus": {
         // Stereo chorus: two delay lines with quadrature LFOs panned L/R
@@ -342,8 +349,8 @@ export class AudioPort {
       }
       case "reverb": {
         const { decay, mix } = this.fx.reverb;
-        const dry = this.ctx.createGain(); dry.gain.value = 1 - mix;
-        const wet = this.ctx.createGain(); wet.gain.value = mix;
+        const dry = this.ctx.createGain(); dry.gain.value = 1 - mix * 0.5; // keep dry louder
+        const wet = this.ctx.createGain(); wet.gain.value = mix * 1.5; // boost wet to cut through
         // Cache impulse response — only regenerate when decay changes
         if (!this.reverbIRCache || this.reverbIRCache.decay !== decay) {
           this.reverbIRCache = { decay, buffer: generateImpulseResponse(this.ctx, decay) };

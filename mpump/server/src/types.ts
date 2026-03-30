@@ -227,12 +227,12 @@ export type EffectName = keyof EffectParams;
 export const DEFAULT_EFFECTS: EffectParams = {
   delay: { on: false, time: 0.3, feedback: 0.4, mix: 0.3, sync: true, division: "1/16" },
   distortion: { on: false, drive: 20 },
-  reverb: { on: false, decay: 2, mix: 0.3 },
+  reverb: { on: false, decay: 2, mix: 0.45 },
   compressor: { on: false, threshold: -24, ratio: 4 },
   highpass: { on: false, cutoff: 200, q: 1 },
   chorus: { on: false, rate: 1.5, depth: 0.003, mix: 0.3 },
   phaser: { on: false, rate: 0.5, depth: 1000 },
-  bitcrusher: { on: false, bits: 8 },
+  bitcrusher: { on: false, bits: 5 },
   duck: { on: false, depth: 0.85, release: 0.04 },
 };
 

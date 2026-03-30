@@ -334,7 +334,7 @@ export function generateImpulseResponse(ctx: AudioContext, decay: number): Audio
   for (let ch = 0; ch < 2; ch++) {
     const data = buf.getChannelData(ch);
     for (let i = 0; i < len; i++) {
-      data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (rate * decay * 0.3));
+      data[i] = (Math.random() * 2 - 1) * 2.5 * Math.exp(-i / (rate * decay * 0.5));
     }
   }
   return buf;
