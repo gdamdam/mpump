@@ -177,10 +177,8 @@ export class AudioPort {
   setEffect<K extends EffectName>(name: K, params: Partial<EffectParams[K]>): void {
     const prev = this.fx[name];
     this.fx[name] = { ...prev, ...params } as EffectParams[K];
-    // Only rebuild on structural changes (on/off toggle). Parameter tweaks don't need rebuild.
-    if ("on" in params && params.on !== (prev as { on?: boolean }).on) {
-      this.rebuildFxChain();
-    }
+    // Rebuild chain on any parameter change so audio nodes reflect new values
+    this.rebuildFxChain();
   }
 
   /** Get current effects state. */
