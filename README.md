@@ -1,5 +1,5 @@
 <h1 align="center">mpump</h1>
-<p align="center"><strong>A groove you can resend.</strong><br><br>Browser instrument for techno, acid, and dub. Make something, send it as a link. Open it, change it, send it back different.<br>No install. No account. Free.</p>
+<p align="center"><strong>A groove you can share.</strong><br><br>Browser instrument for electronic music. Make something, send it as a link. Open it, change it, send it back different.<br>No install. No account. Free.</p>
 
 <p align="center">
   <a href="https://github.com/gdamdam/mpump"><img src="https://img.shields.io/badge/version-1.4.1-blue" alt="Version"></a>
