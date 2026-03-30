@@ -32,6 +32,7 @@ import { MixerPanel } from "./MixerPanel";
 import { SongEditor } from "./SongEditor";
 import { SessionModal } from "./SessionModal";
 import { exportSession, downloadSession, readSessionFile, saveLastSession, getRecentSessions, saveSession, type SessionData } from "../utils/session";
+import { trackEvent } from "../utils/metrics";
 import { pressVibrate, heavyVibrate } from "../utils/haptic";
 import { getDeviceGenres, getDeviceBassGenres } from "../data/catalog";
 import { SYNTH_PRESETS, BASS_PRESETS, DRUM_KIT_PRESETS } from "../data/soundPresets";
@@ -1043,6 +1044,7 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
     try {
       const session = await readSessionFile(file);
       applySession(session);
+      trackEvent("session-import");
     } catch (e) {
       console.error("Failed to import session:", e);
     }
@@ -1443,7 +1445,7 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
                       aria-selected={previewMode === m}
                       className={`mode-btn ${previewMode === m ? "active" : ""} ${disabled ? "mode-btn-disabled" : ""}`}
                       title={disabled ? "SYNTH editing disabled during jam" : `Switch to ${MODE_LABELS[m]} mode`}
-                      onClick={() => { if (!disabled) setPreviewMode(m); }}
+                      onClick={() => { if (!disabled) { setPreviewMode(m); trackEvent(`mode-${m}`); } }}
                       style={disabled ? { opacity: 0.3, cursor: "not-allowed" } : undefined}
                     >
                       {MODE_LABELS[m]}
@@ -1887,7 +1889,7 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
       {/* Global footer */}
       <footer className="app-footer" style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "0 6px" }}>
         <span><span className="app-footer-link" onClick={() => setShowAbout(true)}>v{__APP_VERSION__}</span> · © 2026 · <a href="https://github.com/gdamdam/mpump" target="_blank" rel="noopener noreferrer">github.com/gdamdam/mpump</a></span>
-        <span><a className="app-footer-link" href="https://ko-fi.com/gdamdam" target="_blank" rel="noopener noreferrer" style={{ color: "#ff0000", fontWeight: 700, filter: "brightness(2)" }}>Support ♥</a> · <a className="app-footer-link" href="https://github.com/gdamdam/mpump/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">AGPL-3.0</a> · Built with Claude Code · <span className="app-footer-link" onClick={() => setShowPrivacy(true)}>No cookies · No personal data</span></span>
+        <span><a className="app-footer-link" href="https://ko-fi.com/gdamdam" target="_blank" rel="noopener noreferrer" style={{ color: "#ff0000", fontWeight: 700, filter: "brightness(2)" }} onClick={() => trackEvent("kofi-footer")}>Support ♥</a> · <a className="app-footer-link" href="https://github.com/gdamdam/mpump/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">AGPL-3.0</a> · Built with Claude Code · <span className="app-footer-link" onClick={() => setShowPrivacy(true)}>No cookies · No personal data</span></span>
       </footer>
     </div>
   );

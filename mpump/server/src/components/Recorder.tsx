@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import { heavyVibrate } from "../utils/haptic";
+import { trackEvent } from "../utils/metrics";
 
 interface Props {
   getAnalyser: () => AnalyserNode | null;
@@ -153,6 +154,7 @@ export function Recorder({ getAnalyser, onExport }: Props) {
     processor.connect(ctx.destination); // must be connected to destination to fire
     processorRef.current = processor;
     startTimeRef.current = Date.now();
+    trackEvent("rec-start");
     setRecording(true);
     setDuration(0);
     timerRef.current = window.setInterval(() => {
@@ -187,6 +189,7 @@ export function Recorder({ getAnalyser, onExport }: Props) {
     const wavBlob = float32ToWav([left, right], sampleRate);
     const date = new Date().toISOString().slice(0, 16).replace(/[T:]/g, "-");
     saveWav(wavBlob, `mpump-${date}`);
+    trackEvent("rec-export");
     onExport?.();
   }, [onExport]);
 

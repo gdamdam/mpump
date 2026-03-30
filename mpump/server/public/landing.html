@@ -385,8 +385,8 @@
       <p class="hero-p">Not a project. Not a file. A link.<br>Everything is already moving. You decide where it goes next.</p>
       <p style="margin-top: 8px; font-size: 13px; color: var(--accent); opacity: 0.8; letter-spacing: 0.5px;">groovebox in a browser &nbsp;·&nbsp; free and open source &nbsp;·&nbsp; lives in a link</p>
       <div class="cta-btn-row" style="margin-top: 36px;">
-        <a href="./app.html" class="cta-link" onclick="localStorage.setItem('mpump-returning','1')">Open mpump</a>
-        <a href="https://github.com/gdamdam/mpump" class="cta-link-sec">Source on GitHub</a>
+        <a href="./app.html" class="cta-link" onclick="localStorage.setItem('mpump-returning','1');gcEvent('landing-open-hero')">Open mpump</a>
+        <a href="https://github.com/gdamdam/mpump" class="cta-link-sec" onclick="gcEvent('landing-github')">Source on GitHub</a>
       </div>
       <div class="hero-mockup">
         <video autoplay muted loop playsinline class="hero-video">
@@ -441,15 +441,15 @@
       <div class="body-xl">Not from silence.<br>From something that already has a pulse.</div>
       <p class="body-p">Every session opens with a working groove. Everything is already moving. You decide where it goes next.</p>
       <div class="share-cards">
-        <a class="share-card" href="https://s.mpump.live/?b=eyJicG0iOjkwLCJzdyI6MC41LCJkayI6IjEwIiwic3AiOiIxNCIsImJwIjoiMTEiLCJnIjp7InByZXZpZXdfZHJ1bXMiOnsiZ2kiOjE0LCJwaSI6NCwiYmdpIjowLCJicGkiOjB9LCJwcmV2aWV3X2Jhc3MiOnsiZ2kiOjE0LCJwaSI6MTgsImJnaSI6MCwiYnBpIjowfSwicHJldmlld19zeW50aCI6eyJnaSI6MTQsInBpIjoxOSwiYmdpIjowLCJicGkiOjB9fSwidG4iOiJNaWRuaWdodCBUYXBlIDE5Iiwic3BwIjp7ImEiOjAuMDAxLCJkIjowLjA2LCJzIjowLCJyIjowLjAzLCJjbyI6NDM0NC4yNjgsInJlIjo4Ljc1Nywic2wiOjAuMywidW4iOjEsInVzIjowLCJmZSI6MC41fSwiYnBwIjp7Im90Ijoic2luZSIsImEiOjAuMDE1LCJkIjowLjEyLCJzIjowLjEsInIiOjAuMDUsImNvIjo0MzQ0LjI2OCwicmUiOjguNzU3LCJzbyI6ZmFsc2UsInNsIjowLjYsInVuIjoxLCJ1cyI6MCwiZmUiOjB9LCJjdiI6Ijg5LDcwLDQ3IiwiZGUiOiIzNi4xMDB8NDIuNjB8LXw0Mi42MHwzOC4xMDB8NDIuNjB8LXw0Mi42MHwzNi4xMDB8NDIuNjB8MzYuNjB8NDIuNjB8MzguMTIwfDQ2LjYwfC18NDIuNjAifQ">
+        <a class="share-card" onclick="gcEvent('landing-card-click')" href="https://s.mpump.live/?b=eyJicG0iOjkwLCJzdyI6MC41LCJkayI6IjEwIiwic3AiOiIxNCIsImJwIjoiMTEiLCJnIjp7InByZXZpZXdfZHJ1bXMiOnsiZ2kiOjE0LCJwaSI6NCwiYmdpIjowLCJicGkiOjB9LCJwcmV2aWV3X2Jhc3MiOnsiZ2kiOjE0LCJwaSI6MTgsImJnaSI6MCwiYnBpIjowfSwicHJldmlld19zeW50aCI6eyJnaSI6MTQsInBpIjoxOSwiYmdpIjowLCJicGkiOjB9fSwidG4iOiJNaWRuaWdodCBUYXBlIDE5Iiwic3BwIjp7ImEiOjAuMDAxLCJkIjowLjA2LCJzIjowLCJyIjowLjAzLCJjbyI6NDM0NC4yNjgsInJlIjo4Ljc1Nywic2wiOjAuMywidW4iOjEsInVzIjowLCJmZSI6MC41fSwiYnBwIjp7Im90Ijoic2luZSIsImEiOjAuMDE1LCJkIjowLjEyLCJzIjowLjEsInIiOjAuMDUsImNvIjo0MzQ0LjI2OCwicmUiOjguNzU3LCJzbyI6ZmFsc2UsInNsIjowLjYsInVuIjoxLCJ1cyI6MCwiZmUiOjB9LCJjdiI6Ijg5LDcwLDQ3IiwiZGUiOiIzNi4xMDB8NDIuNjB8LXw0Mi42MHwzOC4xMDB8NDIuNjB8LXw0Mi42MHwzNi4xMDB8NDIuNjB8MzYuNjB8NDIuNjB8MzguMTIwfDQ2LjYwfC18NDIuNjAifQ">
           <img class="share-card-img" src="https://s.mpump.live/img/eyJicG0iOjkwLCJzdyI6MC41LCJkayI6IjEwIiwic3AiOiIxNCIsImJwIjoiMTEiLCJnIjp7InByZXZpZXdfZHJ1bXMiOnsiZ2kiOjE0LCJwaSI6NCwiYmdpIjowLCJicGkiOjB9LCJwcmV2aWV3X2Jhc3MiOnsiZ2kiOjE0LCJwaSI6MTgsImJnaSI6MCwiYnBpIjowfSwicHJldmlld19zeW50aCI6eyJnaSI6MTQsInBpIjoxOSwiYmdpIjowLCJicGkiOjB9fSwidG4iOiJNaWRuaWdodCBUYXBlIDE5Iiwic3BwIjp7ImEiOjAuMDAxLCJkIjowLjA2LCJzIjowLCJyIjowLjAzLCJjbyI6NDM0NC4yNjgsInJlIjo4Ljc1Nywic2wiOjAuMywidW4iOjEsInVzIjowLCJmZSI6MC41fSwiYnBwIjp7Im90Ijoic2luZSIsImEiOjAuMDE1LCJkIjowLjEyLCJzIjowLjEsInIiOjAuMDUsImNvIjo0MzQ0LjI2OCwicmUiOjguNzU3LCJzbyI6ZmFsc2UsInNsIjowLjYsInVuIjoxLCJ1cyI6MCwiZmUiOjB9LCJjdiI6Ijg5LDcwLDQ3IiwiZGUiOiIzNi4xMDB8NDIuNjB8LXw0Mi42MHwzOC4xMDB8NDIuNjB8LXw0Mi42MHwzNi4xMDB8NDIuNjB8MzYuNjB8NDIuNjB8MzguMTIwfDQ2LjYwfC18NDIuNjAifQ" alt="Midnight Tape 19" loading="lazy">
           <span class="share-card-genre">Midnight Tape 19 · 90 bpm</span>
         </a>
-        <a class="share-card" href="https://s.mpump.live/?b=eyJicG0iOjEyMywic3ciOjAuNSwiZGsiOiIxMyIsInNwIjoiNiIsImJwIjoiMTEiLCJnIjp7InByZXZpZXdfZHJ1bXMiOnsiZ2kiOjcsInBpIjozLCJiZ2kiOjAsImJwaSI6MH0sInByZXZpZXdfYmFzcyI6eyJnaSI6NywicGkiOjEsImJnaSI6MCwiYnBpIjowfSwicHJldmlld19zeW50aCI6eyJnaSI6NywicGkiOjQsImJnaSI6MCwiYnBpIjowfX0sInRuIjoiVXJiYW4gU2VjdG9yIiwic3BwIjp7ImEiOjAuMDAxLCJkIjowLjA0LCJzIjowLjA1LCJyIjowLjAyLCJjbyI6NTAwMCwicmUiOjMsInNsIjowLjI1LCJkZSI6NiwidW4iOjEsInVzIjowLCJmZSI6MC40fSwiYnBwIjp7Im90Ijoic2luZSIsImEiOjAuMDE1LCJkIjowLjEyLCJzIjowLjEsInIiOjAuMDUsImZvIjpmYWxzZSwiY28iOjgwMCwicmUiOjIsInNvIjpmYWxzZSwic2wiOjAuNiwidW4iOjEsInVzIjowLCJmZSI6MH0sImN2IjoiODksNzAsNDciLCJkZSI6IjM2LjEyMHw0Mi4xMDB8NDYuMTAwfDQyLjEwMHwzNi4xMDArNTAuMTIwfDQyLjEwMHw0Ni4xMDB8NDIuMTAwfDM2LjEyMHw0Mi4xMDB8MzYuMTAwfDQyLjEwMHwzNi4xMDArNTAuMTIwfDQyLjEwMHw0Ni4xMDB8NDIuMTAwIn0">
+        <a class="share-card" onclick="gcEvent('landing-card-click')" href="https://s.mpump.live/?b=eyJicG0iOjEyMywic3ciOjAuNSwiZGsiOiIxMyIsInNwIjoiNiIsImJwIjoiMTEiLCJnIjp7InByZXZpZXdfZHJ1bXMiOnsiZ2kiOjcsInBpIjozLCJiZ2kiOjAsImJwaSI6MH0sInByZXZpZXdfYmFzcyI6eyJnaSI6NywicGkiOjEsImJnaSI6MCwiYnBpIjowfSwicHJldmlld19zeW50aCI6eyJnaSI6NywicGkiOjQsImJnaSI6MCwiYnBpIjowfX0sInRuIjoiVXJiYW4gU2VjdG9yIiwic3BwIjp7ImEiOjAuMDAxLCJkIjowLjA0LCJzIjowLjA1LCJyIjowLjAyLCJjbyI6NTAwMCwicmUiOjMsInNsIjowLjI1LCJkZSI6NiwidW4iOjEsInVzIjowLCJmZSI6MC40fSwiYnBwIjp7Im90Ijoic2luZSIsImEiOjAuMDE1LCJkIjowLjEyLCJzIjowLjEsInIiOjAuMDUsImZvIjpmYWxzZSwiY28iOjgwMCwicmUiOjIsInNvIjpmYWxzZSwic2wiOjAuNiwidW4iOjEsInVzIjowLCJmZSI6MH0sImN2IjoiODksNzAsNDciLCJkZSI6IjM2LjEyMHw0Mi4xMDB8NDYuMTAwfDQyLjEwMHwzNi4xMDArNTAuMTIwfDQyLjEwMHw0Ni4xMDB8NDIuMTAwfDM2LjEyMHw0Mi4xMDB8MzYuMTAwfDQyLjEwMHwzNi4xMDArNTAuMTIwfDQyLjEwMHw0Ni4xMDB8NDIuMTAwIn0">
           <img class="share-card-img" src="https://s.mpump.live/img/eyJicG0iOjEyMywic3ciOjAuNSwiZGsiOiIxMyIsInNwIjoiNiIsImJwIjoiMTEiLCJnIjp7InByZXZpZXdfZHJ1bXMiOnsiZ2kiOjcsInBpIjozLCJiZ2kiOjAsImJwaSI6MH0sInByZXZpZXdfYmFzcyI6eyJnaSI6NywicGkiOjEsImJnaSI6MCwiYnBpIjowfSwicHJldmlld19zeW50aCI6eyJnaSI6NywicGkiOjQsImJnaSI6MCwiYnBpIjowfX0sInRuIjoiVXJiYW4gU2VjdG9yIiwic3BwIjp7ImEiOjAuMDAxLCJkIjowLjA0LCJzIjowLjA1LCJyIjowLjAyLCJjbyI6NTAwMCwicmUiOjMsInNsIjowLjI1LCJkZSI6NiwidW4iOjEsInVzIjowLCJmZSI6MC40fSwiYnBwIjp7Im90Ijoic2luZSIsImEiOjAuMDE1LCJkIjowLjEyLCJzIjowLjEsInIiOjAuMDUsImZvIjpmYWxzZSwiY28iOjgwMCwicmUiOjIsInNvIjpmYWxzZSwic2wiOjAuNiwidW4iOjEsInVzIjowLCJmZSI6MH0sImN2IjoiODksNzAsNDciLCJkZSI6IjM2LjEyMHw0Mi4xMDB8NDYuMTAwfDQyLjEwMHwzNi4xMDArNTAuMTIwfDQyLjEwMHw0Ni4xMDB8NDIuMTAwfDM2LjEyMHw0Mi4xMDB8MzYuMTAwfDQyLjEwMHwzNi4xMDArNTAuMTIwfDQyLjEwMHw0Ni4xMDB8NDIuMTAwIn0" alt="House" loading="lazy">
           <span class="share-card-genre">house · 123 bpm</span>
         </a>
-        <a class="share-card" href="https://s.mpump.live/?b=eyJicG0iOjE0MCwic3ciOjAuNSwiZGsiOiIxNCIsInNwIjoiOCIsImJwIjoiNCIsImciOnsicHJldmlld19kcnVtcyI6eyJnaSI6MiwicGkiOjQsImJnaSI6MCwiYnBpIjoxM30sInByZXZpZXdfYmFzcyI6eyJnaSI6MiwicGkiOjEzLCJiZ2kiOjAsImJwaSI6MH0sInByZXZpZXdfc3ludGgiOnsiZ2kiOjIsInBpIjo0LCJiZ2kiOjAsImJwaSI6MH19LCJ0biI6IlVyYmFuIFNlY3RvciIsInNwcCI6eyJvdCI6InNpbmUiLCJhIjowLjAzLCJkIjowLjMsInMiOjAuNSwiciI6MC42LCJjbyI6NzAwMCwicmUiOjAuNSwic28iOmZhbHNlLCJkZSI6MjAsImxvIjp0cnVlLCJsciI6Mi41LCJscCI6MC4xLCJsaCI6InRyaWFuZ2xlIiwibHQiOiJwaXRjaCIsInVuIjoxLCJ1cyI6MCwiZmUiOjB9LCJicHAiOnsiYSI6MC4wMDEsImQiOjAuMDYsInMiOjAuMSwiciI6MC4wMywiY28iOjMwMDAsInJlIjo2LCJzbyI6ZmFsc2UsInVuIjoxLCJ1cyI6MCwiZmUiOjAuNX0sImN2IjoiODksNzAsNDcifQ">
+        <a class="share-card" onclick="gcEvent('landing-card-click')" href="https://s.mpump.live/?b=eyJicG0iOjE0MCwic3ciOjAuNSwiZGsiOiIxNCIsInNwIjoiOCIsImJwIjoiNCIsImciOnsicHJldmlld19kcnVtcyI6eyJnaSI6MiwicGkiOjQsImJnaSI6MCwiYnBpIjoxM30sInByZXZpZXdfYmFzcyI6eyJnaSI6MiwicGkiOjEzLCJiZ2kiOjAsImJwaSI6MH0sInByZXZpZXdfc3ludGgiOnsiZ2kiOjIsInBpIjo0LCJiZ2kiOjAsImJwaSI6MH19LCJ0biI6IlVyYmFuIFNlY3RvciIsInNwcCI6eyJvdCI6InNpbmUiLCJhIjowLjAzLCJkIjowLjMsInMiOjAuNSwiciI6MC42LCJjbyI6NzAwMCwicmUiOjAuNSwic28iOmZhbHNlLCJkZSI6MjAsImxvIjp0cnVlLCJsciI6Mi41LCJscCI6MC4xLCJsaCI6InRyaWFuZ2xlIiwibHQiOiJwaXRjaCIsInVuIjoxLCJ1cyI6MCwiZmUiOjB9LCJicHAiOnsiYSI6MC4wMDEsImQiOjAuMDYsInMiOjAuMSwiciI6MC4wMywiY28iOjMwMDAsInJlIjo2LCJzbyI6ZmFsc2UsInVuIjoxLCJ1cyI6MCwiZmUiOjAuNX0sImN2IjoiODksNzAsNDcifQ">
           <img class="share-card-img" src="https://s.mpump.live/img/eyJicG0iOjE0MCwic3ciOjAuNSwiZGsiOiIxNCIsInNwIjoiOCIsImJwIjoiNCIsImciOnsicHJldmlld19kcnVtcyI6eyJnaSI6MiwicGkiOjQsImJnaSI6MCwiYnBpIjoxM30sInByZXZpZXdfYmFzcyI6eyJnaSI6MiwicGkiOjEzLCJiZ2kiOjAsImJwaSI6MH0sInByZXZpZXdfc3ludGgiOnsiZ2kiOjIsInBpIjo0LCJiZ2kiOjAsImJwaSI6MH19LCJ0biI6IlVyYmFuIFNlY3RvciIsInNwcCI6eyJvdCI6InNpbmUiLCJhIjowLjAzLCJkIjowLjMsInMiOjAuNSwiciI6MC42LCJjbyI6NzAwMCwicmUiOjAuNSwic28iOmZhbHNlLCJkZSI6MjAsImxvIjp0cnVlLCJsciI6Mi41LCJscCI6MC4xLCJsaCI6InRyaWFuZ2xlIiwibHQiOiJwaXRjaCIsInVuIjoxLCJ1cyI6MCwiZmUiOjB9LCJicHAiOnsiYSI6MC4wMDEsImQiOjAuMDYsInMiOjAuMSwiciI6MC4wMywiY28iOjMwMDAsInJlIjo2LCJzbyI6ZmFsc2UsInVuIjoxLCJ1cyI6MCwiZmUiOjAuNX0sImN2IjoiODksNzAsNDcifQ" alt="Trance" loading="lazy">
           <span class="share-card-genre">trance · 140 bpm</span>
         </a>
@@ -526,7 +526,7 @@ Fast to start. Still worth exploring.</p>
 Free forever.</p>
       <p class="manifesto-text">Built for techno, acid, and dub; things that work in loops.</p>
       <div style="display: flex; justify-content: center; width: 100%; margin-top: 16px; font-size: 24px;">🤟😁</div>
-      <p style="font-size: 13px; color: var(--dim); margin-top: 20px;">mpump is free and open source. If it's useful, consider <a href="https://ko-fi.com/gdamdam" style="color: #ff6b8a;">supporting on Ko-fi</a> <span style="color:#ff6b8a;">♥</span></p>
+      <p style="font-size: 13px; color: var(--dim); margin-top: 20px;">mpump is free and open source. If it's useful, consider <a href="https://ko-fi.com/gdamdam" style="color: #ff6b8a;" onclick="gcEvent('landing-kofi')">supporting on Ko-fi</a> <span style="color:#ff6b8a;">♥</span></p>
     </div>
   </div>
 
@@ -545,8 +545,8 @@ Free forever.</p>
     </div>
     <div class="row-content">
       <div class="cta-btn-row">
-        <a href="./app.html" class="cta-link" onclick="localStorage.setItem('mpump-returning','1')">Open mpump</a>
-        <a href="https://github.com/gdamdam/mpump" class="cta-link-sec">Source on GitHub</a>
+        <a href="./app.html" class="cta-link" onclick="localStorage.setItem('mpump-returning','1');gcEvent('landing-open-bottom')">Open mpump</a>
+        <a href="https://github.com/gdamdam/mpump" class="cta-link-sec" onclick="gcEvent('landing-github')">Source on GitHub</a>
       </div>
     </div>
   </div>
@@ -591,6 +591,17 @@ Free forever.</p>
     cells[cur].className = 'seq-step on';
     cur = (cur + 1) % STEPS;
   }, 160);
+</script>
+
+<script data-goatcounter="https://gdamdam.goatcounter.com/count" async src="./count.js"></script>
+<script>
+  // GoatCounter event helper (fires after count.js loads)
+  function gcEvent(name) {
+    try {
+      var gc = window.goatcounter;
+      if (gc && gc.count) gc.count({ path: 'event/' + name, event: true });
+    } catch(e) {}
+  }
 </script>
 
 </body>

@@ -21,6 +21,7 @@
 import { useState, useCallback, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { getJSON, setJSON } from "../utils/storage";
+import { trackEvent } from "../utils/metrics";
 
 const KOFI_URL = "https://ko-fi.com/gdamdam";
 
@@ -99,7 +100,7 @@ function SupportModal({ onClose }: ModalProps) {
           mpump is free and open source by design. If it's useful in your creative workflow,
           you can support its development.
         </p>
-        <a href={KOFI_URL} target="_blank" rel="noopener noreferrer" className="support-modal-btn">
+        <a href={KOFI_URL} target="_blank" rel="noopener noreferrer" className="support-modal-btn" onClick={() => trackEvent("kofi-modal")}>
           Support on Ko-fi
         </a>
         <div className="support-modal-footer">Always free. No features locked.</div>

@@ -25,6 +25,8 @@ export function App() {
   const [jamPeekType, setJamPeekType] = useState<"jam" | "liveset" | null>(null);
   const shareUrl = useRef(initPayload ? `https://s.mpump.live/?b=${initPayload}` : "");
   const [showShareGate, setShowShareGate] = useState(isShareLink.current);
+  const shareArrivedTracked = useRef(false);
+  if (isShareLink.current && !shareArrivedTracked.current) { shareArrivedTracked.current = true; trackEvent("share-arrived"); }
   // After play, keep showing the card overlay until user dismisses
   const [shareCardOverlay, setShareCardOverlay] = useState(false);
 
@@ -37,6 +39,7 @@ export function App() {
         shareUrl.current = `https://s.mpump.live/?b=${payload}`;
         setShowShareGate(true);
         setShareCardOverlay(false);
+        trackEvent("share-arrived");
       }
     };
     window.addEventListener("hashchange", onNavChange);

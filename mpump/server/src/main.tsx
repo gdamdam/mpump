@@ -2,6 +2,7 @@ import { createRoot } from "react-dom/client";
 import { App } from "./App";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { initPalette } from "./components/Settings";
+import { trackEvent } from "./utils/metrics";
 import "./styles/globals.css";
 
 initPalette();
@@ -16,10 +17,12 @@ window.addEventListener("beforeinstallprompt", (e) => {
 /** Trigger the deferred install prompt (Android only). */
 export function triggerInstallPrompt(): void {
   if (deferredInstallPrompt && "prompt" in deferredInstallPrompt) {
+    trackEvent("pwa-install-prompt");
     (deferredInstallPrompt as { prompt: () => void }).prompt();
     deferredInstallPrompt = null;
   }
 }
+window.addEventListener("appinstalled", () => trackEvent("pwa-installed"));
 export function isInstallAvailable(): boolean {
   return deferredInstallPrompt !== null;
 }
