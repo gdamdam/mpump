@@ -151,22 +151,23 @@ export function EuclideanEditor({ accent, device, patternLength, command, onActi
       </button>
 
       {open && <>
+      <div className="euclid-hint">hits = how many &nbsp;·&nbsp; steps = over how many</div>
       <div className="euclid-actions" style={{ marginBottom: 6 }}>
           <button
             className={`synth-osc-btn ${anyEnabled ? "active" : ""}`}
             title="Enable all voices"
             onClick={enableAll}
             style={anyEnabled ? { fontSize: 9, background: accent, color: "#000" } : { fontSize: 9 }}
-          >ALL ON</button>
+          >ENABLE ALL</button>
           {anyEnabled && (
             <button
               className="synth-osc-btn"
               title="Copy Euclidean pattern to drum grid and turn off"
               onClick={pasteToGrid}
               style={{ fontSize: 9, background: accent, color: "#000" }}
-            >PASTE</button>
+            >PASTE TO GRID</button>
           )}
-          <button className="synth-osc-btn" title="Disable all / revert" onClick={disableAll} style={{ fontSize: 9 }}>OFF</button>
+          <button className="synth-osc-btn" title="Disable all voices" onClick={disableAll} style={{ fontSize: 9 }}>DISABLE ALL</button>
           <button
             className="synth-osc-btn"
             title={expanded ? "Collapse" : "Expand"}
@@ -177,11 +178,12 @@ export function EuclideanEditor({ accent, device, patternLength, command, onActi
           </button>
         </div>
 
-      <div className="euclid-grid" style={{ gridTemplateColumns: expanded ? "28px 24px 1fr 1fr 1fr 1fr auto" : "28px 24px 1fr 1fr auto" }}>
+      <div className="euclid-grid" style={{ gridTemplateColumns: expanded ? "28px 24px 1fr 1fr 36px 1fr 1fr auto" : "28px 24px 1fr 1fr 36px auto" }}>
         <div className="euclid-hdr" />
         <div className="euclid-hdr">ON</div>
         <div className="euclid-hdr">HITS</div>
         <div className="euclid-hdr">STEPS</div>
+        <div className="euclid-hdr" />
         {expanded && <div className="euclid-hdr">ROT</div>}
         {expanded && <div className="euclid-hdr">VEL</div>}
         <div className="euclid-hdr">PATTERN</div>
@@ -220,6 +222,9 @@ export function EuclideanEditor({ accent, device, patternLength, command, onActi
               title={`Steps: ${v.steps}`}
               onChange={(e) => updateVoice(note, { steps: parseInt(e.target.value) })}
             />,
+            <div key={`f${note}`} className="euclid-fraction" style={!v.enabled ? { opacity: 0.3 } : undefined}>
+              {v.hits}/{v.steps}
+            </div>,
             expanded && (
               <input
                 key={`r${note}`}

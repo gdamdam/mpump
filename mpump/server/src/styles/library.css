@@ -291,6 +291,20 @@
   margin-left: 4px;
 }
 
+.euclid-hint {
+  font-size: 9px;
+  color: var(--preview);
+  opacity: 0.5;
+  margin-bottom: 6px;
+}
+.euclid-fraction {
+  font-family: monospace;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--preview);
+  text-align: center;
+  white-space: nowrap;
+}
 .euclid-actions {
   display: flex;
   gap: 3px;

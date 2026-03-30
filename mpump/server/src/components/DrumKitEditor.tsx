@@ -89,6 +89,8 @@ export function DrumKitEditor({ accent, command, activeDrumKit }: Props) {
   };
 
   const [open, setOpen] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const [muted, setMuted] = useState<Record<number, boolean>>({});
 
   // ── User kit library ──────────────────────────────────────────────────
   const [kits, setKits] = useState<KitEntry[]>(() => getKits());
@@ -150,19 +152,40 @@ export function DrumKitEditor({ accent, command, activeDrumKit }: Props) {
         <span className="collapsible-arrow">{open ? "▼" : "▶"}</span>
       </button>
       {open && <div className="drum-kit-knobs">
+        <div className="drum-kit-toolbar">
+          <button
+            className="synth-osc-btn"
+            title={expanded ? "Show fewer controls" : "Show all controls"}
+            onClick={() => setExpanded(!expanded)}
+            style={{ fontSize: 9 }}
+          >{expanded ? "COMPACT" : "EXPAND"}</button>
+        </div>
         {DRUM_VOICES.map(({ note, name }) => {
           const v = voices[note];
+          const isMuted = muted[note] ?? false;
           const tone = toneParam(note);
           const toneVal = (v[tone.key] as number | undefined) ?? tone.def;
 
           return (
-            <div key={note} className="drum-kit-voice-row">
+            <div key={note} className={`drum-kit-voice-row ${isMuted ? "drum-kit-muted" : ""}`}>
+              <button
+                className={`drum-kit-mute ${isMuted ? "on" : ""}`}
+                title={isMuted ? `Unmute ${name}` : `Mute ${name}`}
+                style={isMuted ? { background: accent, color: "#000" } : undefined}
+                onClick={() => {
+                  const next = !isMuted;
+                  setMuted(prev => ({ ...prev, [note]: next }));
+                  update(note, { level: next ? 0 : (voices[note].level || 1) });
+                }}
+              >M</button>
               <div className="drum-kit-name" style={{ color: accent }}>{name}</div>
-              <Knob label="TUNE" value={v.tune} min={-12} max={12} step={1} accent={accent} onChange={(val) => update(note, { tune: val })} />
-              <Knob label="DECAY" value={v.decay} min={0.2} max={3} step={0.1} accent={accent} onChange={(val) => update(note, { decay: val })} />
               <Knob label="LEVEL" value={v.level} min={0} max={1} step={0.01} accent={accent} onChange={(val) => update(note, { level: val })} />
-              <Knob label={tone.label} value={toneVal} min={tone.min} max={tone.max} step={0.01} accent={accent} onChange={(val) => update(note, { [tone.key]: val })} />
               <Knob label="PAN" value={v.pan ?? defaultPan(note)} min={-1} max={1} step={0.05} accent={accent} onChange={(val) => update(note, { pan: val })} />
+              {expanded && <>
+                <Knob label="TUNE" value={v.tune} min={-12} max={12} step={1} accent={accent} onChange={(val) => update(note, { tune: val })} />
+                <Knob label="DECAY" value={v.decay} min={0.2} max={3} step={0.1} accent={accent} onChange={(val) => update(note, { decay: val })} />
+                <Knob label={tone.label} value={toneVal} min={tone.min} max={tone.max} step={0.01} accent={accent} onChange={(val) => update(note, { [tone.key]: val })} />
+              </>}
             </div>
           );
         })}

@@ -255,9 +255,30 @@
   min-width: 0;
 }
 
+.drum-kit-toolbar {
+  display: flex;
+  gap: 3px;
+  margin-bottom: 4px;
+}
+.drum-kit-mute {
+  width: 18px;
+  height: 18px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  font-size: 8px;
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+  opacity: 0.5;
+}
+.drum-kit-mute.on { opacity: 1; }
+.drum-kit-muted { opacity: 0.35; }
 .drum-kit-name {
   font-size: 10px;
   font-weight: 700;
+  min-width: 22px;
 }
 
 .drum-kit-slider {
