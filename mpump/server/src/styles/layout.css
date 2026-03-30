@@ -4,12 +4,40 @@
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
+  align-items: stretch;
+  text-align: center;
+  font-family: "Chakra Petch", sans-serif;
+}
+
+.mg-seq-header {
+  width: 100%;
+  border-bottom: 1px solid var(--border);
+  padding: 10px 24px;
+  background: var(--bg, #0b1a0b);
+}
+.mg-seq-grid {
+  display: flex;
+  gap: 3px;
+}
+.mg-seq-step {
+  flex: 1;
+  height: 12px;
+  border-radius: 2px;
+  background: rgba(102,255,153,0.04);
+  border: 1px solid var(--border);
+  transition: background 0.1s;
+}
+.mg-seq-step.on { background: var(--preview); border-color: var(--preview); box-shadow: 0 0 6px rgba(102,255,153,0.5); }
+.mg-seq-step.dim-on { background: rgba(102,255,153,0.2); border-color: rgba(102,255,153,0.2); }
+
+.midi-gate-inner {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 16px;
   padding: 32px;
-  text-align: center;
-  font-family: "Chakra Petch", sans-serif;
 }
 
 .midi-gate-logo {
