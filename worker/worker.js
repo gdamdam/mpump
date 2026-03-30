@@ -385,6 +385,27 @@ const BOT_RE = /bot|crawl|spider|preview|fetch|slack|discord|telegram|whatsapp|f
 export default {
   async fetch(request) {
     const url = new URL(request.url);
+
+    // Only cache GET requests
+    if (request.method === "GET") {
+      const cache = caches.default;
+      const cached = await cache.match(request);
+      if (cached) return cached;
+    }
+
+    const response = await handleRequest(url);
+
+    // Cache successful GET responses
+    if (request.method === "GET" && response.status === 200) {
+      const ctx = { waitUntil: (p) => p }; // fallback
+      try { caches.default.put(request, response.clone()); } catch {}
+    }
+
+    return response;
+  },
+};
+
+async function handleRequest(url) {
     let path = url.pathname.slice(1); // strip leading "/"
     if (path.startsWith("s/")) path = path.slice(2);
 
@@ -396,7 +417,7 @@ export default {
       return new Response(png, {
         headers: {
           "Content-Type": "image/png",
-          "Cache-Control": "public, max-age=86400",
+          "Cache-Control": "public, max-age=604800",
         },
       });
     }
@@ -448,9 +469,8 @@ export default {
       return new Response(html, {
         headers: {
           "Content-Type": "text/html;charset=UTF-8",
-          "Cache-Control": "public, max-age=3600",
+          "Cache-Control": "public, max-age=86400",
         },
       });
     }
-  },
-};
+}
