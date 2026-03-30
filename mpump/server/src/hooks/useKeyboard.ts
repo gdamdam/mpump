@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { ClientMessage, EngineState } from "../types";
+import { getBool } from "../utils/storage";
 
 /**
  * Keyboard shortcuts for preview mode:
@@ -50,7 +51,7 @@ export function useKeyboard(
           break;
         }
         case "KeyR": {
-          command({ type: "randomize_all" });
+          command({ type: "randomize_all", linkGenre: getBool("mpump-genre-link") } as ClientMessage);
           break;
         }
         case "KeyZ": {

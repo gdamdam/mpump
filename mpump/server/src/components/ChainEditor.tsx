@@ -10,6 +10,7 @@ const LABELS: Record<EffectName, string> = {
   phaser: "PHASER",
   delay: "DELAY",
   reverb: "REVERB",
+  duck: "DUCK",
 };
 
 interface Props {

@@ -182,6 +182,12 @@
   text-align: right;
 }
 
+.fx-duck-envelope {
+  display: block;
+  margin: 4px auto 8px;
+  border-radius: 4px;
+}
+
 /* ── Settings panel ──────────────────────────────────────────────────── */
 
 .settings-overlay {

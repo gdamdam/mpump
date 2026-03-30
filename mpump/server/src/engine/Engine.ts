@@ -583,12 +583,14 @@ export class Engine {
     if (isBass) {
       const bassGenres = this.getDeviceBassGenres();
       ds.bassGenreIdx = Math.max(0, Math.min(idx, bassGenres.length - 1));
-      ds.bassPatternIdx = 0;
+      const bassPatCount = bassGenres[ds.bassGenreIdx]?.patterns?.length || 1;
+      ds.bassPatternIdx = Math.floor(Math.random() * bassPatCount);
       ds.bassEdit = null;
     } else {
       const genres = this.getDeviceGenres(deviceId);
       ds.genreIdx = Math.max(0, Math.min(idx, genres.length - 1));
-      ds.patternIdx = 0;
+      const patCount = genres[ds.genreIdx]?.patterns?.length || 1;
+      ds.patternIdx = Math.floor(Math.random() * patCount);
       ds.patternLength = 16;
       if (ds.config.mode === "synth" || ds.config.mode === "bass") {
         ds.melodicEdit = null;
@@ -679,7 +681,7 @@ export class Engine {
     this.cb.onStateChange(this.getState());
   }
 
-  private randomizeDevice(id: string): void {
+  private randomizeDevice(id: string, forceGenreIdx?: number): void {
     const ds = this.deviceStates.get(id);
     if (!ds || !ds.connected) return;
 
@@ -688,7 +690,9 @@ export class Engine {
 
     const nonExtras = genres.map((g, i) => ({ g, i })).filter(x => x.g.name !== "extras");
     if (nonExtras.length === 0) return;
-    const pick = nonExtras[Math.floor(Math.random() * nonExtras.length)];
+    const pick = forceGenreIdx != null && genres[forceGenreIdx]
+      ? { g: genres[forceGenreIdx], i: forceGenreIdx }
+      : nonExtras[Math.floor(Math.random() * nonExtras.length)];
     ds.genreIdx = pick.i;
     ds.patternIdx = Math.floor(Math.random() * pick.g.patterns.length);
     ds.patternLength = 16;
@@ -699,7 +703,9 @@ export class Engine {
       const bassGenres = this.getDeviceBassGenres();
       const bassNonExtras = bassGenres.map((g, i) => ({ g, i })).filter(x => x.g.name !== "extras");
       if (bassNonExtras.length > 0) {
-        const bassPick = bassNonExtras[Math.floor(Math.random() * bassNonExtras.length)];
+        const bassPick = forceGenreIdx != null && bassGenres[forceGenreIdx]
+          ? { g: bassGenres[forceGenreIdx], i: forceGenreIdx }
+          : bassNonExtras[Math.floor(Math.random() * bassNonExtras.length)];
         ds.bassGenreIdx = bassPick.i;
         ds.bassPatternIdx = Math.floor(Math.random() * bassPick.g.patterns.length);
         ds.bassEdit = null;
@@ -733,10 +739,22 @@ export class Engine {
     ---- */
   }
 
-  randomizeAll(): void {
+  randomizeAll(linkGenre = false): void {
+    // If genre-link is on, pick one shared genre index for all devices
+    let sharedGenreIdx: number | undefined;
+    if (linkGenre) {
+      const firstId = [...this.deviceStates.keys()][0];
+      if (firstId) {
+        const genres = this.getDeviceGenres(firstId);
+        const nonExtras = genres.map((g, i) => ({ g, i })).filter(x => x.g.name !== "extras");
+        if (nonExtras.length > 0) {
+          sharedGenreIdx = nonExtras[Math.floor(Math.random() * nonExtras.length)].i;
+        }
+      }
+    }
     for (const [id, ds] of this.deviceStates) {
       if (!ds.connected) continue;
-      this.randomizeDevice(id);
+      this.randomizeDevice(id, sharedGenreIdx);
     }
     this.cb.onStateChange(this.getState());
   }
@@ -1404,6 +1422,10 @@ export class Engine {
 
   setSidechainDuck(on: boolean): void {
     if (this.audioPort) this.audioPort.setSidechainDuck(on);
+  }
+
+  setDuckParams(depth: number, release: number): void {
+    if (this.audioPort) this.audioPort.setDuckParams(depth, release);
   }
 
   setDrive(db: number): void {

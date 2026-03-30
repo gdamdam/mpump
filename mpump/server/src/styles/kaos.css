@@ -429,8 +429,143 @@
 .kaos-sel-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 4px;
   margin-bottom: 4px;
+}
+
+/* ── Instrument action buttons (mute/solo/lock) ── */
+.kaos-sel-actions {
+  display: flex;
+  gap: 4px;
+  margin-top: 6px;
+}
+.kaos-action-btn {
+  flex: 1;
+  padding: 6px 0;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-align: center;
+  background: var(--bg);
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.kaos-action-btn:hover {
+  border-color: var(--text-dim);
+  color: var(--text);
+}
+.kaos-action-btn.muted {
+  background: rgba(255, 60, 60, 0.15);
+  border-color: #ff4444;
+  color: #ff4444;
+}
+.kaos-action-btn.pending {
+  animation: pending-pulse 0.5s ease-in-out infinite;
+}
+.kaos-action-btn.solo-on {
+  background: var(--preview);
+  color: #000;
+  border-color: var(--preview);
+}
+.kaos-action-btn.locked {
+  background: rgba(255, 200, 0, 0.12);
+  border-color: #ffcc00;
+  color: #ffcc00;
+}
+
+/* ── Duck editor ── */
+.kaos-duck-editor {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin-top: 4px;
+}
+.kaos-duck-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--preview);
+  margin-bottom: 6px;
+}
+.kaos-duck-close {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  font-size: 14px;
+  cursor: pointer;
+}
+.kaos-duck-param {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-bottom: 4px;
+}
+.kaos-duck-param span {
+  min-width: 80px;
+  font-weight: 600;
+}
+.kaos-duck-param input[type="range"] {
+  flex: 1;
+  height: 4px;
+}
+
+/* ── Genre link button + dropdown ── */
+.genre-link-wrap {
+  position: relative;
+}
+.genre-link-btn {
+  font-size: 14px;
+  padding: 4px 8px;
+  opacity: 0.4;
+  transition: all 0.15s;
+  filter: grayscale(1);
+}
+.genre-link-btn.active {
+  opacity: 1;
+  filter: none;
+  background: rgba(102,255,153,0.15);
+  border-color: var(--preview);
+  box-shadow: 0 0 8px rgba(102,255,153,0.3);
+}
+.genre-link-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 9000;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  width: 240px;
+  margin-top: 4px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+}
+.genre-link-option {
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-dim);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.1s;
+}
+.genre-link-option:hover {
+  background: rgba(102,255,153,0.1);
+  border-color: var(--preview);
+  color: var(--preview);
 }
 
 .kaos-mini-mute {
@@ -631,6 +766,8 @@
   color: var(--preview);
   opacity: 0.7;
   text-transform: uppercase;
+  cursor: pointer;
+  user-select: none;
   letter-spacing: 1px;
   width: 48px;
   flex-shrink: 0;
@@ -669,17 +806,36 @@
 }
 
 /* Chain text below effects grid */
+.kaos-fx-chain-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 2px;
+}
 .kaos-fx-chain {
   font-size: 9px;
   color: var(--preview);
   opacity: 0.6;
-  margin-top: 2px;
   cursor: pointer;
   text-align: center;
 }
 .kaos-fx-chain:hover {
   opacity: 1;
   color: var(--preview);
+}
+
+.kaos-fx-reset {
+  font-size: 9px;
+  color: var(--text-dim);
+  opacity: 0.5;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0 2px;
+}
+.kaos-fx-reset:hover {
+  opacity: 1;
+  color: var(--text);
 }
 
 /* Chain number badge on effect buttons */

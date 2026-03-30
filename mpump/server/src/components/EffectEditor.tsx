@@ -56,6 +56,10 @@ const EFFECT_SLIDERS: Record<EffectName, SliderDef[]> = {
   bitcrusher: [
     { key: "bits", label: "Bits", min: 2, max: 16, step: 1 },
   ],
+  duck: [
+    { key: "depth", label: "Depth", min: 0.1, max: 1, step: 0.05 },
+    { key: "release", label: "Release", min: 0.01, max: 0.3, step: 0.01, unit: "s" },
+  ],
 };
 
 const EFFECT_NAMES: Record<EffectName, string> = {
@@ -67,6 +71,7 @@ const EFFECT_NAMES: Record<EffectName, string> = {
   chorus: "Chorus",
   phaser: "Phaser",
   bitcrusher: "Bitcrusher",
+  duck: "Sidechain Duck",
 };
 
 export function EffectEditor({ name, params, onUpdate, onClose }: Props) {
@@ -113,6 +118,29 @@ export function EffectEditor({ name, params, onUpdate, onClose }: Props) {
             )}
           </div>
         )}
+        {/* Duck envelope visualization */}
+        {name === "duck" && (() => {
+          const depth = p.depth as number;
+          const release = p.release as number;
+          const w = 200, h = 60;
+          const duckTo = 1 - depth;
+          // Normalize release to visual width (0.01-0.3s → 20%-90% of width)
+          const relW = 0.2 + (release - 0.01) / 0.29 * 0.7;
+          const attackX = w * 0.08; // quick attack
+          const bottomY = h * (1 - duckTo * 0.15); // ducked level
+          const topY = h * 0.1; // full volume
+          const releaseEndX = attackX + w * relW;
+          const d = `M0,${topY} L${attackX},${bottomY} Q${(attackX + releaseEndX) / 2},${bottomY} ${releaseEndX},${topY} L${w},${topY}`;
+          return (
+            <svg className="fx-duck-envelope" viewBox={`0 0 ${w} ${h}`} width={w} height={h}>
+              <rect x={0} y={0} width={w} height={h} fill="rgba(0,0,0,0.3)" rx={4} />
+              <line x1={0} y1={topY} x2={w} y2={topY} stroke="rgba(102,255,153,0.15)" strokeWidth={1} strokeDasharray="3,3" />
+              <path d={d} fill="rgba(102,255,153,0.1)" stroke="#66ff99" strokeWidth={2} />
+              <circle cx={attackX} cy={bottomY} r={3} fill="#66ff99" />
+              <text x={attackX} y={h - 2} fill="rgba(102,255,153,0.5)" fontSize={8} textAnchor="middle">kick</text>
+            </svg>
+          );
+        })()}
         {sliders.map((s) => {
           // Hide time slider when delay is synced
           if (name === "delay" && s.key === "time" && p.sync) return null;

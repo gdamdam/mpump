@@ -219,6 +219,7 @@ export interface EffectParams {
   chorus: { on: boolean; rate: number; depth: number; mix: number };
   phaser: { on: boolean; rate: number; depth: number };
   bitcrusher: { on: boolean; bits: number };
+  duck: { on: boolean; depth: number; release: number };
 }
 
 export type EffectName = keyof EffectParams;
@@ -232,6 +233,7 @@ export const DEFAULT_EFFECTS: EffectParams = {
   chorus: { on: false, rate: 1.5, depth: 0.003, mix: 0.3 },
   phaser: { on: false, rate: 0.5, depth: 1000 },
   bitcrusher: { on: false, bits: 8 },
+  duck: { on: false, depth: 0.85, release: 0.04 },
 };
 
 // ── Commands (same as frontend ClientMessage) ────────────────────────────
@@ -285,7 +287,8 @@ export type ClientMessage =
   | { type: "set_channel_pan"; channel: number; pan: number }
   | { type: "set_channel_mono"; channel: number; on: boolean }
   | { type: "set_arp"; enabled: boolean; mode: ArpMode; rate: ArpRate; device?: string }
-  | { type: "set_effect_order"; order: EffectName[] };
+  | { type: "set_effect_order"; order: EffectName[] }
+  | { type: "set_duck_params"; depth: number; release: number };
 
 export type ArpMode = "up" | "down" | "up-down" | "random";
 export type ArpRate = "1/4" | "1/8" | "1/16";
@@ -313,4 +316,6 @@ export interface PresetState {
   setSoundLock: React.Dispatch<React.SetStateAction<SoundLock>>;
   patternLock: PatternLock;
   setPatternLock: React.Dispatch<React.SetStateAction<PatternLock>>;
+  stepPatternLock: PatternLock;
+  setStepPatternLock: React.Dispatch<React.SetStateAction<PatternLock>>;
 }

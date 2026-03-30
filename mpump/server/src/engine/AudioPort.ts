@@ -54,6 +54,8 @@ export class AudioPort {
   private bpm = 120;
   /** Sidechain duck: duck non-drum channels on kick hits. */
   private sidechainDuck = false;
+  private duckDepth = 0.85; // 0-1, how much to reduce (0.85 = duck to 15%)
+  private duckRelease = 0.04; // seconds, recovery time constant
   /** Metronome: click on every beat. */
   private metronomeOn = false;
   /** CV output for DC-coupled interfaces. */
@@ -352,6 +354,9 @@ export class AudioPort {
         this.fxNodes.push(dry, wet, conv, merge);
         return merge;
       }
+      case "duck":
+        // Duck is gain automation, not an audio chain effect — passthrough
+        return prev;
     }
   }
 
@@ -638,6 +643,16 @@ export class AudioPort {
     return this.sidechainDuck;
   }
 
+  /** Set duck parameters: depth (0-1) and release (seconds). */
+  setDuckParams(depth: number, release: number): void {
+    this.duckDepth = Math.max(0, Math.min(1, depth));
+    this.duckRelease = Math.max(0.01, Math.min(0.5, release));
+  }
+
+  getDuckParams(): { depth: number; release: number } {
+    return { depth: this.duckDepth, release: this.duckRelease };
+  }
+
   /** Enable/disable metronome click. */
   setMetronome(on: boolean): void {
     this.metronomeOn = on;
@@ -737,13 +752,14 @@ export class AudioPort {
     // Sidechain duck: dip non-drum channel gains on kick
     if (this.sidechainDuck && note === 36) {
       const when = perfToCtx(this.ctx, time);
+      const duckTo = 1 - this.duckDepth; // depth 0.85 → duck to 0.15
       for (const [ch, bus] of this.channelBuses) {
         if (ch === DRUM_CH) continue;
         const vol = this.channelVolumes.get(ch) ?? 1;
         if (vol <= 0) continue; // skip muted channels
         bus.gain.cancelScheduledValues(when);
-        bus.gain.setTargetAtTime(vol * 0.15, when, 0.003);
-        bus.gain.setTargetAtTime(vol, when + 0.02, 0.04);
+        bus.gain.setTargetAtTime(vol * duckTo, when, 0.003);
+        bus.gain.setTargetAtTime(vol, when + 0.02, this.duckRelease);
       }
     }
   }

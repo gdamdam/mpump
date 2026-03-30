@@ -152,6 +152,35 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
   const jamApplyXYRef = useRef<((x: number, y: number, sender?: import("../hooks/useJam").PeerInfo) => void) | null>(null);
   const jamFxRef = useRef<{ setFx: React.Dispatch<React.SetStateAction<import("../types").EffectParams>>; setEffectOrder: React.Dispatch<React.SetStateAction<import("../types").EffectName[]>> } | null>(null);
   const [pendingMutes, setPendingMutes] = useState<Record<string, Set<string>>>({});
+  const [genreLink, setGenreLink] = useState(false);
+  const [showGenrePicker, setShowGenrePicker] = useState(false);
+
+  // Genre-to-keyword map for matching sounds to genres
+  const GENRE_KEYWORDS: Record<string, string[]> = {
+    ambient: ["ambient", "chillout", "downtempo"],
+    downtempo: ["downtempo", "lo-fi", "chillout", "chillhop"],
+    "dub-techno": ["dub techno", "dub", "deep house", "minimal"],
+    house: ["house", "deep house", "tech house"],
+    garage: ["garage", "2-step", "uk garage"],
+    electro: ["electro", "miami bass", "breakdance"],
+    breakbeat: ["breakbeat", "old school", "hip-hop"],
+    techno: ["techno", "tech house", "minimal", "industrial"],
+    "acid-techno": ["acid techno", "acid house", "acid"],
+    trance: ["trance", "psytrance", "progressive"],
+    idm: ["idm", "experimental", "glitch"],
+    glitch: ["glitch", "idm", "experimental"],
+    edm: ["edm", "future bass", "progressive"],
+    "drum-and-bass": ["dnb", "neurofunk", "liquid", "jungle"],
+    jungle: ["jungle", "dnb", "breakbeat"],
+  };
+  const matchPreset = (presets: { name: string; genres?: string }[], genreName: string): number | null => {
+    const kws = GENRE_KEYWORDS[genreName] || [genreName];
+    const matches = presets.map((p, idx) => ({ p, idx })).filter(({ p }) => {
+      const tags = (p.genres || "").toLowerCase();
+      return kws.some(kw => tags.includes(kw.toLowerCase()));
+    });
+    return matches.length > 0 ? matches[Math.floor(Math.random() * matches.length)].idx : null;
+  };
 
   // Action bubbles: show who did what in jam mode
   interface ActionBubble { id: number; name: string; action: string; color: string; ts: number; x: number; y: number }
@@ -535,6 +564,7 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
   useEffect(() => { activeBassRef.current = activeBass; }, [activeBass]);
   const [soundLock, setSoundLock] = useState<{ drums: boolean; synth: boolean; bass: boolean }>({ drums: false, synth: false, bass: false });
   const [patternLock, setPatternLock] = useState<{ drums: boolean; synth: boolean; bass: boolean }>({ drums: false, synth: false, bass: false });
+  const [stepPatternLock, setStepPatternLock] = useState<{ drums: boolean; synth: boolean; bass: boolean }>({ drums: false, synth: false, bass: false });
   const [songModeOn, setSongModeOn] = useState(getSongModeEnabled);
 
   // Ableton Link Bridge — runs at Layout level so it works even when Settings is closed
@@ -911,7 +941,7 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
     if (p.bp != null) applyBass(p.bp);
   });
 
-  const presetState = { activeDrumKit, activeSynth, activeBass, onDrumKitChange: handleDrumKitChange, onSynthChange: handleSynthChange, onBassChange: handleBassChange, soundLock, setSoundLock, patternLock, setPatternLock };
+  const presetState = { activeDrumKit, activeSynth, activeBass, onDrumKitChange: handleDrumKitChange, onSynthChange: handleSynthChange, onBassChange: handleBassChange, soundLock, setSoundLock, patternLock, setPatternLock, stepPatternLock, setStepPatternLock };
 
   const handleVolumeChange = (v: number) => {
     setVolume(v);
@@ -1175,20 +1205,71 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
         }
       }
     } else if (patternLock.drums || patternLock.synth || patternLock.bass) {
-      // Selective randomization — skip locked instruments
+      // Selective: locked instruments keep genre but randomize pattern; unlocked fully randomize
       for (const d of connectedDevices) {
-        const pLocked = (d.mode === "drums" && patternLock.drums) || (d.mode === "bass" && patternLock.bass) || (d.mode === "synth" && patternLock.synth);
-        if (!pLocked) command({ type: "randomize_device", device: d.id });
+        const gLocked = (d.mode === "drums" && patternLock.drums) || (d.mode === "bass" && patternLock.bass) || (d.mode === "synth" && patternLock.synth);
+        if (gLocked) {
+          // Keep genre, randomize pattern within it (unless pattern is also locked)
+          const pLocked = (d.mode === "drums" && stepPatternLock.drums) || (d.mode === "bass" && stepPatternLock.bass) || (d.mode === "synth" && stepPatternLock.synth);
+          if (!pLocked) {
+            const deviceGenres = d.mode === "drums" ? (catalog?.t8?.drum_genres ?? []) : (catalog?.s1?.genres ?? []);
+            const patCount = deviceGenres[d.genre_idx]?.patterns?.length ?? 1;
+            command({ type: "set_pattern", device: d.id, idx: Math.floor(Math.random() * patCount) });
+          }
+          // Also randomize bass pattern if drums+bass (unless bass pattern locked)
+          if (d.mode === "drums" && !stepPatternLock.bass) {
+            const bassGenres = catalog?.t8?.bass_genres ?? [];
+            const bpi = d.bass_genre_idx ?? d.genre_idx;
+            const bPatCount = bassGenres[bpi]?.patterns?.length ?? 1;
+            command({ type: "set_pattern", device: d.id + "_bass", idx: Math.floor(Math.random() * bPatCount) });
+          }
+        } else {
+          command({ type: "randomize_device", device: d.id });
+        }
+      }
+    } else if (stepPatternLock.drums || stepPatternLock.bass || stepPatternLock.synth) {
+      // Some patterns locked — randomize genre+sound but keep locked patterns
+      for (const d of connectedDevices) {
+        const spLocked = (d.mode === "drums" && stepPatternLock.drums) || (d.mode === "bass" && stepPatternLock.bass) || (d.mode === "synth" && stepPatternLock.synth);
+        if (spLocked) {
+          // Only randomize genre, keep pattern
+          const deviceGenres = d.mode === "drums" ? (catalog?.t8?.drum_genres ?? []) : (catalog?.s1?.genres ?? []);
+          const gi = Math.floor(Math.random() * deviceGenres.length);
+          command({ type: "set_genre", device: d.id, idx: gi });
+        } else {
+          command({ type: "randomize_device", device: d.id });
+        }
       }
     } else {
-      command({ type: "randomize_all" });
+      command({ type: "randomize_all", linkGenre: genreLink } as ClientMessage);
     }
     if (isPreview) {
       const ri = (len: number) => String(Math.random() < 0.15 ? 0 : 1 + Math.floor(Math.random() * (len - 1)));
       setTimeout(() => {
-        if (!soundLock.drums) handleDrumKitChange(ri(DRUM_KIT_PRESETS.length));
-        if (!soundLock.synth) handleSynthChange(ri(SYNTH_PRESETS.length));
-        if (!soundLock.bass) handleBassChange(ri(BASS_PRESETS.length));
+        // Get current genre names for genre-aware sound matching
+        const devs = stateRef.current.devices;
+        const cat = catalog;
+        const drumGenres = cat?.t8?.drum_genres ?? [];
+        const bassGenresArr = cat?.t8?.bass_genres ?? [];
+        const synthGenresArr = cat?.s1?.genres ?? [];
+        const drumsD = Object.values(devs).find(d => d.id === "preview_drums");
+        const synthD = Object.values(devs).find(d => d.id === "preview_synth");
+        const drumsGenreName = drumsD ? drumGenres[drumsD.genre_idx]?.name : undefined;
+        const bassGenreName = drumsD ? bassGenresArr[drumsD.bass_genre_idx ?? drumsD.genre_idx]?.name : undefined;
+        const synthGenreName = synthD ? synthGenresArr[synthD.genre_idx]?.name : undefined;
+
+        if (!soundLock.drums) {
+          const gi = patternLock.drums && drumsGenreName ? matchPreset(DRUM_KIT_PRESETS as unknown as { name: string; genres?: string }[], drumsGenreName) : null;
+          handleDrumKitChange(gi != null ? String(gi) : ri(DRUM_KIT_PRESETS.length));
+        }
+        if (!soundLock.synth) {
+          const gi = patternLock.synth && synthGenreName ? matchPreset(SYNTH_PRESETS as unknown as { name: string; genres?: string }[], synthGenreName) : null;
+          handleSynthChange(gi != null ? String(gi) : ri(SYNTH_PRESETS.length));
+        }
+        if (!soundLock.bass) {
+          const gi = patternLock.bass && bassGenreName ? matchPreset(BASS_PRESETS as unknown as { name: string; genres?: string }[], bassGenreName) : null;
+          handleBassChange(gi != null ? String(gi) : ri(BASS_PRESETS.length));
+        }
       }, 100);
       // Snap synth/bass pattern steps to locked scale (if not chromatic)
       const sl = getItem("mpump-scale-lock", "chromatic");
@@ -1284,6 +1365,71 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
               <button className="lib-open-btn" title="Browse all patterns" onClick={() => setShowLibrary(true)}>
                 &#x266B;<span className="lib-open-text"> Library</span>
               </button>
+            )}
+            {isPreview && (
+              <div className="genre-link-wrap">
+                <button className={`lib-open-btn genre-link-btn ${genreLink ? "active" : ""}`} title={genreLink ? "All genres linked — click to unlink" : "Set all genres"} onClick={() => {
+                  if (genreLink) {
+                    // Unlink: unlock all genre locks
+                    presetState?.setPatternLock(prev => ({ ...prev, drums: false, bass: false, synth: false }));
+                    setGenreLink(false);
+                  } else {
+                    setShowGenrePicker(s => !s);
+                  }
+                }}>
+                  🔗
+                </button>
+                {showGenrePicker && (() => {
+                  const genres = catalog?.s1?.genres ?? catalog?.t8?.drum_genres ?? [];
+                  const VIBE_ORDER: Record<string, number> = {
+                    ambient: 0, downtempo: 1, "dub-techno": 2, house: 3, garage: 4,
+                    electro: 5, breakbeat: 6, techno: 7, "acid-techno": 8, trance: 9,
+                    idm: 10, glitch: 11, edm: 12, "drum-and-bass": 13, jungle: 14,
+                  };
+                  const GENRE_BPM: Record<string, [number, number]> = {
+                    ambient: [70, 90], downtempo: [85, 105], "dub-techno": [110, 122],
+                    house: [120, 128], garage: [128, 135], electro: [120, 135],
+                    breakbeat: [125, 140], techno: [128, 140], "acid-techno": [132, 145],
+                    trance: [136, 145], idm: [110, 150], glitch: [110, 150],
+                    edm: [126, 140], "drum-and-bass": [165, 178], jungle: [160, 175],
+                  };
+                  const sorted = genres.map((g, i) => ({ g, i })).sort((a, b) => (VIBE_ORDER[a.g.name] ?? 99) - (VIBE_ORDER[b.g.name] ?? 99));
+                  return (
+                    <div className="genre-link-dropdown">
+                      {sorted.map(({ g, i }) => (
+                        <button key={i} className="genre-link-option" onClick={() => {
+                          // Set genre on all 3 instruments
+                          for (const d of Object.values(state.devices)) {
+                            if (d.connected) {
+                              command({ type: "set_genre", device: d.id, idx: i });
+                              if (d.id === "preview_drums") command({ type: "set_genre", device: "preview_bass", idx: i });
+                            }
+                          }
+                          // Set BPM to genre range
+                          const bpmRange = GENRE_BPM[g.name];
+                          if (bpmRange) {
+                            const bpm = bpmRange[0] + Math.floor(Math.random() * (bpmRange[1] - bpmRange[0] + 1));
+                            command({ type: "set_bpm", bpm } as ClientMessage);
+                          }
+                          // Match sounds to genre
+                          if (presetState) {
+                            const si = matchPreset(SYNTH_PRESETS as unknown as { name: string; genres?: string }[], g.name);
+                            if (si != null) presetState.onSynthChange(String(si));
+                            const bi = matchPreset(BASS_PRESETS as unknown as { name: string; genres?: string }[], g.name);
+                            if (bi != null) presetState.onBassChange(String(bi));
+                            const di = matchPreset(DRUM_KIT_PRESETS as unknown as { name: string; genres?: string }[], g.name);
+                            if (di != null) presetState.onDrumKitChange(String(di));
+                          }
+                          // Lock all genre locks
+                          presetState?.setPatternLock(prev => ({ ...prev, drums: true, bass: true, synth: true }));
+                          setGenreLink(true);
+                          setShowGenrePicker(false);
+                        }}>{g.name}</button>
+                      ))}
+                    </div>
+                  );
+                })()}
+              </div>
             )}
             {isPreview && (
               <div className="mode-switcher" role="tablist" aria-label="Interface mode">

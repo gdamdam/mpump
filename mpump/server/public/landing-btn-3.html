@@ -88,7 +88,7 @@
     .container { max-width: 960px; margin: 0 auto; padding: 0 24px; }
 
     .section-title { font-size: clamp(20px, 4vw, 28px); font-weight: 700; text-align: center; margin-bottom: 12px; }
-    .section-sub { text-align: center; color: var(--text); font-size: 18px; max-width: 660px; margin: 0 auto 40px; line-height: 1.7; }
+    .section-sub { text-align: center; color: var(--dim); font-size: 15px; max-width: 600px; margin: 0 auto 40px; line-height: 1.7; }
 
     /* ── HERO ── */
     .hero { display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 48px; align-items: center; padding: 80px 24px 60px; max-width: 1080px; margin: 0 auto; }
@@ -111,11 +111,11 @@
     .cta-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
     @media (max-width: 700px) { .cta-row { justify-content: center; } }
 
-    .btn-primary { display: inline-flex; align-items: center; gap: 8px; padding: 14px 36px; background: transparent; color: var(--accent); font-size: 15px; font-weight: 700; border-radius: 50px; border: 2px solid rgba(102,255,153,0.4); transition: all 0.2s; animation: neon-pulse 2s ease-in-out infinite; }
-    .btn-primary:hover { background: transparent; box-shadow: 0 0 50px rgba(102,255,153,0.8), 0 0 80px rgba(102,255,153,0.3); border-color: rgba(200,255,220,1); animation: none; text-decoration: none; }
-    @keyframes neon-pulse { 0%,100% { box-shadow: 0 0 6px rgba(102,255,153,0.1); border-color: rgba(102,255,153,0.3); transform: scale(1); } 50% { box-shadow: 0 0 35px rgba(102,255,153,0.6), 0 0 60px rgba(102,255,153,0.2); border-color: rgba(200,255,220,0.9); transform: scale(1.03); } }
-    .btn-secondary { display: inline-flex; align-items: center; gap: 8px; padding: 14px 24px; background: transparent; color: var(--dim); font-size: 15px; font-weight: 600; border: 1px solid var(--border); border-radius: 50px; transition: all 0.2s; }
-    .btn-secondary:hover { border-color: var(--accent); color: var(--accent); box-shadow: 0 0 10px rgba(102,255,153,0.2); text-decoration: none; }
+    /* BTN 3 — Minimal Wire (Bauhaus) */
+    .btn-primary { display: inline-flex; align-items: center; gap: 8px; padding: 12px 28px; background: transparent; color: var(--accent); font-size: 14px; font-weight: 600; border-radius: 0; border: 1px solid var(--accent); border-bottom: 3px solid var(--accent); transition: all 0.15s; letter-spacing: 1px; }
+    .btn-primary:hover { background: var(--accent); color: #000; text-decoration: none; }
+    .btn-secondary { display: inline-flex; align-items: center; gap: 8px; padding: 12px 28px; background: transparent; color: var(--dim); font-size: 14px; font-weight: 600; border-radius: 0; border: 1px solid var(--border); transition: all 0.15s; letter-spacing: 1px; }
+    .btn-secondary:hover { border-color: var(--dim); color: var(--text); text-decoration: none; }
 
     .hero-support { font-size: 13px; color: var(--dim); letter-spacing: 0.5px; }
     .hero-support span { margin: 0 6px; opacity: 0.4; }

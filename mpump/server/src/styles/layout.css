@@ -9,11 +9,12 @@
   gap: 16px;
   padding: 32px;
   text-align: center;
+  font-family: "Chakra Petch", sans-serif;
 }
 
 .midi-gate-logo {
   margin: 0;
-  font-family: inherit;
+  font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
   font-size: 10px;
   line-height: 1.15;
   font-weight: 700;
@@ -55,11 +56,27 @@
 }
 
 .midi-gate-btn-preview {
-  background: var(--preview);
-  border: 1px solid var(--preview);
-  color: #000;
+  margin-top: 8px;
+  background: transparent;
+  border: 2px solid rgba(102,255,153,0.3);
+  color: var(--preview);
+  cursor: pointer;
   font-size: 16px;
-  padding: 14px 32px;
+  padding: 14px 36px;
+  border-radius: 50px;
+  animation: neon-pulse-splash 2.5s ease-out infinite;
+}
+.midi-gate-btn-preview:hover {
+  background: transparent;
+  color: var(--preview);
+  box-shadow: 0 0 50px rgba(102,255,153,0.8), 0 0 80px rgba(102,255,153,0.3);
+  border-color: rgba(200,255,220,1);
+  animation: none;
+}
+@keyframes neon-pulse-splash {
+  0%, 100% { box-shadow: none; border-color: rgba(102,255,153,0.3); transform: scale(1); }
+  5% { box-shadow: 0 0 35px rgba(102,255,153,0.6), 0 0 60px rgba(102,255,153,0.2); border-color: rgba(200,255,220,0.9); transform: scale(1.03); }
+  30% { box-shadow: none; border-color: rgba(102,255,153,0.3); transform: scale(1); }
 }
 
 /* ── Continue modal ── */

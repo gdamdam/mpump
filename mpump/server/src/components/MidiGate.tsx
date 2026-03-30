@@ -45,8 +45,7 @@ export function MidiGate({ midiState, onConnectMidi, onPreview, midiSupported }:
         Drums, bass, synth, effects — ready in seconds.
       </div>
 
-      <button className="midi-gate-btn midi-gate-btn-preview" title="Start playing with browser audio"
-        style={{ background: "#66ff99", borderColor: "#66ff99", color: "#000" }}
+      <button className="midi-gate-btn-preview" title="Start playing with browser audio"
         onClick={() => { trackEvent("play-start"); setLogoKey(k => k + 1); clearTimeout(flashTimer.current); flashTimer.current = window.setTimeout(() => onPreview(), 450); }}>
         ▶ Play
       </button>
@@ -58,7 +57,7 @@ export function MidiGate({ midiState, onConnectMidi, onPreview, midiSupported }:
       </div>
 
       <div className="midi-gate-about">
-        <a href="./landing.html?about">About mpump</a>
+        <a href="./landing.html?about">about mpump</a>
       </div>
 
 

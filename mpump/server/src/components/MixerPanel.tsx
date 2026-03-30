@@ -360,6 +360,7 @@ const EFFECT_LABELS: Record<EffectName, string> = {
   chorus: "CHR",
   phaser: "PHS",
   bitcrusher: "CRUSH",
+  duck: "DUCK",
 };
 
 const DEFAULT_EFFECT_ORDER: EffectName[] = ["compressor", "highpass", "distortion", "bitcrusher", "chorus", "phaser", "delay", "reverb"];

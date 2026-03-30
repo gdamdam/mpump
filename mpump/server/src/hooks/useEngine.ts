@@ -104,7 +104,7 @@ export function useEngine() {
         engine.deleteExtra(msg.device, msg.idx);
         break;
       case "randomize_all":
-        engine.randomizeAll();
+        engine.randomizeAll((msg as Record<string, unknown>).linkGenre as boolean ?? false);
         trackEvent("mix");
         break;
       case "randomize_device":
@@ -193,6 +193,9 @@ export function useEngine() {
         break;
       case "set_sidechain_duck":
         engine.setSidechainDuck(msg.on);
+        break;
+      case "set_duck_params":
+        engine.setDuckParams((msg as Record<string, unknown>).depth as number, (msg as Record<string, unknown>).release as number);
         break;
       case "set_mono":
         engine.setMono(msg.on);
