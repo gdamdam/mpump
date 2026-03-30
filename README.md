@@ -138,7 +138,7 @@ All sounds are synthesized in real-time via the Web Audio API. No sample files n
 
 **Interface**
 - 6 color themes (Forest, Amber, Neon, Minimal, Cream, Rosé)
-- Keyboard shortcuts (Space, R, Cmd+Z, arrows, 1-3 for view mode, ? for help)
+- Keyboard shortcuts (Space, R, Cmd+Z, arrows, 1-4 for view mode, ? for help)
 - PWA with offline support and auto-update detection
 - MIDI device connect button (no permission prompt on load)
 - Responsive: works on desktop, tablet, and mobile
@@ -146,6 +146,19 @@ All sounds are synthesized in real-time via the Web Audio API. No sample files n
 ---
 
 ## DAW Sync
+
+### Ableton Link
+
+For wireless tempo sync with no cables and no MIDI setup, use the **[mpump Link Bridge](link-bridge/)** companion app.
+
+1. **Download** `mpump Link Bridge` from the [releases page](https://github.com/gdamdam/mpump/releases) (~3 MB)
+2. **Run it**: a small window shows tempo, peers, and connection status
+3. **Open mpump.live**: it auto-detects the bridge (green dot ● appears next to the logo)
+4. **Open Ableton Live** (or any Link-enabled app): tempo syncs automatically
+
+No terminal, no configuration. Works with Ableton Live, Logic Pro, Bitwig, Traktor, djay, and hundreds of Link-enabled apps.
+
+See [link-bridge/README.md](link-bridge/README.md) for build instructions and technical details.
 
 ### MIDI Clock
 
@@ -162,19 +175,6 @@ mpump can sync to any DAW or hardware that sends MIDI clock. No downloads needed
 Then in mpump: **Settings → MIDI Clock In** (or use the **Setup Guide** button for step-by-step instructions).
 
 Features: tick-driven stepping (6 ticks = 1 sixteenth note at 24 PPQN), Start/Stop/Continue transport control, rolling BPM display.
-
-### Ableton Link
-
-For wireless tempo sync with no cables and no MIDI setup, use the **[mpump Link Bridge](link-bridge/)** companion app.
-
-1. **Download** `mpump Link Bridge` from the [releases page](https://github.com/gdamdam/mpump/releases) (~3 MB)
-2. **Run it**: a small window shows tempo, peers, and connection status
-3. **Open mpump.live**: it auto-detects the bridge (green dot ● appears next to the logo)
-4. **Open Ableton Live** (or any Link-enabled app): tempo syncs automatically
-
-No terminal, no configuration. Works with Ableton Live, Logic Pro, Bitwig, Traktor, djay, and hundreds of Link-enabled apps.
-
-See [link-bridge/README.md](link-bridge/README.md) for build instructions and technical details.
 
 ---
 
@@ -197,7 +197,7 @@ Patterns are shared across all synth-mode and drums-mode devices. User-edited pa
 mpump/
   server/               # Browser sequencer (mpump.live)
     src/
-      components/       # 45 React components
+      components/       # 47 React components
       engine/           # Web Audio synth + MIDI engine
       data/             # device registry, presets, patterns
       utils/            # MIDI export, session, storage
@@ -279,7 +279,7 @@ Jam and Live Set sessions use a lightweight WebSocket relay for peer discovery a
 
 **What does NOT flow through the relay:**
 - No audio. Each browser synthesizes locally
-- No user accounts, names, emails, or identifiers
+- No user accounts, emails, or persistent identifiers
 - No IP addresses logged or stored
 - No cookies or tokens
 - No persistent data. Rooms vanish when empty
