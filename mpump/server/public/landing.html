@@ -3,30 +3,26 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>mpump — Instant Browser Groovebox</title>
-  <meta name="description" content="Instant browser groovebox for sketching, shaping, and sharing electronic grooves. 910 patterns, 15 genres, built-in drums, bass, synth, and effects. No install. No account. No personal data." />
-  <meta property="og:title" content="mpump — Instant Browser Groovebox" />
-  <meta property="og:description" content="A groove in your browser. Ready in seconds. Drum machine, bass synth, effects, curated patterns across several electronic music genres. No install. No account." />
+  <title>mpump — A groove you can resend</title>
+  <meta name="description" content="Make a groove. Send a link. Open, change, and resend. A minimal instrument for evolving sound." />
+  <meta property="og:title" content="mpump — A groove you can resend" />
+  <meta property="og:description" content="Make a groove. Send a link. Open, change, and resend. A browser instrument for making and sharing electronic music. No install. No account." />
   <meta property="og:url" content="https://mpump.live/" />
-  <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="mpump — Instant Browser Groovebox" />
-  <meta name="twitter:description" content="A groove in your browser. Ready in seconds. 910 patterns, 15 genres. No install. No account." />
-  <meta name="twitter:image" content="https://mpump.live/og-image.png" />
-
-  <!-- SEO -->
-  <meta name="keywords" content="groovebox, drum machine, synth sequencer, browser sequencer, online beat maker, MIDI controller, Web Audio, techno, IDM, house, trance, free, electronic music, groove sketching" />
-  <link rel="canonical" href="https://mpump.live/" />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="mpump" />
   <meta property="og:image" content="https://mpump.live/og-image.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
-
-  <!-- PWA -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="mpump — A groove you can resend" />
+  <meta name="twitter:description" content="Make a groove. Send a link. Open, change, and resend. No install. No account." />
+  <meta name="twitter:image" content="https://mpump.live/og-image.png" />
+  <meta name="keywords" content="drum machine, synth sequencer, browser sequencer, online beat maker, MIDI controller, Web Audio, techno, IDM, house, trance, free, electronic music, groove sketching" />
+  <link rel="canonical" href="https://mpump.live/" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="mpump" />
-  <meta name="theme-color" content="#0b1a0b" />
+  <meta name="theme-color" content="#090e09" />
   <meta name="mobile-web-app-capable" content="yes" />
   <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
   <link rel="icon" type="image/png" sizes="32x32" href="./favicon-32.png" />
@@ -35,297 +31,566 @@
   <link rel="apple-touch-icon" href="./icon-192.png" />
   <link rel="apple-touch-icon" sizes="512x512" href="./icon-512.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&display=swap" rel="stylesheet">
-
-  <!-- Structured Data -->
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@300;400;600;700&display=swap" rel="stylesheet">
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
     "@type": "WebApplication",
     "name": "mpump",
     "url": "https://mpump.live/",
-    "description": "Instant browser groovebox for sketching, shaping, and sharing electronic grooves. 910 patterns, 15 genres, built-in drums, bass, synth, and effects. No install. No account. No personal data.",
+    "description": "Make a groove. Send a link. Open, change, and resend. A minimal instrument for evolving sound. No install. No account. No personal data.",
     "applicationCategory": "MultimediaApplication",
     "operatingSystem": "Any",
-    "offers": {
-      "@type": "Offer",
-      "price": "0",
-      "priceCurrency": "USD"
-    },
-    "featureList": "Drum machine, Synth sequencer, MIDI controller, 910 patterns, 15 genres, 8 effects, 3 views (KAOS, SYNTH, MIXER), Performance XY pad, Euclidean rhythms, Arpeggiator, Session export"
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
   }
   </script>
-
   <style>
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-
     :root {
-      --bg: #0b1a0b;
-      --bg2: #122212;
-      --border: #2a4a2a;
+      --bg: #090e09;
+      --border: #1a2e1a;
       --text: #c8e6c8;
-      --dim: #7a9a7a;
+      --dim: #5a7a5a;
       --accent: #66ff99;
-      --accent-dim: rgba(102,255,153,0.15);
-      --accent-strong: #d9ffe8;
-      --mloop: #b388ff;
+      --step-on: #66ff99;
+      --step-off: #0f1f0f;
+      --mono: "SF Mono", "Fira Code", monospace;
     }
-
-    html { overflow-x: hidden; }
+    html, body { height: 100%; }
     body {
       font-family: "Chakra Petch", sans-serif;
-      background:
-        radial-gradient(circle at top, rgba(102,255,153,0.09), transparent 34%),
-        linear-gradient(180deg, #091409 0%, var(--bg) 24%, #091109 100%);
+      background: var(--bg);
       color: var(--text);
-      line-height: 1.6;
       overflow-x: hidden;
-      max-width: 100vw;
     }
 
-    a { color: var(--accent); text-decoration: none; }
-    a:hover { text-decoration: underline; }
-    .container { max-width: 960px; margin: 0 auto; padding: 0 24px; }
+    /*
+      LAYOUT V2: STEP SEQUENCER
+      The page itself IS a step sequencer.
+      A 16-step grid runs across the top — ticking visually.
+      Each content section is a "pattern row" with a label on the left.
+      Sections are separated by row boundaries just like a drum machine.
+    */
 
-    .section-title { font-size: clamp(20px, 4vw, 28px); font-weight: 700; text-align: center; margin-bottom: 12px; }
-    .section-sub { text-align: center; color: var(--text); font-size: 18px; max-width: 660px; margin: 0 auto 40px; line-height: 1.7; }
+    /* ── top step grid ── */
+    .seq-header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 24px 10px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .seq-logo {
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: 1px;
+      flex-shrink: 0;
+    }
+    .seq-grid {
+      display: flex;
+      gap: 3px;
+      flex: 1;
+      overflow: hidden;
+    }
+    .seq-step {
+      flex: 1;
+      height: 14px;
+      border-radius: 2px;
+      background: var(--step-off);
+      border: 1px solid var(--border);
+      transition: background 0.1s;
+    }
+    .seq-step.on { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 6px rgba(102,255,153,0.5); }
+    .seq-step.dim-on { background: rgba(102,255,153,0.3); border-color: rgba(102,255,153,0.3); }
 
-    /* ── HERO ── */
-    .hero { display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 48px; align-items: center; padding: 80px 24px 60px; max-width: 1080px; margin: 0 auto; }
-    @media (max-width: 700px) { .hero { grid-template-columns: 1fr; text-align: center; padding-top: 60px; } .hero-right { margin-top: 24px; } }
+    /* ── page body ── */
+    .page { max-width: 1200px; margin: 0 auto; }
 
-    .hero-logo { font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace; font-size: clamp(8px, 2vw, 12px); line-height: 1.15; font-weight: 700; color: var(--accent); margin-bottom: 20px; white-space: pre; overflow: hidden; cursor: pointer; transition: text-shadow 0.2s ease; text-shadow: 0 0 8px rgba(102,255,153,0.3); }
+    /* ── row = section ── */
+    .row {
+      display: grid;
+      grid-template-columns: 100px 1fr;
+      border-bottom: 1px solid var(--border);
+      min-height: 100px;
+    }
+    @media (max-width: 600px) { .row { grid-template-columns: 48px 1fr; } }
+
+    .row-label {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      border-right: 1px solid var(--border);
+      padding: 16px 8px;
+      background: rgba(102,255,153,0.02);
+    }
+    .row-tag {
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--dim);
+      writing-mode: vertical-lr;
+      transform: rotate(180deg);
+    }
+    .row-mini-steps {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      margin-top: 8px;
+    }
+    .row-mini-step {
+      width: 10px;
+      height: 4px;
+      border-radius: 1px;
+      background: var(--border);
+    }
+    .row-mini-step.on { background: var(--accent); opacity: 0.7; }
+
+    .row-content {
+      padding: 48px 56px;
+    }
+    @media (max-width: 600px) { .row-content { padding: 28px 20px; } }
+
+    /* ── pulsing logo ── */
+    .hero-logo {
+      font-family: var(--mono);
+      font-size: clamp(9px, 2vw, 14px);
+      line-height: 1.15;
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 28px;
+      white-space: pre;
+      cursor: pointer;
+      transition: text-shadow 0.2s ease;
+      text-shadow: 0 0 8px rgba(102,255,153,0.3);
+      display: block;
+    }
     .hero-logo:hover { text-shadow: 0 0 16px rgba(102,255,153,0.5), 0 0 40px rgba(102,255,153,0.2); }
     .hero-logo.flash { animation: logoFlash 0.4s ease-out; }
     @keyframes logoFlash {
-      0%   { transform: scale(1); text-shadow: 0 0 0 transparent; filter: brightness(1); }
-      20%  { transform: scale(1.15); text-shadow: 0 0 18px var(--accent), 0 0 40px var(--accent); filter: brightness(1.8); color: #fff; }
-      50%  { text-shadow: 0 0 10px var(--accent), 0 0 20px var(--accent); filter: brightness(1.3); }
-      100% { transform: scale(1); text-shadow: 0 0 8px rgba(102,255,153,0.3); filter: brightness(1); }
+      0%   { transform: scale(1);    text-shadow: 0 0 0 transparent;                                    filter: brightness(1); }
+      20%  { transform: scale(1.08); text-shadow: 0 0 18px var(--accent), 0 0 40px var(--accent); filter: brightness(1.8); color: #fff; }
+      50%  {                          text-shadow: 0 0 10px var(--accent), 0 0 20px var(--accent); filter: brightness(1.3); }
+      100% { transform: scale(1);    text-shadow: 0 0 8px rgba(102,255,153,0.3);                        filter: brightness(1); }
     }
-    .hero-label { font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--dim); margin-bottom: 12px; }
-    .hero h1 { font-size: clamp(28px, 5vw, 44px); font-weight: 800; line-height: 1.15; margin-bottom: 16px; letter-spacing: -0.5px; }
-    .hero h1 em { font-style: normal; color: var(--accent); }
-    .hero-sub { font-size: clamp(14px, 2.5vw, 17px); color: var(--dim); margin-bottom: 32px; line-height: 1.7; }
 
-    .cta-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
-    @media (max-width: 700px) { .cta-row { justify-content: center; } }
+    /* ── HERO row ── */
+    .row-hero { min-height: 80vh; align-items: stretch; }
+    .row-hero .row-content {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding-top: 72px;
+      padding-bottom: 72px;
+    }
+    .hero-h1 {
+      font-size: clamp(42px, 7vw, 80px);
+      font-weight: 700;
+      line-height: 1.05;
+      color: #fff;
+      margin-bottom: 28px;
+      letter-spacing: -2px;
+    }
+    .hero-h1 em { font-style: normal; color: var(--accent); }
+    .hero-p {
+      font-size: clamp(17px, 2.5vw, 22px);
+      color: var(--text);
+      line-height: 1.7;
+      max-width: 560px;
+      margin-bottom: 28px;
+    }
+    .hero-micro { font-family: var(--mono); font-size: 13px; color: var(--text); opacity: 0.6; }
 
-    .btn-primary { display: inline-flex; align-items: center; gap: 8px; padding: 14px 36px; background: transparent; color: var(--accent); font-size: 15px; font-weight: 700; border-radius: 50px; border: 2px solid rgba(102,255,153,0.4); transition: all 0.2s; animation: neon-pulse 2s ease-in-out infinite; }
-    .btn-primary:hover { background: transparent; box-shadow: 0 0 50px rgba(102,255,153,0.8), 0 0 80px rgba(102,255,153,0.3); border-color: rgba(200,255,220,1); animation: none; text-decoration: none; }
-    @keyframes neon-pulse { 0%,100% { box-shadow: 0 0 6px rgba(102,255,153,0.1); border-color: rgba(102,255,153,0.3); transform: scale(1); } 50% { box-shadow: 0 0 35px rgba(102,255,153,0.6), 0 0 60px rgba(102,255,153,0.2); border-color: rgba(200,255,220,0.9); transform: scale(1.03); } }
-    .btn-secondary { display: inline-flex; align-items: center; gap: 8px; padding: 14px 24px; background: transparent; color: var(--dim); font-size: 15px; font-weight: 600; border: 1px solid var(--border); border-radius: 50px; transition: all 0.2s; }
-    .btn-secondary:hover { border-color: var(--accent); color: var(--accent); box-shadow: 0 0 10px rgba(102,255,153,0.2); text-decoration: none; }
+    /* ── body text ── */
+    .sec-title {
+      font-size: 12px;
+      font-weight: 700;
+      font-family: var(--mono);
+      color: var(--accent);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      opacity: 0.6;
+      margin-bottom: 20px;
+    }
+    .body-xl {
+      font-size: clamp(22px, 3.5vw, 36px);
+      font-weight: 600;
+      line-height: 1.35;
+      color: var(--text);
+      margin-bottom: 18px;
+    }
+    .body-xl em { font-style: normal; color: var(--accent); }
+    .body-p {
+      font-size: 18px;
+      color: #9abf9a;
+      line-height: 1.75;
+      max-width: 620px;
+    }
 
-    .hero-support { font-size: 13px; color: var(--dim); letter-spacing: 0.5px; }
-    .hero-support span { margin: 0 6px; opacity: 0.4; }
-    .hero-strip { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 20px; font-size: 13px; font-weight: 600; color: var(--accent); letter-spacing: 0.3px; }
-    @media (max-width: 700px) { .hero-strip { justify-content: center; } }
+    /* ── flow ── */
+    .flow {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      flex-wrap: wrap;
+      margin-top: 20px;
+    }
+    .flow-step {
+      padding: 8px 16px;
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--text);
+      background: rgba(102,255,153,0.03);
+    }
+    .flow-arrow { padding: 0 8px; color: var(--accent); font-family: var(--mono); opacity: 0.5; }
 
-    .hero-mockup { background: linear-gradient(180deg, rgba(18,34,18,0.96), rgba(11,26,11,0.96)); border: 1px solid var(--border); border-radius: 20px; overflow: hidden; box-shadow: 0 22px 80px rgba(0,0,0,0.28); }
-    .hero-video { width: 100%; display: block; border-radius: 16px; }
+    /* ── video mockup ── */
+    .hero-mockup { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; box-shadow: 0 16px 48px rgba(0,0,0,0.5); margin-top: 20px; background: #0a180a; max-width: 67%; }
+    .hero-video { width: 100%; display: block; }
 
-    /* ── VALUE PROPS (two-col prose) ── */
-    .value-section { padding: 60px 0; border-top: 1px solid var(--border); }
-    .prose-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px 48px; max-width: 900px; margin: 0 auto; }
-    @media (max-width: 600px) { .prose-grid { grid-template-columns: 1fr; gap: 20px; } }
-    .prose-item h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
-    @media (max-width: 600px) { .prose-item h3 { font-size: 14px; margin-bottom: 4px; } }
-    .prose-item p { font-size: 14px; color: var(--dim); line-height: 1.7; }
-    @media (max-width: 600px) { .prose-item p { font-size: 13px; line-height: 1.5; } .value-section { padding: 40px 0; } }
-
-    /* ── FEATURES ── */
-    .features { padding: 60px 0; border-top: 1px solid var(--border); }
-    @media (max-width: 600px) { .features { padding: 32px 0; } }
-    .features-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
-    @media (max-width: 700px) { .features-grid { grid-template-columns: repeat(2, 1fr); } }
-    @media (max-width: 400px) { .features-grid { grid-template-columns: 1fr; } }
-    .feature-item { padding: 20px 16px; background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; font-size: 13px; font-weight: 600; text-align: center; }
-    .feature-item .fi-icon { display: block; font-size: 11px; color: var(--accent); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 8px; font-weight: 700; }
-
-    /* ── SHARE CARDS ── */
-    .share-cards-section { padding: 60px 0; border-top: 1px solid var(--border); }
-    .share-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; max-width: 720px; margin: 0 auto; }
-    @media (max-width: 600px) { .share-cards { gap: 8px; max-width: 100%; } }
+    /* ── share cards ── */
+    .share-cards { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 24px; }
     .share-card {
-      display: block;
-      background: var(--bg2); border: 1px solid var(--border);
-      border-radius: 12px; text-decoration: none; color: var(--text);
-      transition: border-color 0.2s, transform 0.15s, box-shadow 0.2s;
+      flex: 1; min-width: 140px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      text-decoration: none;
+      color: var(--text);
       overflow: hidden;
+      background: rgba(102,255,153,0.02);
+      transition: border-color 0.2s, transform 0.15s;
     }
-    .share-card:hover {
-      border-color: var(--accent); transform: translateY(-2px);
-      box-shadow: 0 8px 30px rgba(102,255,153,0.12); text-decoration: none;
+    .share-card:hover { border-color: var(--accent); transform: translateY(-2px); text-decoration: none; }
+    .share-card-img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; }
+    .share-card-genre { display: block; text-align: center; font-family: var(--mono); font-size: 9px; font-weight: 700; color: var(--dim); padding: 5px 4px 7px; letter-spacing: 1.5px; text-transform: uppercase; }
+
+    /* ── CTA row ── */
+    .cta-row .row-content {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      justify-content: center;
+      gap: 16px;
+      padding-top: 48px;
+      padding-bottom: 48px;
     }
-    .share-card-img { width: 100%; aspect-ratio: 1; object-fit: cover; display: block; border-radius: 11px; }
-    .share-card-genre { display: block; text-align: center; font-size: 11px; font-weight: 700; color: var(--dim); padding: 6px 0; letter-spacing: 1px; text-transform: uppercase; }
+    .cta-btn-row { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+    .cta-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 36px;
+      background: transparent;
+      color: var(--accent);
+      font-size: 15px;
+      font-weight: 700;
+      border-radius: 50px;
+      border: 2px solid rgba(102,255,153,0.4);
+      text-decoration: none;
+      transition: all 0.2s;
+      animation: neon-pulse 2s ease-in-out infinite;
+    }
+    .cta-link:hover { background: transparent; box-shadow: 0 0 50px rgba(102,255,153,0.8), 0 0 80px rgba(102,255,153,0.3); border-color: rgba(200,255,220,1); animation: none; text-decoration: none; }
+    @keyframes neon-pulse {
+      0%,100% { box-shadow: 0 0 6px rgba(102,255,153,0.1); border-color: rgba(102,255,153,0.3); transform: scale(1); }
+      50% { box-shadow: 0 0 35px rgba(102,255,153,0.6), 0 0 60px rgba(102,255,153,0.2); border-color: rgba(200,255,220,0.9); transform: scale(1.03); }
+    }
+    .cta-link-sec {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 14px 24px;
+      background: transparent;
+      color: var(--dim);
+      font-size: 15px;
+      font-weight: 600;
+      border: 1px solid var(--border);
+      border-radius: 50px;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+    .cta-link-sec:hover { border-color: var(--accent); color: var(--accent); box-shadow: 0 0 10px rgba(102,255,153,0.2); text-decoration: none; }
+    .cta-note { font-family: var(--mono); font-size: 11px; color: var(--dim); opacity: 0.5; }
 
-    /* ── GENRES ── */
-    .genres { padding: 60px 0; border-top: 1px solid var(--border); }
-    @media (max-width: 600px) { .genres { padding: 32px 0; } }
-    .genre-tags { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 28px; }
-    .genre-tag { padding: 6px 14px; background: var(--bg2); border: 1px solid var(--border); border-radius: 20px; font-size: 12px; font-weight: 600; color: var(--dim); pointer-events: none; user-select: none; }
+    /* ── value props ── */
+    .prose-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px 32px; }
+    @media (max-width: 600px) { .prose-grid { grid-template-columns: 1fr; gap: 16px; } }
+    .prose-item h3 { font-size: 14px; font-weight: 700; margin-bottom: 8px; color: var(--text); }
+    .prose-item p { font-size: 13px; color: #9abf9a; line-height: 1.7; }
 
-    /* ── MANIFESTO ── */
-    .manifesto { padding: 60px 0; border-top: 1px solid var(--border); }
-    .manifesto-text { text-align: left; color: var(--dim); font-size: 16px; line-height: 1.8; max-width: 660px; margin: 20px auto 0; }
+    /* ── genre tags ── */
+    .genre-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+    .genre-tag { padding: 5px 12px; background: rgba(102,255,153,0.04); border: 1px solid var(--border); border-radius: 20px; font-size: 11px; font-weight: 600; color: var(--dim); }
 
-    /* ── SUPPORT BANNER ── */
-    .support-banner { padding: 28px 24px; text-align: center; background: var(--bg2); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
-    .support-banner p { font-size: 14px; color: var(--dim); margin-bottom: 12px; }
-    .btn-support { display: inline-flex; align-items: center; gap: 8px; padding: 10px 24px; background: transparent; color: #ff6b8a; font-size: 14px; font-weight: 700; border: 1px solid rgba(255,107,138,0.4); border-radius: 10px; transition: background 0.15s, border-color 0.15s; text-decoration: none; }
+    /* ── manifesto ── */
+    .manifesto-text { font-size: 15px; color: #9abf9a; line-height: 1.8; margin-bottom: 14px; max-width: 560px; }
+    .manifesto-text em { font-style: normal; color: var(--text); }
+
+    /* ── support ── */
+    .btn-support { display: inline-flex; align-items: center; gap: 8px; padding: 10px 22px; background: transparent; color: #ff6b8a; font-size: 13px; font-weight: 700; border: 1px solid rgba(255,107,138,0.4); border-radius: 6px; text-decoration: none; transition: background 0.15s, border-color 0.15s; }
     .btn-support:hover { background: rgba(255,107,138,0.08); border-color: #ff6b8a; text-decoration: none; }
 
-    /* ── FINAL CTA ── */
-    .final-cta { padding: 80px 24px; text-align: center; border-top: 1px solid var(--border); position: relative; }
-    .final-cta::before { content: ""; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 600px; height: 400px; border-radius: 50%; background: radial-gradient(circle, rgba(102,255,153,0.08) 0%, transparent 70%); pointer-events: none; }
-    .final-cta h2 { font-size: clamp(24px, 5vw, 36px); font-weight: 800; margin-bottom: 12px; position: relative; }
-    .final-cta .final-sub { font-size: 16px; color: var(--dim); margin-bottom: 32px; position: relative; }
-    .final-cta .cta-row { justify-content: center; position: relative; }
-    .final-cta .hero-support { margin-top: 16px; position: relative; }
-
-    /* ── FOOTER ── */
-    footer { text-align: center; padding: 40px 24px; font-size: 12px; color: var(--dim); }
-    footer a { color: var(--dim); } footer a:hover { color: var(--accent); }
-    .footer-links { margin-top: 10px; } .footer-links a { margin: 0 8px; }
-
-    /* ── ANIMATIONS ── */
-    @keyframes fadeUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-    .hero { animation: fadeUp 0.6s ease-out both; }
-    .value-section { animation: fadeUp 0.6s ease-out 0.08s both; }
-    .genres { animation: fadeUp 0.6s ease-out 0.1s both; }
-    .features { animation: fadeUp 0.6s ease-out 0.15s both; }
-    .manifesto { animation: fadeUp 0.6s ease-out 0.2s both; }
-    .final-cta { animation: fadeUp 0.6s ease-out 0.25s both; }
+    footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 20px 40px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    footer span, footer a { font-family: var(--mono); font-size: 11px; color: var(--dim); opacity: 0.4; text-decoration: none; }
+    footer a:hover { opacity: 1; color: var(--accent); }
   </style>
 </head>
 <body>
 
-  <main>
-  <!-- 1. HERO -->
-  <section class="hero">
-    <div class="hero-left">
-      <pre class="hero-logo" id="heroLogo">█▀▄▀█ █▀█ █ █ █▀▄▀█ █▀█
-█ ▀ █ █▀▀ ▀▄▀ █ ▀ █ █▀▀</pre>
-      <div class="hero-label">Instant browser groovebox</div>
-      <h1>A groove in your browser.<br><em>Ready in seconds.</em></h1>
-      <p class="hero-sub">Drum machine, bass, synth, effects, curated patterns.<br>Open it, share a link and it plays. Start a jam instantly.</p>
-      <div class="cta-row">
-        <a href="./app.html" class="btn-primary" onclick="localStorage.setItem('mpump-returning','1')">Start Playing</a>
-        <a href="https://github.com/gdamdam/mpump" class="btn-secondary">Source on GitHub</a>
-      </div>
-      <div class="hero-strip">
-        <span>Instant Grooves</span><span>Playable Links</span><span>Jam &amp; Live Set</span><span>Free &amp; Open Source</span>
+<!-- sticky step grid header -->
+<div class="seq-header">
+  <div class="seq-logo">mpump</div>
+  <div class="seq-grid" id="seqGrid">
+    <!-- steps populated by JS -->
+  </div>
+</div>
+
+<div class="page">
+
+  <!-- HERO -->
+  <div class="row row-hero">
+    <div class="row-label">
+      <div class="row-tag">intro</div>
+      <div class="row-mini-steps">
+        <div class="row-mini-step on"></div>
+        <div class="row-mini-step"></div>
+        <div class="row-mini-step on"></div>
+        <div class="row-mini-step"></div>
+        <div class="row-mini-step on"></div>
+        <div class="row-mini-step on"></div>
       </div>
     </div>
-    <div class="hero-right">
+    <div class="row-content">
+      <pre class="hero-logo" id="heroLogo">█▀▄▀█ █▀█ █ █ █▀▄▀█ █▀█
+█ ▀ █ █▀▀ ▀▄▀ █ ▀ █ █▀▀</pre>
+      <h1 class="hero-h1">A groove you can<br>open, change,<br>and <em>resend.</em></h1>
+      <p class="hero-p">Not a project. Not a file. A link.<br>Everything is already moving. You decide where it goes next.</p>
+      <div class="hero-micro">no install &nbsp;·&nbsp; no account &nbsp;·&nbsp; no session</div>
+      <div class="cta-btn-row" style="margin-top: 28px;">
+        <a href="./app.html" class="cta-link" onclick="localStorage.setItem('mpump-returning','1')">Open mpump</a>
+        <a href="https://github.com/gdamdam/mpump" class="cta-link-sec">Source on GitHub</a>
+      </div>
       <div class="hero-mockup">
         <video autoplay muted loop playsinline class="hero-video">
           <source src="./hero-demo.mp4" type="video/mp4">
         </video>
       </div>
     </div>
-  </section>
+  </div>
 
-  <!-- SHARE CARDS -->
-  <section class="share-cards-section"><div class="container">
-    <h2 class="section-title">Every groove is a link</h2>
-    <p class="section-sub">Make a beat, share the URL. They open it, they hear exactly what you made. Try these.</p>
-    <div class="share-cards">
-      <a href="https://s.mpump.live/?b=eyJicG0iOjkwLCJzdyI6MC41LCJkayI6IjEwIiwic3AiOiI4IiwiYnAiOiIxMSIsImciOnsicHJldmlld19kcnVtcyI6eyJnaSI6MTQsInBpIjo0LCJiZ2kiOjAsImJwaSI6MH0sInByZXZpZXdfYmFzcyI6eyJnaSI6MTQsInBpIjoxOCwiYmdpIjowLCJicGkiOjB9LCJwcmV2aWV3X3N5bnRoIjp7ImdpIjoxNCwicGkiOjE3LCJiZ2kiOjAsImJwaSI6MH19LCJ0biI6IldpcmVkIElnbml0aW9uIiwic3BwIjp7Im90Ijoic2luZSIsImEiOjAuMDMsImQiOjAuMywicyI6MC41LCJyIjowLjYsImNvIjo3MDAwLCJyZSI6MC41LCJzbyI6ZmFsc2UsImRlIjoyMCwibG8iOnRydWUsImxyIjoyLjUsImxwIjowLjEsImxoIjoidHJpYW5nbGUiLCJsdCI6InBpdGNoIiwidW4iOjEsInVzIjowLCJmZSI6MH0sImJwcCI6eyJvdCI6InNpbmUiLCJhIjowLjAxNSwiZCI6MC4xMiwicyI6MC4xLCJyIjowLjA1LCJmbyI6ZmFsc2UsImNvIjo4MDAsInJlIjoyLCJzbyI6ZmFsc2UsInNsIjowLjYsInVuIjoxLCJ1cyI6MCwiZmUiOjB9LCJjdiI6Ijg5LDcwLDQ3IiwiZGUiOiIzNi4xMDB8NDIuNjB8LXw0Mi42MHwzOC4xMDB8NDIuNjB8LXw0Mi42MHwzNi4xMDB8NDIuNjB8MzYuNjB8NDIuNjB8MzguMTIwfDQ2LjYwfC18NDIuNjAifQ" class="share-card">
-        <img class="share-card-img" src="https://s.mpump.live/img/eyJicG0iOjkwLCJzdyI6MC41LCJkayI6IjEwIiwic3AiOiI4IiwiYnAiOiIxMSIsImciOnsicHJldmlld19kcnVtcyI6eyJnaSI6MTQsInBpIjo0LCJiZ2kiOjAsImJwaSI6MH0sInByZXZpZXdfYmFzcyI6eyJnaSI6MTQsInBpIjoxOCwiYmdpIjowLCJicGkiOjB9LCJwcmV2aWV3X3N5bnRoIjp7ImdpIjoxNCwicGkiOjE3LCJiZ2kiOjAsImJwaSI6MH19LCJ0biI6IldpcmVkIElnbml0aW9uIiwic3BwIjp7Im90Ijoic2luZSIsImEiOjAuMDMsImQiOjAuMywicyI6MC41LCJyIjowLjYsImNvIjo3MDAwLCJyZSI6MC41LCJzbyI6ZmFsc2UsImRlIjoyMCwibG8iOnRydWUsImxyIjoyLjUsImxwIjowLjEsImxoIjoidHJpYW5nbGUiLCJsdCI6InBpdGNoIiwidW4iOjEsInVzIjowLCJmZSI6MH0sImJwcCI6eyJvdCI6InNpbmUiLCJhIjowLjAxNSwiZCI6MC4xMiwicyI6MC4xLCJyIjowLjA1LCJmbyI6ZmFsc2UsImNvIjo4MDAsInJlIjoyLCJzbyI6ZmFsc2UsInNsIjowLjYsInVuIjoxLCJ1cyI6MCwiZmUiOjB9LCJjdiI6Ijg5LDcwLDQ3IiwiZGUiOiIzNi4xMDB8NDIuNjB8LXw0Mi42MHwzOC4xMDB8NDIuNjB8LXw0Mi42MHwzNi4xMDB8NDIuNjB8MzYuNjB8NDIuNjB8MzguMTIwfDQ2LjYwfC18NDIuNjAifQ" alt="Downtempo" loading="lazy">
-        <span class="share-card-genre">downtempo</span>
-      </a>
-      <a href="https://s.mpump.live/?b=eyJicG0iOjEyMywic3ciOjAuNSwiZGsiOiIxMyIsInNwIjoiNiIsImJwIjoiMTEiLCJnIjp7InByZXZpZXdfZHJ1bXMiOnsiZ2kiOjcsInBpIjozLCJiZ2kiOjAsImJwaSI6MH0sInByZXZpZXdfYmFzcyI6eyJnaSI6NywicGkiOjEsImJnaSI6MCwiYnBpIjowfSwicHJldmlld19zeW50aCI6eyJnaSI6NywicGkiOjQsImJnaSI6MCwiYnBpIjowfX0sInRuIjoiVXJiYW4gU2VjdG9yIiwic3BwIjp7ImEiOjAuMDAxLCJkIjowLjA0LCJzIjowLjA1LCJyIjowLjAyLCJjbyI6NTAwMCwicmUiOjMsInNsIjowLjI1LCJkZSI6NiwidW4iOjEsInVzIjowLCJmZSI6MC40fSwiYnBwIjp7Im90Ijoic2luZSIsImEiOjAuMDE1LCJkIjowLjEyLCJzIjowLjEsInIiOjAuMDUsImZvIjpmYWxzZSwiY28iOjgwMCwicmUiOjIsInNvIjpmYWxzZSwic2wiOjAuNiwidW4iOjEsInVzIjowLCJmZSI6MH0sImN2IjoiODksNzAsNDciLCJkZSI6IjM2LjEyMHw0Mi4xMDB8NDYuMTAwfDQyLjEwMHwzNi4xMDArNTAuMTIwfDQyLjEwMHw0Ni4xMDB8NDIuMTAwfDM2LjEyMHw0Mi4xMDB8MzYuMTAwfDQyLjEwMHwzNi4xMDArNTAuMTIwfDQyLjEwMHw0Ni4xMDB8NDIuMTAwIn0" class="share-card">
-        <img class="share-card-img" src="https://s.mpump.live/img/eyJicG0iOjEyMywic3ciOjAuNSwiZGsiOiIxMyIsInNwIjoiNiIsImJwIjoiMTEiLCJnIjp7InByZXZpZXdfZHJ1bXMiOnsiZ2kiOjcsInBpIjozLCJiZ2kiOjAsImJwaSI6MH0sInByZXZpZXdfYmFzcyI6eyJnaSI6NywicGkiOjEsImJnaSI6MCwiYnBpIjowfSwicHJldmlld19zeW50aCI6eyJnaSI6NywicGkiOjQsImJnaSI6MCwiYnBpIjowfX0sInRuIjoiVXJiYW4gU2VjdG9yIiwic3BwIjp7ImEiOjAuMDAxLCJkIjowLjA0LCJzIjowLjA1LCJyIjowLjAyLCJjbyI6NTAwMCwicmUiOjMsInNsIjowLjI1LCJkZSI6NiwidW4iOjEsInVzIjowLCJmZSI6MC40fSwiYnBwIjp7Im90Ijoic2luZSIsImEiOjAuMDE1LCJkIjowLjEyLCJzIjowLjEsInIiOjAuMDUsImZvIjpmYWxzZSwiY28iOjgwMCwicmUiOjIsInNvIjpmYWxzZSwic2wiOjAuNiwidW4iOjEsInVzIjowLCJmZSI6MH0sImN2IjoiODksNzAsNDciLCJkZSI6IjM2LjEyMHw0Mi4xMDB8NDYuMTAwfDQyLjEwMHwzNi4xMDArNTAuMTIwfDQyLjEwMHw0Ni4xMDB8NDIuMTAwfDM2LjEyMHw0Mi4xMDB8MzYuMTAwfDQyLjEwMHwzNi4xMDArNTAuMTIwfDQyLjEwMHw0Ni4xMDB8NDIuMTAwIn0" alt="House" loading="lazy">
-        <span class="share-card-genre">house</span>
-      </a>
-      <a href="https://s.mpump.live/?b=eyJicG0iOjE0MCwic3ciOjAuNSwiZGsiOiIxNCIsInNwIjoiOCIsImJwIjoiNCIsImciOnsicHJldmlld19kcnVtcyI6eyJnaSI6MiwicGkiOjQsImJnaSI6MCwiYnBpIjoxM30sInByZXZpZXdfYmFzcyI6eyJnaSI6MiwicGkiOjEzLCJiZ2kiOjAsImJwaSI6MH0sInByZXZpZXdfc3ludGgiOnsiZ2kiOjIsInBpIjo0LCJiZ2kiOjAsImJwaSI6MH19LCJ0biI6IlVyYmFuIFNlY3RvciIsInNwcCI6eyJvdCI6InNpbmUiLCJhIjowLjAzLCJkIjowLjMsInMiOjAuNSwiciI6MC42LCJjbyI6NzAwMCwicmUiOjAuNSwic28iOmZhbHNlLCJkZSI6MjAsImxvIjp0cnVlLCJsciI6Mi41LCJscCI6MC4xLCJsaCI6InRyaWFuZ2xlIiwibHQiOiJwaXRjaCIsInVuIjoxLCJ1cyI6MCwiZmUiOjB9LCJicHAiOnsiYSI6MC4wMDEsImQiOjAuMDYsInMiOjAuMSwiciI6MC4wMywiY28iOjMwMDAsInJlIjo2LCJzbyI6ZmFsc2UsInVuIjoxLCJ1cyI6MCwiZmUiOjAuNX0sImN2IjoiODksNzAsNDcifQ" class="share-card">
-        <img class="share-card-img" src="https://s.mpump.live/img/eyJicG0iOjE0MCwic3ciOjAuNSwiZGsiOiIxNCIsInNwIjoiOCIsImJwIjoiNCIsImciOnsicHJldmlld19kcnVtcyI6eyJnaSI6MiwicGkiOjQsImJnaSI6MCwiYnBpIjoxM30sInByZXZpZXdfYmFzcyI6eyJnaSI6MiwicGkiOjEzLCJiZ2kiOjAsImJwaSI6MH0sInByZXZpZXdfc3ludGgiOnsiZ2kiOjIsInBpIjo0LCJiZ2kiOjAsImJwaSI6MH19LCJ0biI6IlVyYmFuIFNlY3RvciIsInNwcCI6eyJvdCI6InNpbmUiLCJhIjowLjAzLCJkIjowLjMsInMiOjAuNSwiciI6MC42LCJjbyI6NzAwMCwicmUiOjAuNSwic28iOmZhbHNlLCJkZSI6MjAsImxvIjp0cnVlLCJsciI6Mi41LCJscCI6MC4xLCJsaCI6InRyaWFuZ2xlIiwibHQiOiJwaXRjaCIsInVuIjoxLCJ1cyI6MCwiZmUiOjB9LCJicHAiOnsiYSI6MC4wMDEsImQiOjAuMDYsInMiOjAuMSwiciI6MC4wMywiY28iOjMwMDAsInJlIjo2LCJzbyI6ZmFsc2UsInVuIjoxLCJ1cyI6MCwiZmUiOjAuNX0sImN2IjoiODksNzAsNDcifQ" alt="Trance" loading="lazy">
-        <span class="share-card-genre">trance</span>
-      </a>
-    </div>
-  </div></section>
-
-  <!-- 2. VALUE PROPOSITIONS -->
-  <section class="value-section"><div class="container">
-    <div class="prose-grid">
-      <div class="prose-item">
-        <h3>Start from something that already grooves</h3>
-        <p>Drums, bass, synth locked together. Then break it, twist it, or rebuild it.</p>
-      </div>
-      <div class="prose-item">
-        <h3>Browser jam sessions</h3>
-        <p>Up to 4 people on the same groove, or more in a Live Set mode. Sound synthesized locally, no streaming.</p>
-      </div>
-      <div class="prose-item">
-        <h3>Just open and play</h3>
-        <p>Open the link and play.<br>Nothing to download, nothing to sign up for.</p>
+  <!-- CORE IDEA -->
+  <div class="row">
+    <div class="row-label">
+      <div class="row-tag">core</div>
+      <div class="row-mini-steps">
+        <div class="row-mini-step on"></div>
+        <div class="row-mini-step on"></div>
+        <div class="row-mini-step"></div>
+        <div class="row-mini-step on"></div>
+        <div class="row-mini-step"></div>
+        <div class="row-mini-step on"></div>
       </div>
     </div>
-  </div></section>
-
-  <!-- 4. GENRES -->
-  <section class="genres"><div class="container">
-    <div class="genre-tags">
-      <span class="genre-tag">Techno</span><span class="genre-tag">Acid Techno</span><span class="genre-tag">Trance</span>
-      <span class="genre-tag">Dub Techno</span><span class="genre-tag">IDM</span><span class="genre-tag">House</span>
-      <span class="genre-tag">Breakbeat</span><span class="genre-tag">Jungle</span><span class="genre-tag">Ambient</span>
-      <span class="genre-tag">Electro</span><span class="genre-tag">Downtempo</span><span class="genre-tag">Drum &amp; Bass</span>
-      <span class="genre-tag">Garage</span><span class="genre-tag">Glitch</span><span class="genre-tag">EDM</span>
+    <div class="row-content">
+      <div class="sec-title">// how it works</div>
+      <div class="body-xl">Make it. It becomes a link.<br>Send it. They hear the same thing.<br>They change it. They <em>send it back.</em></div>
+      <p class="body-p">No files move. No accounts sync. The link carries everything. Open it anywhere. Change it. Resend a different thing.</p>
+      <div class="flow">
+        <div class="flow-step">make</div><div class="flow-arrow">→</div>
+        <div class="flow-step">link</div><div class="flow-arrow">→</div>
+        <div class="flow-step">open</div><div class="flow-arrow">→</div>
+        <div class="flow-step">modify</div><div class="flow-arrow">→</div>
+        <div class="flow-step">resend</div>
+      </div>
     </div>
-  </div></section>
+  </div>
 
-
-  <!-- 5. MANIFESTO -->
-  <section class="manifesto"><div class="container">
-    <h2 class="section-title">Why I built this</h2>
-    <p class="manifesto-text">I built <em>mpump</em> because I wanted to make music anywhere and share it instantly. Just a link. Open it, hear the beat. Or better: join in and play together, live.</p>
-    <p class="manifesto-text">Most music tools make you choose: too simple to be useful, or too complex to be fun.<br>I wanted a groovebox that starts instantly, gives you a spark fast, and lets you share it, jam on it, or perform it for others.</p>
-    <p class="manifesto-text">No install, no account, no personal data. Your music stays on your device.<br>Free forever.</p>
-    <p style="text-align: center; font-size: 24px; margin-top: 16px;">🤟😁</p>
-  </div></section>
-
-  <!-- 6. SUPPORT BANNER -->
-  <section class="support-banner">
-    <p>mpump is free and open source. If it's useful to you, consider supporting the project.</p>
-    <a href="https://ko-fi.com/gdamdam" class="btn-support">Support on Ko-fi <span style="color:#ff6b8a">&hearts;</span></a>
-  </section>
-
-  <!-- FINAL CTA -->
-  <section class="final-cta">
-    <h2>Open it. Find a loop. Start playing.</h2>
-    <p class="final-sub">Drums, bass, synth, effects. All in your browser. All free.</p>
-    <div class="cta-row">
-      <a href="./app.html" class="btn-primary" onclick="localStorage.setItem('mpump-returning','1')">Start Playing</a>
+  <!-- STARTING POINTS -->
+  <div class="row">
+    <div class="row-label">
+      <div class="row-tag">start</div>
+      <div class="row-mini-steps">
+        <div class="row-mini-step"></div>
+        <div class="row-mini-step on"></div>
+        <div class="row-mini-step on"></div>
+        <div class="row-mini-step"></div>
+        <div class="row-mini-step on"></div>
+        <div class="row-mini-step"></div>
+      </div>
     </div>
-    <p class="hero-support" style="margin-top:16px">No install<span>&middot;</span>No account<span>&middot;</span>No personal data</p>
-  </section>
+    <div class="row-content">
+      <div class="sec-title">// starting points</div>
+      <div class="body-xl">Not from silence.<br>From something that already has a pulse.</div>
+      <p class="body-p">Every session opens with a working groove. Everything is already moving.<br>You decide where it goes next. These aren't presets. They're starting conditions.</p>
+      <div class="share-cards">
+        <a class="share-card" href="https://s.mpump.live/?b=eyJicG0iOjkwLCJzdyI6MC41LCJkayI6IjEwIiwic3AiOiI4IiwiYnAiOiIxMSIsImciOnsicHJldmlld19kcnVtcyI6eyJnaSI6MTQsInBpIjo0LCJiZ2kiOjAsImJwaSI6MH0sInByZXZpZXdfYmFzcyI6eyJnaSI6MTQsInBpIjoxOCwiYmdpIjowLCJicGkiOjB9LCJwcmV2aWV3X3N5bnRoIjp7ImdpIjoxNCwicGkiOjE3LCJiZ2kiOjAsImJwaSI6MH19LCJ0biI6IldpcmVkIElnbml0aW9uIiwic3BwIjp7Im90Ijoic2luZSIsImEiOjAuMDMsImQiOjAuMywicyI6MC41LCJyIjowLjYsImNvIjo3MDAwLCJyZSI6MC41LCJzbyI6ZmFsc2UsImRlIjoyMCwibG8iOnRydWUsImxyIjoyLjUsImxwIjowLjEsImxoIjoidHJpYW5nbGUiLCJsdCI6InBpdGNoIiwidW4iOjEsInVzIjowLCJmZSI6MH0sImJwcCI6eyJvdCI6InNpbmUiLCJhIjowLjAxNSwiZCI6MC4xMiwicyI6MC4xLCJyIjowLjA1LCJmbyI6ZmFsc2UsImNvIjo4MDAsInJlIjoyLCJzbyI6ZmFsc2UsInNsIjowLjYsInVuIjoxLCJ1cyI6MCwiZmUiOjB9LCJjdiI6Ijg5LDcwLDQ3IiwiZGUiOiIzNi4xMDB8NDIuNjB8LXw0Mi42MHwzOC4xMDB8NDIuNjB8LXw0Mi42MHwzNi4xMDB8NDIuNjB8MzYuNjB8NDIuNjB8MzguMTIwfDQ2LjYwfC18NDIuNjAifQ">
+          <img class="share-card-img" src="https://s.mpump.live/img/eyJicG0iOjkwLCJzdyI6MC41LCJkayI6IjEwIiwic3AiOiI4IiwiYnAiOiIxMSIsImciOnsicHJldmlld19kcnVtcyI6eyJnaSI6MTQsInBpIjo0LCJiZ2kiOjAsImJwaSI6MH0sInByZXZpZXdfYmFzcyI6eyJnaSI6MTQsInBpIjoxOCwiYmdpIjowLCJicGkiOjB9LCJwcmV2aWV3X3N5bnRoIjp7ImdpIjoxNCwicGkiOjE3LCJiZ2kiOjAsImJwaSI6MH19LCJ0biI6IldpcmVkIElnbml0aW9uIiwic3BwIjp7Im90Ijoic2luZSIsImEiOjAuMDMsImQiOjAuMywicyI6MC41LCJyIjowLjYsImNvIjo3MDAwLCJyZSI6MC41LCJzbyI6ZmFsc2UsImRlIjoyMCwibG8iOnRydWUsImxyIjoyLjUsImxwIjowLjEsImxoIjoidHJpYW5nbGUiLCJsdCI6InBpdGNoIiwidW4iOjEsInVzIjowLCJmZSI6MH0sImJwcCI6eyJvdCI6InNpbmUiLCJhIjowLjAxNSwiZCI6MC4xMiwicyI6MC4xLCJyIjowLjA1LCJmbyI6ZmFsc2UsImNvIjo4MDAsInJlIjoyLCJzbyI6ZmFsc2UsInNsIjowLjYsInVuIjoxLCJ1cyI6MCwiZmUiOjB9LCJjdiI6Ijg5LDcwLDQ3IiwiZGUiOiIzNi4xMDB8NDIuNjB8LXw0Mi42MHwzOC4xMDB8NDIuNjB8LXw0Mi42MHwzNi4xMDB8NDIuNjB8MzYuNjB8NDIuNjB8MzguMTIwfDQ2LjYwfC18NDIuNjAifQ" alt="Downtempo" loading="lazy">
+          <span class="share-card-genre">downtempo · 90 bpm</span>
+        </a>
+        <a class="share-card" href="https://s.mpump.live/?b=eyJicG0iOjEyMywic3ciOjAuNSwiZGsiOiIxMyIsInNwIjoiNiIsImJwIjoiMTEiLCJnIjp7InByZXZpZXdfZHJ1bXMiOnsiZ2kiOjcsInBpIjozLCJiZ2kiOjAsImJwaSI6MH0sInByZXZpZXdfYmFzcyI6eyJnaSI6NywicGkiOjEsImJnaSI6MCwiYnBpIjowfSwicHJldmlld19zeW50aCI6eyJnaSI6NywicGkiOjQsImJnaSI6MCwiYnBpIjowfX0sInRuIjoiVXJiYW4gU2VjdG9yIiwic3BwIjp7ImEiOjAuMDAxLCJkIjowLjA0LCJzIjowLjA1LCJyIjowLjAyLCJjbyI6NTAwMCwicmUiOjMsInNsIjowLjI1LCJkZSI6NiwidW4iOjEsInVzIjowLCJmZSI6MC40fSwiYnBwIjp7Im90Ijoic2luZSIsImEiOjAuMDE1LCJkIjowLjEyLCJzIjowLjEsInIiOjAuMDUsImZvIjpmYWxzZSwiY28iOjgwMCwicmUiOjIsInNvIjpmYWxzZSwic2wiOjAuNiwidW4iOjEsInVzIjowLCJmZSI6MH0sImN2IjoiODksNzAsNDciLCJkZSI6IjM2LjEyMHw0Mi4xMDB8NDYuMTAwfDQyLjEwMHwzNi4xMDArNTAuMTIwfDQyLjEwMHw0Ni4xMDB8NDIuMTAwfDM2LjEyMHw0Mi4xMDB8MzYuMTAwfDQyLjEwMHwzNi4xMDArNTAuMTIwfDQyLjEwMHw0Ni4xMDB8NDIuMTAwIn0">
+          <img class="share-card-img" src="https://s.mpump.live/img/eyJicG0iOjEyMywic3ciOjAuNSwiZGsiOiIxMyIsInNwIjoiNiIsImJwIjoiMTEiLCJnIjp7InByZXZpZXdfZHJ1bXMiOnsiZ2kiOjcsInBpIjozLCJiZ2kiOjAsImJwaSI6MH0sInByZXZpZXdfYmFzcyI6eyJnaSI6NywicGkiOjEsImJnaSI6MCwiYnBpIjowfSwicHJldmlld19zeW50aCI6eyJnaSI6NywicGkiOjQsImJnaSI6MCwiYnBpIjowfX0sInRuIjoiVXJiYW4gU2VjdG9yIiwic3BwIjp7ImEiOjAuMDAxLCJkIjowLjA0LCJzIjowLjA1LCJyIjowLjAyLCJjbyI6NTAwMCwicmUiOjMsInNsIjowLjI1LCJkZSI6NiwidW4iOjEsInVzIjowLCJmZSI6MC40fSwiYnBwIjp7Im90Ijoic2luZSIsImEiOjAuMDE1LCJkIjowLjEyLCJzIjowLjEsInIiOjAuMDUsImZvIjpmYWxzZSwiY28iOjgwMCwicmUiOjIsInNvIjpmYWxzZSwic2wiOjAuNiwidW4iOjEsInVzIjowLCJmZSI6MH0sImN2IjoiODksNzAsNDciLCJkZSI6IjM2LjEyMHw0Mi4xMDB8NDYuMTAwfDQyLjEwMHwzNi4xMDArNTAuMTIwfDQyLjEwMHw0Ni4xMDB8NDIuMTAwfDM2LjEyMHw0Mi4xMDB8MzYuMTAwfDQyLjEwMHwzNi4xMDArNTAuMTIwfDQyLjEwMHw0Ni4xMDB8NDIuMTAwIn0" alt="House" loading="lazy">
+          <span class="share-card-genre">house · 123 bpm</span>
+        </a>
+        <a class="share-card" href="https://s.mpump.live/?b=eyJicG0iOjE0MCwic3ciOjAuNSwiZGsiOiIxNCIsInNwIjoiOCIsImJwIjoiNCIsImciOnsicHJldmlld19kcnVtcyI6eyJnaSI6MiwicGkiOjQsImJnaSI6MCwiYnBpIjoxM30sInByZXZpZXdfYmFzcyI6eyJnaSI6MiwicGkiOjEzLCJiZ2kiOjAsImJwaSI6MH0sInByZXZpZXdfc3ludGgiOnsiZ2kiOjIsInBpIjo0LCJiZ2kiOjAsImJwaSI6MH19LCJ0biI6IlVyYmFuIFNlY3RvciIsInNwcCI6eyJvdCI6InNpbmUiLCJhIjowLjAzLCJkIjowLjMsInMiOjAuNSwiciI6MC42LCJjbyI6NzAwMCwicmUiOjAuNSwic28iOmZhbHNlLCJkZSI6MjAsImxvIjp0cnVlLCJsciI6Mi41LCJscCI6MC4xLCJsaCI6InRyaWFuZ2xlIiwibHQiOiJwaXRjaCIsInVuIjoxLCJ1cyI6MCwiZmUiOjB9LCJicHAiOnsiYSI6MC4wMDEsImQiOjAuMDYsInMiOjAuMSwiciI6MC4wMywiY28iOjMwMDAsInJlIjo2LCJzbyI6ZmFsc2UsInVuIjoxLCJ1cyI6MCwiZmUiOjAuNX0sImN2IjoiODksNzAsNDcifQ">
+          <img class="share-card-img" src="https://s.mpump.live/img/eyJicG0iOjE0MCwic3ciOjAuNSwiZGsiOiIxNCIsInNwIjoiOCIsImJwIjoiNCIsImciOnsicHJldmlld19kcnVtcyI6eyJnaSI6MiwicGkiOjQsImJnaSI6MCwiYnBpIjoxM30sInByZXZpZXdfYmFzcyI6eyJnaSI6MiwicGkiOjEzLCJiZ2kiOjAsImJwaSI6MH0sInByZXZpZXdfc3ludGgiOnsiZ2kiOjIsInBpIjo0LCJiZ2kiOjAsImJwaSI6MH19LCJ0biI6IlVyYmFuIFNlY3RvciIsInNwcCI6eyJvdCI6InNpbmUiLCJhIjowLjAzLCJkIjowLjMsInMiOjAuNSwiciI6MC42LCJjbyI6NzAwMCwicmUiOjAuNSwic28iOmZhbHNlLCJkZSI6MjAsImxvIjp0cnVlLCJsciI6Mi41LCJscCI6MC4xLCJsaCI6InRyaWFuZ2xlIiwibHQiOiJwaXRjaCIsInVuIjoxLCJ1cyI6MCwiZmUiOjB9LCJicHAiOnsiYSI6MC4wMDEsImQiOjAuMDYsInMiOjAuMSwiciI6MC4wMywiY28iOjMwMDAsInJlIjo2LCJzbyI6ZmFsc2UsInVuIjoxLCJ1cyI6MCwiZmUiOjAuNX0sImN2IjoiODksNzAsNDcifQ" alt="Trance" loading="lazy">
+          <span class="share-card-genre">trance · 140 bpm</span>
+        </a>
+      </div>
+    </div>
+  </div>
 
-  </main>
+  <!-- WHY DIFFERENT -->
+  <div class="row">
+    <div class="row-label">
+      <div class="row-tag">diff</div>
+      <div class="row-mini-steps">
+        <div class="row-mini-step on"></div>
+        <div class="row-mini-step"></div>
+        <div class="row-mini-step on"></div>
+        <div class="row-mini-step on"></div>
+        <div class="row-mini-step on"></div>
+        <div class="row-mini-step"></div>
+      </div>
+    </div>
+    <div class="row-content">
+      <div class="sec-title">// not a DAW</div>
+      <div class="body-xl">Less to set up.<br>More to change.</div>
+      <p class="body-p">No timeline. No mixer sessions saved to disk. No onboarding. mpump is an instrument, not a workspace. Less to configure means faster time to groove. More time actually making one.</p>
+    </div>
+  </div>
 
-  <noscript>
-    <h1>mpump — Instant Browser Groovebox</h1>
-    <p>Instant browser groovebox for sketching, shaping, and sharing electronic grooves. 910 patterns across 15 electronic genres, built-in drums, bass, synth, and effects. No install. No account. No personal data.</p>
-    <p>Genres: techno, acid-techno, trance, dub-techno, IDM, EDM, drum-and-bass, house, breakbeat, jungle, garage, ambient, glitch, electro, downtempo.</p>
-    <p><a href="https://mpump.live/app.html">Launch mpump</a> · <a href="https://github.com/gdamdam/mpump">View on GitHub</a></p>
-  </noscript>
+  <!-- SHARING -->
+  <div class="row">
+    <div class="row-label">
+      <div class="row-tag">share</div>
+      <div class="row-mini-steps">
+        <div class="row-mini-step on"></div>
+        <div class="row-mini-step on"></div>
+        <div class="row-mini-step on"></div>
+        <div class="row-mini-step"></div>
+        <div class="row-mini-step on"></div>
+        <div class="row-mini-step on"></div>
+      </div>
+    </div>
+    <div class="row-content">
+      <div class="sec-title">// evolution</div>
+      <div class="body-xl">A groove is never finished.<br>It's <em>passed on.</em></div>
+      <p class="body-p">Fork it. Strip the bass. Double the tempo. Keep the kick, rebuild the melody. Every link is a moment in an ongoing mutation. The same groove, reshaped by whoever opens it next.</p>
+    </div>
+  </div>
 
-  <footer>
-    <div>Built by <a href="https://github.com/gdamdam/mpump">gdamdam</a></div>
-    <div style="margin-top: 8px; opacity: 0.5;"><a href="https://github.com/gdamdam/mpump">Source Code (AGPL-3.0)</a></div>
-  </footer>
+  <!-- MANIFESTO -->
+  <div class="row">
+    <div class="row-label">
+      <div class="row-tag">why</div>
+      <div class="row-mini-steps">
+        <div class="row-mini-step on"></div>
+        <div class="row-mini-step"></div>
+        <div class="row-mini-step on"></div>
+        <div class="row-mini-step on"></div>
+        <div class="row-mini-step"></div>
+        <div class="row-mini-step on"></div>
+      </div>
+    </div>
+    <div class="row-content">
+      <div class="sec-title">// why I built this</div>
+      <p class="manifesto-text">I built <em>mpump</em> to make music anywhere.
+Not files. Just links and a browser.</p>
+      <p class="manifesto-text">Open it. Hear it. Change it.
+Or send it back different.</p>
+      <p class="manifesto-text">Most music tools make you choose:
+too simple to be useful,
+or too complex to be fun.
+This stays in between.
+Fast to start. Still worth exploring.</p>
+      <p class="manifesto-text">No install, no account, no personal data.<br>Your music stays on your device.
+Free forever.</p>
+      <div style="display: flex; justify-content: center; width: 100%; margin-top: 16px; font-size: 24px;">🤟😁</div>
+      <p style="font-size: 13px; color: var(--dim); margin-top: 20px;">mpump is free and open source. If it's useful, consider <a href="https://ko-fi.com/gdamdam" style="color: #ff6b8a;">supporting on Ko-fi</a> <span style="color:#ff6b8a;">♥</span></p>
+    </div>
+  </div>
 
-  <script>
-    const logo = document.getElementById("heroLogo");
-    const flashLogo = () => {
-      logo.classList.remove("flash");
-      void logo.offsetWidth;
-      logo.classList.add("flash");
-    };
-    logo.addEventListener("click", flashLogo);
-    setInterval(flashLogo, 3000);
-  </script>
+
+  <!-- CTA -->
+  <div class="row cta-row">
+    <div class="row-label">
+      <div class="row-tag">open</div>
+      <div class="row-mini-steps">
+        <div class="row-mini-step on"></div>
+        <div class="row-mini-step on"></div>
+        <div class="row-mini-step on"></div>
+        <div class="row-mini-step on"></div>
+        <div class="row-mini-step on"></div>
+        <div class="row-mini-step on"></div>
+      </div>
+    </div>
+    <div class="row-content">
+      <div class="cta-btn-row">
+        <a href="./app.html" class="cta-link" onclick="localStorage.setItem('mpump-returning','1')">Open mpump</a>
+        <a href="https://github.com/gdamdam/mpump" class="cta-link-sec">Source on GitHub</a>
+      </div>
+      <div class="cta-note" style="margin-top: 4px; color: #9abf9a; opacity: 1;">No install &nbsp;·&nbsp; No account &nbsp;·&nbsp; No personal data</div>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  <span>Built by <a href="https://github.com/gdamdam/mpump">gdamdam</a> &nbsp;·&nbsp; <a href="https://github.com/gdamdam/mpump">Source Code (AGPL-3.0)</a></span>
+  <span>mpump v1.3.2</span>
+</footer>
+
+
+<noscript>
+  <p>mpump — A browser instrument for making and sharing electronic music. Drums, bass, synth. No install. No account. <a href="./app.html">Launch mpump</a></p>
+</noscript>
+
+<script>
+  // Pulsing ASCII logo
+  const logo = document.getElementById('heroLogo');
+  const flashLogo = () => { logo.classList.remove('flash'); void logo.offsetWidth; logo.classList.add('flash'); };
+  logo.addEventListener('click', flashLogo);
+  setInterval(flashLogo, 3000);
+
+  // Animate the step grid in the header
+  const grid = document.getElementById('seqGrid');
+  const STEPS = 16;
+  const PATTERN = [1,0,0,0,1,0,1,0,1,0,0,1,0,0,1,0];
+  const cells = [];
+
+  for (let i = 0; i < STEPS; i++) {
+    const s = document.createElement('div');
+    s.className = 'seq-step' + (PATTERN[i] ? ' dim-on' : '');
+    grid.appendChild(s);
+    cells.push(s);
+  }
+
+  let cur = 0;
+  setInterval(() => {
+    cells.forEach((c, i) => {
+      c.className = 'seq-step' + (PATTERN[i] ? ' dim-on' : '');
+    });
+    cells[cur].className = 'seq-step on';
+    cur = (cur + 1) % STEPS;
+  }, 160);
+</script>
+
 </body>
 </html>
