@@ -58,7 +58,7 @@ const SECTIONS = [
   {
     title: "Sound Design (SYNTH mode)",
     items: [
-      "**18 synth presets** — Default, Classic Saw, Warm Pad, Acid Squelch, Screamer, Supersaw, Neuro, Dub Chord, House Stab, Trance Arp, EDM Pluck, and more",
+      "**19 synth presets** — Default, Classic Saw, Warm Pad, Acid Squelch, Screamer, Supersaw, Neuro, Dub Chord, House Stab, Trance Arp, EDM Pluck, and more",
       "**14 bass presets** — Deep Sub, Acid Bass, Wobble, Reese, House Pump, Garage Bass, Trance Sub, Foghorn, Zapper, and more",
       "**Oscillator** — SAW, SQR, SIN, TRI waveforms",
       "**ADSR** — Attack, Decay, Sustain, Release envelope with visual curve",

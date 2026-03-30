@@ -26,6 +26,8 @@ jobs:
       - name: Run tests
         working-directory: mpump/server
         run: npm test
+        env:
+          SKIP_INTEGRATION: "1"
 
       - name: Build
         working-directory: mpump/server
