@@ -125,6 +125,10 @@
   opacity: 0.8;
   border-color: var(--preview);
 }
+.mx-btn.active {
+  border-color: var(--preview);
+  opacity: 1;
+}
 
 .mx-btn-mute.active {
   background: #ff4444;
@@ -198,8 +202,8 @@
 .mx-pan-lr {
   font-size: 7px;
   font-weight: 700;
-  color: var(--text-dim);
-  opacity: 0.5;
+  color: var(--preview);
+  opacity: 0.7;
 }
 .mx-pan-slider {
   width: 80%;
@@ -368,6 +372,26 @@
   width: 18px;
   text-align: right;
   flex-shrink: 0;
+}
+
+/* ── Modal reset button ── */
+.mx-modal-reset {
+  display: block;
+  margin: 10px auto 0;
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--preview);
+  opacity: 0.7;
+  background: none;
+  border: 1px solid var(--preview);
+  border-radius: 4px;
+  padding: 3px 12px;
+  cursor: pointer;
+}
+.mx-modal-reset:hover {
+  opacity: 1;
+  background: var(--preview);
+  color: #000;
 }
 
 /* ── Effects bar ── */

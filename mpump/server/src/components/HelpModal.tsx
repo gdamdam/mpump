@@ -27,7 +27,7 @@ const SECTIONS = [
     items: [
       "**KAOS** — XY performance pad. Drag to control filter cutoff and resonance. Toggle effects, reorder the chain",
       "**SYNTH** — Full step-grid editor. Edit patterns, tweak oscillator, ADSR, filter, drum kit, Euclidean rhythms, arpeggiator",
-      "**MIXER** — Analog needle VU meter, per-channel volume faders, mute buttons, activity LEDs, anti-clip limiter",
+      "**MIXER** — Analog needle VU meter, per-channel volume faders, mute/solo, pan, mono, 3-band EQ, drive, anti-clip limiter",
     ],
   },
   {
@@ -76,7 +76,12 @@ const SECTIONS = [
     items: [
       "**Needle VU meter** — analog gauge with dB scale (-40 to +3), peak hold, clip indicator",
       "**Channel faders** — independent volume for Drums, Synth, Bass, and Master",
-      "**Mute buttons (M)** — per-channel mute with activity LEDs",
+      "**Mute (M)** — per-channel mute with activity LEDs",
+      "**Solo (S)** — solo a single channel, muting all others",
+      "**Pan** — per-channel stereo panning",
+      "**Mono** — collapse a channel to mono (useful for bass)",
+      "**EQ** — 3-band master equalizer (LOW/MID/HIGH, ±12 dB) with live dB readout and clip indicator",
+      "**DRV** — master drive/saturation (-6 to +12 dB) with waveform preview",
       "**Anti-clip limiter** — on by default, prevents digital clipping. Hybrid mode (beta) in Settings",
       "**LIMIT button** — toggle limiter on/off from the VU panel",
     ],

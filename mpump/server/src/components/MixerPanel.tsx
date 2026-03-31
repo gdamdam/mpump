@@ -365,6 +365,72 @@ const EFFECT_LABELS: Record<EffectName, string> = {
 
 const DEFAULT_EFFECT_ORDER: EffectName[] = ["compressor", "highpass", "distortion", "bitcrusher", "chorus", "phaser", "delay", "reverb"];
 
+// ── Master Modal (EQ / Drive) ────────────────────────────────────────────
+
+function MasterModal({ title, onClose, getAnalyser, children }: {
+  title: string;
+  onClose: () => void;
+  getAnalyser: () => AnalyserNode | null;
+  children: React.ReactNode;
+}) {
+  const dbRef = useRef<HTMLSpanElement>(null);
+  const clipRef = useRef<HTMLSpanElement>(null);
+  const rafRef = useRef(0);
+  const smoothed = useRef(0);
+  const clipTime = useRef(0);
+
+  useEffect(() => {
+    const tick = () => {
+      rafRef.current = requestAnimationFrame(tick);
+      const analyser = getAnalyser();
+      if (analyser) {
+        const size = analyser.fftSize;
+        const buf = new Uint8Array(size);
+        analyser.getByteTimeDomainData(buf);
+        let sumSq = 0;
+        for (let i = 0; i < size; i++) { const s = (buf[i] - 128) / 128; sumSq += s * s; }
+        const rms = Math.sqrt(sumSq / size);
+        smoothed.current = rms > smoothed.current ? 0.3 * smoothed.current + 0.7 * rms : 0.92 * smoothed.current + 0.08 * rms;
+      } else {
+        smoothed.current *= 0.95;
+      }
+      const db = toDB(smoothed.current);
+      const now = performance.now();
+      if (db >= -0.5) clipTime.current = now;
+      const clipping = now - clipTime.current < CLIP_HOLD_MS && clipTime.current > 0;
+      if (dbRef.current) dbRef.current.textContent = db > DB_FLOOR ? `${db.toFixed(1)} dB` : "-\u221E dB";
+      if (clipRef.current) {
+        clipRef.current.style.opacity = clipping ? "1" : "0.4";
+        clipRef.current.style.color = clipping ? "#ff4444" : "var(--preview)";
+      }
+    };
+    tick();
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [getAnalyser]);
+
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, [onClose]);
+
+  return (
+    <div className="fx-editor-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="fx-editor">
+        <div className="fx-editor-header">
+          <span className="fx-editor-title">{title}</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span ref={dbRef} style={{ fontSize: 10, fontFamily: "monospace", color: "var(--preview)", opacity: 0.7 }}>{"-\u221E dB"}</span>
+            <span ref={clipRef} style={{ fontSize: 9, fontWeight: 700, opacity: 0.4, color: "var(--preview)", transition: "opacity 0.15s" }}>CLIP</span>
+            <button className="fx-editor-close" onClick={onClose}>✕</button>
+          </div>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 // ── Mixer Panel ─────────────────────────────────────────────────────────
 
 export function MixerPanel({
@@ -408,6 +474,8 @@ export function MixerPanel({
   const [eqLow, setEqLow] = useState(3); // match AudioPort default
   const [eqMid, setEqMid] = useState(0);
   const [eqHigh, setEqHigh] = useState(0);
+  const [showEqModal, setShowEqModal] = useState(false);
+  const [showDrvModal, setShowDrvModal] = useState(false);
 
   // Anti-clip
   const toggleAntiClip = () => {
@@ -484,6 +552,7 @@ export function MixerPanel({
                 value={vol}
                 onChange={(e) => onChannelVolumeChange(def.ch, parseFloat(e.target.value))}
                 className="mx-fader"
+                title={`${def.label} volume: ${volToDb(vol)} dB`}
               />
               <div className="mx-db-label">{volToDb(vol)} dB</div>
               <div className="mx-btn-row">
@@ -507,6 +576,7 @@ export function MixerPanel({
                     value={pan}
                     onChange={(e) => setPan(def.ch, parseFloat(e.target.value))}
                     className="mx-pan-slider"
+                    title={`${def.label} pan: ${panLabel(pan)}`}
                   />
                   <span className="mx-pan-lr">R</span>
                 </div>
@@ -539,6 +609,7 @@ export function MixerPanel({
             value={volume}
             onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
             className="mx-fader"
+            title={`Master volume: ${volToDb(volume)} dB`}
           />
           <div className="mx-db-label">{volToDb(volume)} dB</div>
           <div className="mx-btn-row">
@@ -548,10 +619,57 @@ export function MixerPanel({
               title={`Anti-clip: ${antiClipMode}`}
             >{antiClipMode === "off" ? "LIMIT" : "LIMIT"}</button>
           </div>
-          <div className="mx-pan-section">
-            <div className="mx-pan-label" style={{ opacity: 0.5 }}>DRV {drive > 0 ? "+" : ""}{drive.toFixed(1)}</div>
-            <svg className="mx-drv-vis" viewBox="0 0 80 24" width={80} height={24}>
-              {/* Before: clean sine */}
+          <div className="mx-btn-row" style={{ marginTop: 4 }}>
+            <button
+              className={`mx-btn ${drive !== 0 ? "active" : ""}`}
+              onClick={() => setShowDrvModal(true)}
+              title={`Drive: ${drive > 0 ? "+" : ""}${drive.toFixed(1)} dB`}
+            >DRV</button>
+            <button
+              className={`mx-btn ${(eqLow !== 3 || eqMid !== 0 || eqHigh !== 0) ? "active" : ""}`}
+              onClick={() => setShowEqModal(true)}
+              title={`EQ: L${eqLow > 0 ? "+" : ""}${eqLow} M${eqMid > 0 ? "+" : ""}${eqMid} H${eqHigh > 0 ? "+" : ""}${eqHigh}`}
+            >EQ</button>
+          </div>
+        </div>
+      </div>
+
+
+      {/* EQ modal */}
+      {showEqModal && (
+        <MasterModal
+          title="MASTER EQ"
+          onClose={() => setShowEqModal(false)}
+          getAnalyser={() => getAnalyser?.() ?? null}
+        >
+          {[
+            { label: "LOW", value: eqLow, onChange: (v: number) => { setEqLow(v); command({ type: "set_eq", low: v, mid: eqMid, high: eqHigh } as ClientMessage); }, min: -12, max: 12, step: 1 },
+            { label: "MID", value: eqMid, onChange: (v: number) => { setEqMid(v); command({ type: "set_eq", low: eqLow, mid: v, high: eqHigh } as ClientMessage); }, min: -12, max: 12, step: 1 },
+            { label: "HIGH", value: eqHigh, onChange: (v: number) => { setEqHigh(v); command({ type: "set_eq", low: eqLow, mid: eqMid, high: v } as ClientMessage); }, min: -12, max: 12, step: 1 },
+          ].map(({ label, value, onChange, min, max, step }) => (
+            <div className="fx-editor-row" key={label}>
+              <span className="fx-editor-label">{label}</span>
+              <input type="range" min={min} max={max} step={step} value={value} className="fx-editor-slider"
+                onChange={(e) => onChange(parseFloat(e.target.value))} />
+              <span className="fx-editor-value">{value > 0 ? "+" : ""}{value} dB</span>
+            </div>
+          ))}
+          <button className="mx-modal-reset" onClick={() => {
+            setEqLow(3); setEqMid(0); setEqHigh(0);
+            command({ type: "set_eq", low: 3, mid: 0, high: 0 } as ClientMessage);
+          }}>RST</button>
+        </MasterModal>
+      )}
+
+      {/* Drive modal */}
+      {showDrvModal && (
+        <MasterModal
+          title="DRIVE"
+          onClose={() => setShowDrvModal(false)}
+          getAnalyser={() => getAnalyser?.() ?? null}
+        >
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 8 }}>
+            <svg viewBox="0 0 80 24" width={120} height={36}>
               {(() => {
                 const gain = Math.pow(10, drive / 20);
                 const pts = Array.from({ length: 40 }, (_, i) => {
@@ -575,40 +693,18 @@ export function MixerPanel({
                 </>;
               })()}
             </svg>
-            <input
-              type="range" min={-6} max={12} step={0.5}
-              value={drive}
-              onChange={(e) => { const v = parseFloat(e.target.value); setDrive(v); command({ type: "set_drive", db: v }); }}
-              className="mx-pan-slider"
-              title={`${drive > 0 ? "+" : ""}${drive.toFixed(1)} dB`}
-            />
           </div>
-          <div className="mx-eq-section">
-            <div className="mx-eq-row">
-              <span className="mx-eq-label">LOW</span>
-              <input type="range" min={-12} max={12} step={1} value={eqLow} className="mx-eq-slider"
-                onChange={(e) => { const v = parseFloat(e.target.value); setEqLow(v); command({ type: "set_eq", low: v, mid: eqMid, high: eqHigh } as ClientMessage); }}
-                title={`${eqLow > 0 ? "+" : ""}${eqLow} dB`} />
-              <span className="mx-eq-val">{eqLow > 0 ? "+" : ""}{eqLow}</span>
-            </div>
-            <div className="mx-eq-row">
-              <span className="mx-eq-label">MID</span>
-              <input type="range" min={-12} max={12} step={1} value={eqMid} className="mx-eq-slider"
-                onChange={(e) => { const v = parseFloat(e.target.value); setEqMid(v); command({ type: "set_eq", low: eqLow, mid: v, high: eqHigh } as ClientMessage); }}
-                title={`${eqMid > 0 ? "+" : ""}${eqMid} dB`} />
-              <span className="mx-eq-val">{eqMid > 0 ? "+" : ""}{eqMid}</span>
-            </div>
-            <div className="mx-eq-row">
-              <span className="mx-eq-label">HIGH</span>
-              <input type="range" min={-12} max={12} step={1} value={eqHigh} className="mx-eq-slider"
-                onChange={(e) => { const v = parseFloat(e.target.value); setEqHigh(v); command({ type: "set_eq", low: eqLow, mid: eqMid, high: v } as ClientMessage); }}
-                title={`${eqHigh > 0 ? "+" : ""}${eqHigh} dB`} />
-              <span className="mx-eq-val">{eqHigh > 0 ? "+" : ""}{eqHigh}</span>
-            </div>
+          <div className="fx-editor-row">
+            <span className="fx-editor-label">DRIVE</span>
+            <input type="range" min={-6} max={12} step={0.5} value={drive} className="fx-editor-slider"
+              onChange={(e) => { const v = parseFloat(e.target.value); setDrive(v); command({ type: "set_drive", db: v }); }} />
+            <span className="fx-editor-value">{drive > 0 ? "+" : ""}{drive.toFixed(1)} dB</span>
           </div>
-        </div>
-      </div>
-
+          <button className="mx-modal-reset" onClick={() => {
+            setDrive(0); command({ type: "set_drive", db: 0 });
+          }}>RST</button>
+        </MasterModal>
+      )}
 
       {/* Effect editor modal */}
       {editingFx && (
