@@ -102,7 +102,7 @@ All sounds are synthesized in real-time via the Web Audio API. No sample files n
 - Metronome click track
 - Gesture recording (record and loop XY pad movements)
 - Configurable effect chain order (drag to reorder, activation order = chain position)
-- Genre lock (★, restrict MIX to a single genre)
+- Genre lock (lock icon, restrict MIX to a single genre)
 - MIX visual feedback (shake, flash, or both, configurable)
 - 4 KAOS visualizers (mirrored bars, waveform glow, circular, spectrum)
 - Waveform tap tempo (click the waveform bar to set BPM)
