@@ -651,17 +651,24 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
     onVolumeChange(v);
   };
 
-  // Auto-enable effect when selected as XY target
-  const autoEnableEffect = (target: XYTarget) => {
-    if (target === "distortion" && !fx.distortion.on) {
-      const updated = { ...fx, distortion: { ...fx.distortion, on: true } };
+  // Auto-enable effect when selected as XY target, turn off previous
+  const EFFECT_TARGETS: XYTarget[] = ["distortion", "highpass", "delay", "reverb"];
+  const autoEnableEffect = (newTarget: XYTarget, oldTarget: XYTarget) => {
+    // Turn off old effect if it's an effect-type target and differs from new
+    if (oldTarget !== newTarget && EFFECT_TARGETS.includes(oldTarget)) {
+      const name = oldTarget as EffectName;
+      const updated = { ...fx, [name]: { ...fx[name], on: false } };
       saveFx(updated);
-      command({ type: "set_effect", name: "distortion", params: { on: true } });
+      command({ type: "set_effect", name, params: { on: false } });
     }
-    if (target === "highpass" && !fx.highpass.on) {
-      const updated = { ...fx, highpass: { ...fx.highpass, on: true } };
-      saveFx(updated);
-      command({ type: "set_effect", name: "highpass", params: { on: true } });
+    // Turn on new effect if it's an effect-type target and not already on
+    if (EFFECT_TARGETS.includes(newTarget)) {
+      const name = newTarget as EffectName;
+      if (!fx[name].on) {
+        const updated = { ...fx, [name]: { ...fx[name], on: true } };
+        saveFx(updated);
+        command({ type: "set_effect", name, params: { on: true } });
+      }
     }
   };
 
@@ -823,7 +830,12 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
             <div className="kaos-cursor" style={{ left: `${pos.x * 100}%`, top: `${pos.y * 100}%` }} />
           </>
         )}
-        {/* XY effect selectors hidden for now */}
+        <select className="kaos-xy-sel kaos-xy-x" value={xyX} onChange={(e) => { const t = e.target.value as XYTarget; autoEnableEffect(t, xyX); setXyX(t); }}>
+          {XY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+        <select className="kaos-xy-sel kaos-xy-y" value={xyY} onChange={(e) => { const t = e.target.value as XYTarget; autoEnableEffect(t, xyY); setXyY(t); }}>
+          {XY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
         {step >= 0 && step % 4 === 0 && <div className="kaos-pulse" />}
         {/* Gesture REC / LOOP / CLEAR — inside pad, top-right (disabled during jam) */}
         {!inJam && <div className="kaos-gesture">
