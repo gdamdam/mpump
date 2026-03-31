@@ -20,15 +20,15 @@
   <img src="mpump-demo.gif" width="600" alt="mpump demo">
 </p>
 
-910 curated patterns across 15 genres. Built-in drums, bass, synth, 8 real-time effects, and an analog needle VU meter. All synthesized in the browser via Web Audio. No install. No account. No personal data.
+Curated patterns across 15 genres. Built-in drums, bass, synth, real-time effects, and an analog needle VU meter. All synthesized in the browser via Web Audio. No install. No account. No personal data.
 
 ---
 
 ## Why mpump
 
-I built mpump because I wanted to make music anywhere and share it instantly. Just a link. They open it, they hear the beat, they can change and share it back. Or better: they join and play with you, live.
+I built mpump because I wanted to make music anywhere and share it instantly. Just a link. They open it, they hear the beat, they can change it and share it back. Or better: they join and play with you, live.
 
-Most music tools make you choose: too simple to be useful, or too complex to be fun. I wanted a groovebox that starts instantly, gives you something good fast, and lets you share it, jam on it, or perform it for others.
+Most music tools make you choose: too simple to be useful, or too complex to be fun. I wanted a groovebox that starts instantly, gives you something good fast, and lets you change it, share it, jam on it, or perform it for others.
 
 No install, no account, no personal data. Your music stays on your device. Free forever.
 
@@ -282,13 +282,15 @@ Jam and Live Set sessions use a lightweight WebSocket relay for peer discovery a
 - No cookies or tokens
 - No persistent data. Rooms vanish when empty
 
-The relay runs on [Fly.io](https://fly.io) and is fully open source in [`worker/jam-relay/`](worker/jam-relay/).
+The relay runs is fully open source in [`worker/jam-relay/`](worker/jam-relay/).
 
 ### Hosting
 
 mpump is hosted on [GitHub Pages](https://pages.github.com). 
 
-The share relay runs on [Cloudflare Workers](https://workers.cloudflare.com). The jam relay runs on [Fly.io](https://fly.io).
+The share relay runs on [Cloudflare Workers](https://workers.cloudflare.com). 
+
+The jam relay runs on [Fly.io](https://fly.io).
 
 ---
 
