@@ -128,6 +128,21 @@ export function App() {
         >
           {jamPeekType === "liveset" ? "▶ Listen" : "▶ Join & Play"}
         </button>
+        <a
+          href="./app.html"
+          onClick={(e) => {
+            e.preventDefault();
+            setShowJamGate(false);
+            autoStarted.current = true;
+            setItem("mpump-tutorial-done", "1");
+            // Strip jam param from URL
+            const url = new URL(window.location.href);
+            url.searchParams.delete("jam");
+            window.history.replaceState({}, "", url.toString());
+            startPreview();
+          }}
+          style={{ fontSize: 12, color: "#4a6a4a", marginTop: 8, cursor: "pointer", textDecoration: "none" }}
+        >or open mpump solo →</a>
         <div style={{ fontSize: 11, color: "#4a6a4a", marginTop: 8 }}>
           No install · No account · No personal data
         </div>
