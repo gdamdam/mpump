@@ -56,7 +56,7 @@ No install, no account, no personal data. Your music stays on your device. Free 
 |---|---|
 | **KAOS** | Performance XY pad (remappable axes), neon touch trails, chaos auto-randomizer, 8-effect rack with long-press editing |
 | **SYNTH** | Full step-grid editor with drum/bass/synth sections, ADSR/filter/LFO controls, Euclidean rhythm generator, arpeggiator, scale lock |
-| **MIXER** | Analog needle VU meter with dB readout and clip indicator, per-channel volume faders, mute buttons, activity LEDs, anti-clip limiter |
+| **MIXER** | Analog needle VU meter with dB readout and clip indicator, per-channel volume faders, mute buttons, activity LEDs, 3-band EQ (low/mid/high, ±12 dB), anti-clip limiter |
 
 ---
 
