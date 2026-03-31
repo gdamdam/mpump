@@ -1,8 +1,8 @@
 {
-  "name": "mpump — Browser Sequencer",
+  "name": "mpump — Instant Browser Groovebox",
   "short_name": "mpump",
-  "description": "Drum machine, synth, and MIDI sequencer. 610+ patterns, 15 genres, 8 effects.",
-  "start_url": "/mpump/",
+  "description": "910 patterns across 15 electronic genres. Built-in drums, bass, synth, and effects. No install. No account. No personal data.",
+  "start_url": "./",
   "display": "standalone",
   "orientation": "any",
   "background_color": "#0b1a0b",
