@@ -36,11 +36,13 @@ describe.skipIf(SKIP)("jam relay (live)", () => {
     sockets.length = 0;
   });
 
-  it("health endpoint responds", async () => {
+  it("health endpoint responds with stats", async () => {
     const res = await fetch("https://mpump-jam-relay.fly.dev/health");
     expect(res.status).toBe(200);
-    const text = await res.text();
-    expect(text).toBe("ok");
+    const data = await res.json();
+    expect(data.status).toBe("ok");
+    expect(typeof data.rooms).toBe("number");
+    expect(typeof data.peers).toBe("number");
   });
 
   it("connects via WebSocket", async () => {

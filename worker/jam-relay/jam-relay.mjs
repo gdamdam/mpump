@@ -23,12 +23,19 @@ let nextPeerId = 0;
 const MAX_JAM = 4;
 const MAX_LIVESET = 50; // 1 controller + 49 listeners
 
+// Timeout thresholds (ms)
+const SOLO_TIMEOUT = 10 * 60 * 1000;   // 10 min alone → disconnect
+const IDLE_TIMEOUT = 30 * 60 * 1000;   // 30 min no messages → disconnect
+const MAX_ROOM_AGE = 4 * 60 * 60 * 1000; // 4 hours → force close
+
 const CORS = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Methods": "GET" };
 
 const server = createServer((req, res) => {
   if (req.url === "/health") {
-    res.writeHead(200, { "Content-Type": "text/plain", ...CORS });
-    res.end("ok");
+    let peers = 0;
+    for (const r of rooms.values()) peers += r.peers.size;
+    res.writeHead(200, { "Content-Type": "application/json", ...CORS });
+    res.end(JSON.stringify({ status: "ok", rooms: rooms.size, peers }));
     return;
   }
   res.writeHead(200, { "Content-Type": "text/plain", ...CORS });
@@ -67,7 +74,7 @@ wss.on("connection", (ws) => {
 
       if (!rooms.has(roomId)) {
         // First peer creates the room
-        rooms.set(roomId, { type: roomType, controller: ws, peers: new Map() });
+        rooms.set(roomId, { type: roomType, controller: ws, peers: new Map(), createdAt: Date.now(), soloSince: Date.now() });
         role = roomType === "liveset" ? "controller" : "peer";
       } else {
         const room = rooms.get(roomId);
@@ -82,7 +89,9 @@ wss.on("connection", (ws) => {
 
       const room = rooms.get(roomId);
       const peerId = nextPeerId++;
-      room.peers.set(ws, { id: peerId, name: peerName });
+      room.peers.set(ws, { id: peerId, name: peerName, lastActivity: Date.now() });
+      // Clear solo timer when second peer joins
+      if (room.peers.size >= 2) room.soloSince = null;
 
       // Build peer list and notify all
       const peerList = [...room.peers.values()].map(p => ({ id: p.id, name: p.name }));
@@ -107,6 +116,8 @@ wss.on("connection", (ws) => {
     // Relay messages — inject sender identity
     if (roomId && rooms.has(roomId)) {
       const room = rooms.get(roomId);
+      const peer = room.peers.get(ws);
+      if (peer) peer.lastActivity = Date.now();
 
       // In liveset mode, only controller can broadcast (except reactions)
       if (room.type === "liveset" && ws !== room.controller) {
@@ -142,6 +153,8 @@ wss.on("connection", (ws) => {
       if (room.peers.size === 0) {
         rooms.delete(roomId);
       } else {
+        // Start solo timer if only one peer left
+        if (room.peers.size === 1) room.soloSince = Date.now();
         // If controller left in liveset, promote next peer
         if (room.type === "liveset" && room.controller === ws) {
           room.controller = [...room.peers.keys()][0];
@@ -156,6 +169,35 @@ wss.on("connection", (ws) => {
     }
   });
 });
+
+// Periodic cleanup: disconnect idle peers, solo rooms, and expired rooms
+setInterval(() => {
+  const now = Date.now();
+  for (const [roomId, room] of rooms) {
+    // Max room age
+    if (now - room.createdAt > MAX_ROOM_AGE) {
+      for (const [peer] of room.peers) {
+        try { peer.send(JSON.stringify({ type: "error", message: "Room expired" })); peer.close(); } catch {}
+      }
+      rooms.delete(roomId);
+      continue;
+    }
+    // Solo timeout
+    if (room.soloSince && room.peers.size <= 1 && now - room.soloSince > SOLO_TIMEOUT) {
+      for (const [peer] of room.peers) {
+        try { peer.send(JSON.stringify({ type: "error", message: "Room closed (solo timeout)" })); peer.close(); } catch {}
+      }
+      rooms.delete(roomId);
+      continue;
+    }
+    // Idle peer timeout
+    for (const [peer, info] of room.peers) {
+      if (now - info.lastActivity > IDLE_TIMEOUT) {
+        try { peer.send(JSON.stringify({ type: "error", message: "Disconnected (idle timeout)" })); peer.close(); } catch {}
+      }
+    }
+  }
+}, 60_000); // check every minute
 
 server.listen(PORT, () => {
   console.log(`Jam relay listening on port ${PORT}`);
