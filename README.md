@@ -22,15 +22,13 @@
 
 910 curated patterns across 15 genres. Built-in drums, bass, synth, 8 real-time effects, and an analog needle VU meter. All synthesized in the browser via Web Audio. No install. No account. No personal data.
 
-Connect a USB MIDI device and it starts sequencing automatically. 50 devices recognized, hot-plug support, bar-locked transitions. USB MIDI requires Chrome, Edge, or Opera.
-
 ---
 
 ## Why mpump
 
-I built mpump because I wanted to make music anywhere and share it instantly. Just a link. They open it, they hear the beat. Or better: they join and play with you, live.
+I built mpump because I wanted to make music anywhere and share it instantly. Just a link. They open it, they hear the beat, they can change and share it back. Or better: they join and play with you, live.
 
-Most music tools make you choose: too simple to be useful, or too complex to be fun. I wanted a groovebox that starts instantly, gives you a spark fast, and lets you share it, jam on it, or perform it for others.
+Most music tools make you choose: too simple to be useful, or too complex to be fun. I wanted a groovebox that starts instantly, gives you something good fast, and lets you share it, jam on it, or perform it for others.
 
 No install, no account, no personal data. Your music stays on your device. Free forever.
 
