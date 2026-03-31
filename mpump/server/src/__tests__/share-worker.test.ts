@@ -3,10 +3,20 @@
  * These hit the live deployed worker — skip in CI with SKIP_INTEGRATION=1.
  */
 import { describe, it, expect } from "vitest";
+import pako from "pako";
 
 const WORKER_URL = "https://s.mpump.live";
 const SAMPLE_PAYLOAD = "eyJicG0iOjEyMH0"; // {"bpm":120}
 const SKIP = !!process.env.SKIP_INTEGRATION;
+
+/** Compress an object the same way shareCodec does. */
+function compressPayload(obj: object): string {
+  const json = JSON.stringify(obj);
+  const compressed = pako.deflate(new TextEncoder().encode(json));
+  let binary = "";
+  for (let i = 0; i < compressed.length; i++) binary += String.fromCharCode(compressed[i]);
+  return btoa(binary).replace(/=+$/, "").replace(/\+/g, "-").replace(/\//g, "_");
+}
 
 describe.skipIf(SKIP)("share worker (live)", () => {
   it("returns OG HTML for share link", async () => {
@@ -62,5 +72,29 @@ describe.skipIf(SKIP)("share worker (live)", () => {
     const html = await res.text();
     expect(html).toContain("Test Track");
     expect(html).toContain("130 BPM");
+  });
+
+  it("returns OG HTML for compressed ?z= share link", async () => {
+    const z = compressPayload({ bpm: 145, tn: "Compressed Beat" });
+    const res = await fetch(`${WORKER_URL}/?z=${z}`);
+    expect(res.status).toBe(200);
+    const html = await res.text();
+    expect(html).toContain("og:title");
+    expect(html).toContain("Compressed Beat");
+    expect(html).toContain("145 BPM");
+  });
+
+  it("compressed ?z= link redirects to app with ?z= param", async () => {
+    const z = compressPayload({ bpm: 120 });
+    const res = await fetch(`${WORKER_URL}/?z=${z}`);
+    const html = await res.text();
+    expect(html).toContain(`app.html?z=${z}`);
+  });
+
+  it("old ?b= links still work after compression feature", async () => {
+    const res = await fetch(`${WORKER_URL}/?b=${SAMPLE_PAYLOAD}`);
+    expect(res.status).toBe(200);
+    const html = await res.text();
+    expect(html).toContain("120 BPM");
   });
 });

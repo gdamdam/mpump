@@ -736,7 +736,7 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
     if (!isPreview || !anyConnected) return;
     const params = new URLSearchParams(window.location.search);
     // URLSearchParams decodes + as space; restore for base64
-    const hash = (params.get("b") || "").replace(/ /g, "+") || window.location.hash.slice(1);
+    const hash = (params.get("z") || params.get("b") || "").replace(/ /g, "+") || window.location.hash.slice(1);
     if (!hash) return;
     let tid: number;
     try {
