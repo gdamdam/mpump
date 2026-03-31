@@ -309,4 +309,4 @@ Use of the name or logo for derivative projects or services may cause confusion 
 
 ---
 
-Built with [Claude Code](https://claude.ai/code). Design, architecture, UX, audio chain, and creative direction by [gdamdam](https://github.com/gdamdam).
+Built with Claude Code. Design, architecture, UX, audio chain, and creative direction by [gdamdam](https://github.com/gdamdam).
