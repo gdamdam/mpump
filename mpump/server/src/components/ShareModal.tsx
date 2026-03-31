@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import QRCode from "qrcode";
 import { decodeSteps, decodeDrumSteps, decodeGesture } from "../utils/patternCodec";
+import { decodeSharePayload } from "../utils/shareCodec";
 import { startVideoRecording, saveVideo, type VideoRecorderHandle } from "../utils/videoRecorder";
 import type { StepData, DrumHit } from "../types";
 import { trackEvent } from "../utils/metrics";
@@ -64,11 +65,11 @@ export function ShareModal({ url, qrUrl, gestureNote, getAnalyser, currentStep =
   const decodePayload = useCallback(() => {
     try {
       const u = new URL(url);
-      const hash = (u.searchParams.get("b") || "").replace(/ /g, "+")
+      const hash = (u.searchParams.get("z") || u.searchParams.get("b") || "").replace(/ /g, "+")
         || url.split("#")[1]
         || u.pathname.slice(1); // Worker URL: payload is the path
       if (!hash) return { bpm: "", bpmNum: 0, genre: "", fx: "", custom: false, gesture: false, swing: "", melodic: null as (StepData | null)[] | null, drums: null as DrumHit[][] | null, bass: null as (StepData | null)[] | null, gesturePoints: null as { t: number; x: number; y: number }[] | null };
-      const data = JSON.parse(atob(hash));
+      const data = decodeSharePayload(hash) as any;
       const bpmNum = data.bpm ?? 0;
       const bpm = data.bpm ? `${data.bpm} BPM` : "";
       const genreKeys = data.g ? Object.keys(data.g) : [];
@@ -674,11 +675,11 @@ export function ShareModal({ url, qrUrl, gestureNote, getAnalyser, currentStep =
   const decodeFullPayload = (): Record<string, string> => {
     try {
       const u = new URL(url);
-      const hash = (u.searchParams.get("b") || "").replace(/ /g, "+")
+      const hash = (u.searchParams.get("z") || u.searchParams.get("b") || "").replace(/ /g, "+")
         || url.split("#")[1]
         || u.pathname.slice(1); // Worker URL: payload is the path
       if (!hash) return {};
-      const data = JSON.parse(atob(hash));
+      const data = decodeSharePayload(hash) as any;
       const info: Record<string, string> = {};
       if (data.bpm) info["BPM"] = String(data.bpm);
       if (data.sw != null) info["Swing"] = `${Math.round(data.sw * 100)}%`;

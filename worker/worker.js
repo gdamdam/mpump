@@ -8,6 +8,36 @@
 
 const APP_ORIGIN = "https://mpump.live";
 
+/** Decompress a ?z= payload (deflate + url-safe b64) to plain url-safe b64. */
+async function decompressPayload(z) {
+  try {
+    const b64 = z.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(z.length / 4) * 4, "=");
+    const binary = atob(b64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const ds = new DecompressionStream("deflate");
+    const writer = ds.writable.getWriter();
+    writer.write(bytes);
+    writer.close();
+    const reader = ds.readable.getReader();
+    const chunks = [];
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+    }
+    const total = chunks.reduce((n, c) => n + c.length, 0);
+    const result = new Uint8Array(total);
+    let offset = 0;
+    for (const c of chunks) { result.set(c, offset); offset += c.length; }
+    const json = new TextDecoder().decode(result);
+    return btoa(json).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  } catch (e) {
+    console.error("decompressPayload failed:", e);
+    return z; // fallback: pass through as-is
+  }
+}
+
 /** Decode full payload for image generation. */
 function decodePayload(payload) {
   try {
@@ -411,7 +441,9 @@ async function handleRequest(url) {
 
     // Image endpoint: /img/<payload> or /img?b=<payload> → PNG
     if (path.startsWith("img/") || path === "img") {
-      const payload = path.startsWith("img/") ? path.slice(4) : (url.searchParams.get("b") || "");
+      const imgRawPayload = path.startsWith("img/") ? path.slice(4) : (url.searchParams.get("z") || url.searchParams.get("b") || "");
+      const imgIsCompressed = !!url.searchParams.get("z") && !path.startsWith("img/");
+      const payload = imgIsCompressed ? await decompressPayload(imgRawPayload) : imgRawPayload;
       if (!payload) return new Response("Missing payload", { status: 400 });
       const png = await generatePng(payload);
       return new Response(png, {
@@ -422,14 +454,18 @@ async function handleRequest(url) {
       });
     }
 
-    // Root or empty (no ?b= param either) → redirect to main site
-    if ((!path || path === "/" || path === "s") && !url.searchParams.get("b")) {
+    // Root or empty (no ?z= or ?b= param either) → redirect to main site
+    if ((!path || path === "/" || path === "s") && !url.searchParams.get("b") && !url.searchParams.get("z")) {
       return Response.redirect(APP_ORIGIN, 302);
     }
 
-    // Support ?b= query param (new URL-safe format) with path fallback for old links
-    const payload = url.searchParams.get("b") || path;
-    const appUrl = `${APP_ORIGIN}/app.html?b=${payload}`;
+    // Support ?z= (compressed) and ?b= (legacy) query params with path fallback for old links
+    const isCompressed = !!url.searchParams.get("z");
+    const rawPayload = url.searchParams.get("z") || url.searchParams.get("b") || path;
+    // For compressed payloads, decompress to get the JSON, then re-encode as plain b64 for internal use
+    const payload = isCompressed ? await decompressPayload(rawPayload) : rawPayload;
+    const paramKey = isCompressed ? "z" : "b";
+    const appUrl = `${APP_ORIGIN}/app.html?${paramKey}=${rawPayload}`;
     const { title, desc } = decodeMeta(payload);
     // Build a minimal payload for the image URL (WhatsApp/Signal reject long URLs)
     const imgPayload = (() => {

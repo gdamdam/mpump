@@ -7,6 +7,7 @@ import { isSupported } from "./engine/MidiAccess";
 import { setItem, getJSON } from "./utils/storage";
 import { trackEvent } from "./utils/metrics";
 import { getLastSession, type SessionData } from "./utils/session";
+import { extractPayloadFromUrl } from "./utils/shareCodec";
 
 export function App() {
   const { state, catalog, command, midiState, connectMidi, startPreview, getAnalyser, getChannelAnalyser, loadCustomSamples } = useEngine();
@@ -14,16 +15,16 @@ export function App() {
   const [loadTimeout, setLoadTimeout] = useState(false);
   const [showContinueModal, setShowContinueModal] = useState(false);
 
-  // Detect share link (?b= or legacy #) — show "Drop this beat" modal instead of auto-starting
+  // Detect share link (?z=, ?b= or legacy #) — show "Drop this beat" modal instead of auto-starting
   const initParams = new URLSearchParams(window.location.search);
-  const initPayload = (initParams.get("b") || "").replace(/ /g, "+") || (window.location.hash.length > 1 ? window.location.hash.slice(1) : "");
+  const { payload: initPayload, compressed: initCompressed } = extractPayloadFromUrl(new URL(window.location.href));
   const isShareLink = useRef(initPayload.length > 0);
   const jamRoomId = initParams.get("jam");
   const isJamLink = useRef(!!jamRoomId && jamRoomId !== "new");
   const [showJamGate, setShowJamGate] = useState(isJamLink.current);
   const [jamPeekCount, setJamPeekCount] = useState(-1); // -1 = loading
   const [jamPeekType, setJamPeekType] = useState<"jam" | "liveset" | null>(null);
-  const shareUrl = useRef(initPayload ? `https://s.mpump.live/?b=${initPayload}` : "");
+  const shareUrl = useRef(initPayload ? `https://s.mpump.live/?${initCompressed ? "z" : "b"}=${initPayload}` : "");
   const [showShareGate, setShowShareGate] = useState(isShareLink.current);
   const shareArrivedTracked = useRef(false);
   if (isShareLink.current && !shareArrivedTracked.current) { shareArrivedTracked.current = true; trackEvent("share-arrived"); }
@@ -33,10 +34,9 @@ export function App() {
   // Listen for hash/popstate changes — detect share links opened while app is already loaded
   useEffect(() => {
     const onNavChange = () => {
-      const p = new URLSearchParams(window.location.search);
-      const payload = (p.get("b") || "").replace(/ /g, "+") || (window.location.hash.length > 1 ? window.location.hash.slice(1) : "");
+      const { payload, compressed } = extractPayloadFromUrl(new URL(window.location.href));
       if (payload) {
-        shareUrl.current = `https://s.mpump.live/?b=${payload}`;
+        shareUrl.current = `https://s.mpump.live/?${compressed ? "z" : "b"}=${payload}`;
         setShowShareGate(true);
         setShareCardOverlay(false);
         trackEvent("share-arrived");

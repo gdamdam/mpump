@@ -64,8 +64,9 @@ const HEADER_MODES: PreviewMode[] = ["kaos", "synth", "mixer"];
 
 const EFFECT_ORDER: EffectName[] = ["delay", "distortion", "reverb", "compressor", "highpass", "chorus", "phaser", "bitcrusher"];
 
-const toUrlSafeB64 = (obj: object) =>
-  btoa(JSON.stringify(obj)).replace(/=+$/, "").replace(/\+/g, "-").replace(/\//g, "_");
+import { encodeSharePayload, decodeSharePayload, buildShareUrl } from "../utils/shareCodec";
+
+const toUrlSafeB64 = (obj: object) => encodeSharePayload(obj);
 
 export function Layout({ state, catalog, command: rawCommand, isPreview, getAnalyser, getChannelAnalyser, onConnectMidi, onStartPreview, onLoadSamples }: Props) {
   // Ref to access current state inside Link callback (avoids stale closure)
@@ -423,7 +424,7 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
   // Apply a sync payload — extracted so it can be called immediately or deferred
   const applySyncPayload = useCallback((payload: string) => {
     try {
-      const data = JSON.parse(atob(payload));
+      const data = decodeSharePayload(payload) as any;
       if (data.bpm) rawCommand({ type: "set_bpm", bpm: data.bpm } as ClientMessage);
       if (data.sw != null) rawCommand({ type: "set_swing", swing: data.sw } as ClientMessage);
       if (data.g) {
@@ -739,7 +740,7 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
     if (!hash) return;
     let tid: number;
     try {
-      const raw = JSON.parse(atob(hash.padEnd(Math.ceil(hash.length / 4) * 4, "=")));
+      const raw = decodeSharePayload(hash) as any;
       const data = validateSharePayload(raw);
       if (!data) {
         console.warn("[mpump] Invalid share link payload — ignoring", raw);
@@ -1533,7 +1534,7 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
                     if (d.mode === "drums+bass") base.be = encodeSteps(d.bass_data);
                   }
                   // Build URLs (no gesture — too large, not shareable)
-                  const shareLink = `https://s.mpump.live/?b=${toUrlSafeB64(base)}`;
+                  const shareLink = buildShareUrl(base);
                   setShareUrl(shareLink);
                   setShareQrUrl(shareLink);
                   setShareGestureNote(false);
