@@ -823,12 +823,7 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
             <div className="kaos-cursor" style={{ left: `${pos.x * 100}%`, top: `${pos.y * 100}%` }} />
           </>
         )}
-        <select className="kaos-xy-sel kaos-xy-x" value={xyX} onChange={(e) => { const t = e.target.value as XYTarget; setXyX(t); autoEnableEffect(t); }}>
-          {XY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </select>
-        <select className="kaos-xy-sel kaos-xy-y" value={xyY} onChange={(e) => { const t = e.target.value as XYTarget; setXyY(t); autoEnableEffect(t); }}>
-          {XY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-        </select>
+        {/* XY effect selectors hidden for now */}
         {step >= 0 && step % 4 === 0 && <div className="kaos-pulse" />}
         {/* Gesture REC / LOOP / CLEAR — inside pad, top-right (disabled during jam) */}
         {!inJam && <div className="kaos-gesture">
