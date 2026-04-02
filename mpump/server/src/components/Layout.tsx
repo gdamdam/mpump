@@ -53,6 +53,7 @@ interface Props {
   playNote?: (ch: number, note: number, vel?: number) => void;
   stopNote?: (ch: number, note: number) => void;
   getMixerState?: () => { drive: number; eq: { low: number; mid: number; high: number }; width: number; lowCut: number; mbOn: boolean };
+  getCpuLoad?: () => number;
 }
 
 const MODE_LABELS: Record<PreviewMode, string> = {
@@ -71,7 +72,24 @@ import { encodeSharePayload, decodeSharePayload, buildShareUrl } from "../utils/
 
 const toUrlSafeB64 = (obj: object) => encodeSharePayload(obj);
 
-export function Layout({ state, catalog, command: rawCommand, isPreview, getAnalyser, getChannelAnalyser, onConnectMidi, onStartPreview, onLoadSamples, getMutedDrumNotes, playNote, stopNote, getMixerState }: Props) {
+/** Tiny CPU load indicator — polls every 2s, green/yellow/red dot. */
+function CpuDot({ getCpuLoad }: { getCpuLoad?: () => number }) {
+  const dotRef = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    if (!getCpuLoad) return;
+    const id = setInterval(() => {
+      const load = getCpuLoad();
+      if (!dotRef.current) return;
+      const color = load < 0.3 ? "#66ff99" : load < 0.7 ? "#ffcc00" : "#ff4444";
+      dotRef.current.style.color = color;
+      dotRef.current.title = `Audio CPU: ${Math.round(load * 100)}%`;
+    }, 2000);
+    return () => clearInterval(id);
+  }, [getCpuLoad]);
+  return <span ref={dotRef} style={{ fontSize: 6, marginLeft: 3, verticalAlign: "top", color: "#66ff99" }}>●</span>;
+}
+
+export function Layout({ state, catalog, command: rawCommand, isPreview, getAnalyser, getChannelAnalyser, onConnectMidi, onStartPreview, onLoadSamples, getMutedDrumNotes, playNote, stopNote, getMixerState, getCpuLoad }: Props) {
   // Ref to access current state inside Link callback (avoids stale closure)
   const stateRef = useRef(state);
   stateRef.current = state;
@@ -1432,6 +1450,7 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
         <div className="title">
           <pre ref={logoRef} className={`title-art ${logoFlash ? "logo-flash" : ""} ${logoKick ? "logo-kick" : ""}`} key={logoFlash} title="1× pulse · 2× beat sync · 3× theme · 4× credits" onClick={handleLogoClick}>{"█▀▄▀█ █▀█ █ █ █▀▄▀█ █▀█\n█ ▀ █ █▀▀ ▀▄▀ █ ▀ █ █▀▀"}</pre>
           <span className="beta-badge" title={"⚡ Sound engine tuning in progress\nThings may change 🚧"}>BETA</span>
+          <CpuDot getCpuLoad={getCpuLoad} />
           {linkConnected && <span style={{ color: "#66ff99", fontSize: 10, marginLeft: 2, verticalAlign: "top" }} title="Ableton Link connected">●</span>}
         </div>
         {/* Track title: between logo and VU */}

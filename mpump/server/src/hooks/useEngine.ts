@@ -317,5 +317,7 @@ export function useEngine() {
     engineRef.current?.stopNote(ch, note);
   }, []);
 
-  return { state, catalog, command, midiState, connectMidi, startPreview, getAnalyser, getChannelAnalyser, loadCustomSamples, getMutedDrumNotes, playNote, stopNote, getMixerState };
+  const getCpuLoad = useCallback(() => engineRef.current?.getCpuLoad() ?? 0, []);
+
+  return { state, catalog, command, midiState, connectMidi, startPreview, getAnalyser, getChannelAnalyser, loadCustomSamples, getMutedDrumNotes, playNote, stopNote, getMixerState, getCpuLoad };
 }

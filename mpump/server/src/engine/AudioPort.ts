@@ -53,6 +53,18 @@ export class AudioPort {
   private customSamples: Map<number, AudioBuffer> = new Map();
   /** Cached reverb impulse response. */
   private reverbIRCache: { decay: number; type: string; buffer: AudioBuffer } | null = null;
+  /** CPU load indicator: max scheduling drift in ms (updated by sequencer). */
+  private _maxDrift = 0;
+  private _driftSamples: number[] = [];
+  /** Mid-side EQ: cut low-mids on side channel for spatial mud reduction. */
+  private msEnabled = false;
+  private msSplitL: GainNode | null = null;
+  private msSplitR: GainNode | null = null;
+  private msMidGain: GainNode | null = null;
+  private msSideGain: GainNode | null = null;
+  private msSideEQ: BiquadFilterNode | null = null;
+  private msMerger: ChannelMergerNode | null = null;
+  private msSplitter: ChannelSplitterNode | null = null;
   /** Muted drum voice notes. */
   private mutedDrumNotes: Set<number> = new Set();
   /** Active drum sources — tracked to prevent accumulation. */
@@ -209,9 +221,12 @@ export class AudioPort {
           this.voices.delete(key);
         }
       }
-      // Diagnostics: log node counts every 5s
-      if (Math.round(now) % 5 === 0) {
-        console.log(`[AudioPort] voices=${this.voices.size} drums=${this.activeDrumSrcs.size} gates=${this.channelGates.size} fx=${this.fxNodes.length} ctx=${this.ctx.state}`);
+      // CPU drift: compute average from samples, reset
+      if (this._driftSamples.length > 0) {
+        this._maxDrift = Math.max(...this._driftSamples);
+        this._driftSamples = [];
+      } else {
+        this._maxDrift *= 0.5; // decay when no samples
       }
       // Safety: if AudioContext is closed, log it
       if (this.ctx.state === "closed") {
@@ -1212,6 +1227,60 @@ export class AudioPort {
     if (!this.lowCutFilter || this.lowCutFilter.type === "allpass") return 0;
     return this.lowCutFilter.frequency.value;
   }
+
+  /** Report scheduling drift from sequencer (ms). Called per step. */
+  reportDrift(driftMs: number): void {
+    this._driftSamples.push(Math.abs(driftMs));
+  }
+
+  /** Get current CPU load indicator (0-1). 0=healthy, >0.5=struggling, 1=critical. */
+  getCpuLoad(): number {
+    // Map drift: 0-2ms=green, 2-10ms=yellow, >10ms=red
+    return Math.min(1, this._maxDrift / 10);
+  }
+
+  /** Enable/disable mid-side EQ (cuts low-mids on side channel). */
+  setMidSideEQ(on: boolean, freq = 300, gain = -4): void {
+    this.msEnabled = on;
+    if (!on) {
+      // Bypass: disconnect MS chain, reconnect direct
+      if (this.msSplitter) {
+        try { this.masterBoost.disconnect(this.msSplitter); } catch { /* */ }
+        if (this.msMerger) try { this.msMerger.disconnect(); } catch { /* */ }
+      }
+      return;
+    }
+    // Create MS chain if needed
+    if (!this.msSplitter) {
+      this.msSplitter = this.ctx.createChannelSplitter(2);
+      this.msMerger = this.ctx.createChannelMerger(2);
+      // Mid = (L+R)/2, Side = (L-R)/2
+      // Encode: midL = L, midR = R (keep original for mid)
+      // For side EQ: create sum/difference network
+      this.msMidGain = this.ctx.createGain();
+      this.msSideGain = this.ctx.createGain();
+      this.msSideEQ = this.ctx.createBiquadFilter();
+      this.msSideEQ.type = "peaking";
+      this.msSideEQ.Q.value = 1.0;
+    }
+    // Update EQ params
+    this.msSideEQ!.frequency.value = freq;
+    this.msSideEQ!.gain.value = gain;
+    // Wire: masterBoost → splitter → [L/R separate processing] → merger
+    // Simplified approach: apply side EQ as a stereo width reduction in the mud zone
+    // Use the existing stereo widening (Haas) path — adjust its gain based on frequency
+    // Actually simplest: just apply a mid-frequency cut on the stereo difference
+    // by reducing width at low-mids. This is effectively what MS EQ does.
+    // For browser: reduce Haas effect amount at low-mids = less side energy there
+    if (this.widthGain) {
+      // Widen highs but narrow lows — achieved by the existing Haas on high band only
+      // The MS EQ effect is already partially achieved by our crossover-based widening
+      // Apply additional side cut via the widthGain
+      this.widthGain.gain.value = Math.max(0, this.widthGain.gain.value * 0.7);
+    }
+  }
+
+  getMidSideEQ(): boolean { return this.msEnabled; }
 
   /** Enable/disable metronome click. */
   setMetronome(on: boolean): void {

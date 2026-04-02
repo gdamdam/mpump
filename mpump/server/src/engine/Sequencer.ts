@@ -198,6 +198,10 @@ export class Sequencer {
       const swingOffset = (this.stepIndex % 2 === 1) ? stepDur * (this.swing - 0.5) * 2 : 0;
       const stepTime = this.nextStepTime + swingOffset;
 
+      // Report scheduling drift for CPU load indicator
+      const drift = performance.now() - stepTime;
+      if (drift > 0 && "reportDrift" in this.port) (this.port as unknown as { reportDrift: (ms: number) => void }).reportDrift(drift);
+
       // Fire step callback
       if (this.onStep) {
         const idx = this.stepIndex % this.pattern.length;

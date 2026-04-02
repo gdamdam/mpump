@@ -10,7 +10,7 @@ import { getLastSession, type SessionData } from "./utils/session";
 import { extractPayloadFromUrl } from "./utils/shareCodec";
 
 export function App() {
-  const { state, catalog, command, midiState, connectMidi, startPreview, getAnalyser, getChannelAnalyser, loadCustomSamples, getMutedDrumNotes, playNote, stopNote, getMixerState } = useEngine();
+  const { state, catalog, command, midiState, connectMidi, startPreview, getAnalyser, getChannelAnalyser, loadCustomSamples, getMutedDrumNotes, playNote, stopNote, getMixerState, getCpuLoad } = useEngine();
   const autoStarted = useRef(false);
   const [loadTimeout, setLoadTimeout] = useState(false);
   const [showContinueModal, setShowContinueModal] = useState(false);
@@ -274,6 +274,7 @@ export function App() {
         playNote={playNote}
         stopNote={stopNote}
         getMixerState={getMixerState}
+        getCpuLoad={getCpuLoad}
       />
       {shareCardOverlay && (
         <ShareModal
