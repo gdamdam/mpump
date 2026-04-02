@@ -148,7 +148,7 @@ export class AudioPort {
     this.eqMid.type = "peaking";
     this.eqMid.frequency.value = 300; // target mud zone (200-500Hz)
     this.eqMid.Q.value = 0.7; // wide Q covers full mud range
-    this.eqMid.gain.value = -2; // "Punchy" default: mid cut
+    this.eqMid.gain.value = -1.5; // "Punchy" default: mid cut (lighter for bass clarity)
 
     this.eqHigh = this.ctx.createBiquadFilter();
     this.eqHigh.type = "highshelf";
@@ -826,10 +826,10 @@ export class AudioPort {
       eqMid.type = "peaking";
       eqMid.frequency.value = (isBass || isSynth) ? 300 : 1000; // bass+synth: target mud zone
       eqMid.Q.value = (isBass || isSynth) ? 1.2 : 0.7;
-      eqMid.gain.value = isBass ? -1.5 : isSynth ? -0.5 : 0; // gentle bass mud cut (preserve punch + harmonics)
+      eqMid.gain.value = isBass ? -0.5 : isSynth ? -0.5 : 0; // light bass mud cut (preserve punch + harmonics)
       const eqHigh = this.ctx.createBiquadFilter();
       eqHigh.type = "highshelf"; eqHigh.frequency.value = 5000;
-      eqHigh.gain.value = isDrums ? 0 : isBass ? -1 : 0; // no cut on drums — hats/cymbals need their air
+      eqHigh.gain.value = 0; // flat — let preset filters shape tone
       this.channelEQs.set(ch, [eqLow, eqMid, eqHigh]);
 
       // Route: bus → [HP on bass+synth] → EQ (low→mid→high) → panner → master
