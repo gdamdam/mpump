@@ -663,9 +663,10 @@ export function MixerPanel({
   };
 
   // Effects
-  const [fx, setFx] = useState<EffectParams>(() =>
-    getJSON<EffectParams>("mpump-effects", JSON.parse(JSON.stringify(DEFAULT_EFFECTS)))
-  );
+  const [fx, setFx] = useState<EffectParams>(() => {
+    const saved = getJSON<Partial<EffectParams>>("mpump-effects", {});
+    return { ...JSON.parse(JSON.stringify(DEFAULT_EFFECTS)), ...saved } as EffectParams;
+  });
   const [editingFx, setEditingFx] = useState<EffectName | null>(null);
   const [effectOrder, setEffectOrder] = useState<EffectName[]>(() => getJSON("mpump-effect-order", DEFAULT_EFFECT_ORDER));
   const longPressTimer = useRef(0);

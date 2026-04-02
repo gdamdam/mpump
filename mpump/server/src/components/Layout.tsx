@@ -1666,7 +1666,7 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
                     if (!mx.mbOn) base.mb = 0;
                   }
                   // Effects (on/off bits + full params + chain order)
-                  const fx = getJSON<EffectParams>("mpump-effects", DEFAULT_EFFECTS);
+                  const fx = { ...JSON.parse(JSON.stringify(DEFAULT_EFFECTS)), ...getJSON<Partial<EffectParams>>("mpump-effects", {}) } as EffectParams;
                   const fxBits = EFFECT_ORDER.map(n => (fx as unknown as Record<string, { on: boolean }>)[n]?.on ? "1" : "0").join("");
                   if (fxBits !== "0000000000") base.fx = fxBits;
                   // Full effect params (only for effects that are ON, strip 'on' key)

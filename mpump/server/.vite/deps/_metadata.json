@@ -1,0 +1,61 @@
+{
+  "hash": "cbf6b4dd",
+  "configHash": "1de4edf2",
+  "lockfileHash": "dd990925",
+  "browserHash": "54214443",
+  "optimized": {
+    "react/jsx-dev-runtime": {
+      "src": "../../node_modules/react/jsx-dev-runtime.js",
+      "file": "react_jsx-dev-runtime.js",
+      "fileHash": "4d095b58",
+      "needsInterop": true
+    },
+    "react-dom/client": {
+      "src": "../../node_modules/react-dom/client.js",
+      "file": "react-dom_client.js",
+      "fileHash": "741980c8",
+      "needsInterop": true
+    },
+    "react": {
+      "src": "../../node_modules/react/index.js",
+      "file": "react.js",
+      "fileHash": "1a263c5d",
+      "needsInterop": true
+    },
+    "qrcode": {
+      "src": "../../node_modules/qrcode/lib/browser.js",
+      "file": "qrcode.js",
+      "fileHash": "399c983e",
+      "needsInterop": true
+    },
+    "react-dom": {
+      "src": "../../node_modules/react-dom/index.js",
+      "file": "react-dom.js",
+      "fileHash": "bfe8e9c9",
+      "needsInterop": true
+    },
+    "mp4-muxer": {
+      "src": "../../node_modules/mp4-muxer/build/mp4-muxer.mjs",
+      "file": "mp4-muxer.js",
+      "fileHash": "a5e4b629",
+      "needsInterop": false
+    },
+    "pako": {
+      "src": "../../node_modules/pako/dist/pako.esm.mjs",
+      "file": "pako.js",
+      "fileHash": "320450de",
+      "needsInterop": false
+    }
+  },
+  "chunks": {
+    "chunk-MXRL7WSR": {
+      "file": "chunk-MXRL7WSR.js"
+    },
+    "chunk-JCH2SJW3": {
+      "file": "chunk-JCH2SJW3.js"
+    },
+    "chunk-BUSYA2B4": {
+      "file": "chunk-BUSYA2B4.js"
+    }
+  }
+}

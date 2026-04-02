@@ -117,7 +117,8 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
   const chaosRef = useRef(false);
   const trailTimer = useRef<number>(0);
   const [fx, setFx] = useState<EffectParams>(() => {
-    return getJSON<EffectParams>("mpump-effects", JSON.parse(JSON.stringify(DEFAULT_EFFECTS)));
+    const saved = getJSON<Partial<EffectParams>>("mpump-effects", {});
+    return { ...JSON.parse(JSON.stringify(DEFAULT_EFFECTS)), ...saved } as EffectParams;
   });
   const [editingFx, setEditingFx] = useState<EffectName | null>(null);
 
