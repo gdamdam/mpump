@@ -9,6 +9,7 @@
   <img src="https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white" alt="TypeScript">
   <img src="https://img.shields.io/badge/Vite-6-646CFF?logo=vite&logoColor=white" alt="Vite">
   <img src="https://img.shields.io/badge/Web%20Audio-API-FF6600?logo=mozilla&logoColor=white" alt="Web Audio API">
+  <img src="https://img.shields.io/badge/AudioWorklet-DSP-FF6600?logo=mozilla&logoColor=white" alt="AudioWorklet">
   <img src="https://img.shields.io/badge/Web%20MIDI-API-FF6600?logo=midi&logoColor=white" alt="Web MIDI API">
   <br>
   <a href="https://mpump.live/">https://mpump.live/</a>
