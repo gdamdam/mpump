@@ -39,51 +39,24 @@ export class ErrorBoundary extends Component<Props, State> {
           background: "#0b1a0b",
         }}>
           <div style={{ fontSize: 16, fontWeight: 700 }}>Something went wrong.</div>
-          <div style={{ fontSize: 13, opacity: 0.7, maxWidth: 340, lineHeight: 1.6 }}>
-            Try reloading the page. If the problem persists, a full reset will clear saved data and start fresh.
-          </div>
-          <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
-            <button
-              onClick={() => window.location.reload()}
-              style={{
-                padding: "10px 24px",
-                borderRadius: 8,
-                fontSize: 14,
-                fontWeight: 700,
-                background: "#66ff99",
-                color: "#000",
-                border: "none",
-                cursor: "pointer",
-                fontFamily: "inherit",
-              }}
-            >
-              Reload
-            </button>
-            <button
-              onClick={() => {
-                if (confirm("This will clear all saved settings, presets, and sessions. Continue?")) {
-                  localStorage.clear();
-                  window.location.href = window.location.pathname;
-                }
-              }}
-              style={{
-                padding: "10px 24px",
-                borderRadius: 8,
-                fontSize: 14,
-                fontWeight: 700,
-                background: "transparent",
-                color: "#66ff99",
-                border: "1px solid #66ff99",
-                cursor: "pointer",
-                fontFamily: "inherit",
-              }}
-            >
-              Full Reset
-            </button>
-          </div>
-          <div style={{ fontSize: 11, opacity: 0.4, marginTop: 12 }}>
-            Full reset clears all saved data. Your beats and settings will be lost.
-          </div>
+          <div style={{ fontSize: 13, opacity: 0.7 }}>Please reload the page.</div>
+          <button
+            onClick={() => window.location.reload()}
+            style={{
+              marginTop: 8,
+              padding: "10px 24px",
+              borderRadius: 8,
+              fontSize: 14,
+              fontWeight: 700,
+              background: "#66ff99",
+              color: "#000",
+              border: "none",
+              cursor: "pointer",
+              fontFamily: "inherit",
+            }}
+          >
+            Reload
+          </button>
         </div>
       );
     }
