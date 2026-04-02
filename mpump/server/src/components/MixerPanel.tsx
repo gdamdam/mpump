@@ -35,6 +35,7 @@ interface Props {
   getAnalyser?: () => AnalyserNode | null;
   getChannelAnalyser?: (ch: number) => AnalyserNode | null;
   pendingMutes?: Record<string, Set<string>>;
+  onShowDrumKit?: () => void;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────
@@ -444,7 +445,7 @@ function MasterModal({ title, onClose, getAnalyser, children }: {
 
 export function MixerPanel({
   volume, onVolumeChange, channelVolumes, onChannelVolumeChange,
-  devices, command, antiClipMode, getAnalyser, getChannelAnalyser, pendingMutes,
+  devices, command, antiClipMode, getAnalyser, getChannelAnalyser, pendingMutes, onShowDrumKit,
 }: Props) {
 
   const getDevice = (id: string) => devices.find(d => d.id === id);
@@ -773,6 +774,11 @@ export function MixerPanel({
                   title={`EQ ${def.label.toLowerCase()}`}
                   onClick={() => setShowChEQ(def.ch)}
                 >EQ</button>
+                {def.ch === 9 && onShowDrumKit && (
+                  <button className="mx-btn" title="Drum kit tuning"
+                    onClick={onShowDrumKit}
+                  >KIT</button>
+                )}
                 {def.ch !== 9 && (
                   <button
                     className={`mx-btn ${getGate(def.ch).on ? "active" : ""}`}

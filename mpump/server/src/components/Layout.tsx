@@ -3,6 +3,7 @@ import { enableLinkBridge, onLinkState, autoDetectLinkBridge, sendLinkTempo, sen
 import type { Catalog, ClientMessage, EngineState, PreviewMode, EffectName, EffectParams } from "../types";
 import { DEFAULT_EFFECTS } from "../types";
 import { Settings, getSongModeEnabled, getBottomTransportEnabled, PALETTES, applyPalette } from "./Settings";
+import { DrumKitEditor } from "./DrumKitEditor";
 import { snapToScale } from "../data/keys";
 import { getItem, setItem, getBool, setBool, getJSON, setJSON } from "../utils/storage";
 import { DevicePanel } from "./DevicePanel";
@@ -184,6 +185,7 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
   const [soloChannel, setSoloChannel] = useState<"drums" | "bass" | "synth" | null>(null);
   const [kbdFocusDevice, setKbdFocusDevice] = useState<string | null>(null);
   const [showBpmModal, setShowBpmModal] = useState(false);
+  const [showDrumKitFromMixer, setShowDrumKitFromMixer] = useState(false);
   const [channelVolumes, setChannelVolumes] = useState<Record<number, number>>({ 9: 0.7, 0: 0.7, 1: 0.7 });
   const [antiClipMode, setAntiClipMode] = useState<"off" | "limiter" | "hybrid">("limiter");
 
@@ -1869,6 +1871,7 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
             getAnalyser={getAnalyser}
             getChannelAnalyser={getChannelAnalyser}
             pendingMutes={pendingMutes}
+            onShowDrumKit={() => setShowDrumKitFromMixer(true)}
           />
         ) : (
           connectedDevices.map(ds =>
@@ -1986,6 +1989,15 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
 
       {isPreview && showHelp && (
         <HelpModal onClose={() => setShowHelp(false)} onShowTutorial={() => { setShowHelp(false); setShowTutorialManual(true); }} onShowCredits={() => { setShowHelp(false); setShowAbout(true); }} />
+      )}
+
+      {showDrumKitFromMixer && (
+        <div className="settings-overlay" onClick={() => setShowDrumKitFromMixer(false)}>
+          <div className="settings-panel" onClick={e => e.stopPropagation()} style={{ maxWidth: 400 }}>
+            <DrumKitEditor accent="#66ff99" command={command} activeDrumKit={activeDrumKit} defaultOpen />
+            <button className="settings-done-btn" style={{ marginTop: 8 }} onClick={() => setShowDrumKitFromMixer(false)}>Done</button>
+          </div>
+        </div>
       )}
 
       {isPreview && showSessionLib && (
