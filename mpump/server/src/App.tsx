@@ -15,6 +15,18 @@ export function App() {
   const [loadTimeout, setLoadTimeout] = useState(false);
   const [showContinueModal, setShowContinueModal] = useState(false);
 
+  // ?reset=true — prompt to clear all data and reload
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("reset") === "true") {
+      if (confirm("Reset all settings, presets, and effects to defaults?")) {
+        localStorage.clear();
+        window.location.href = window.location.pathname;
+      } else {
+        window.history.replaceState(null, "", window.location.pathname);
+      }
+    }
+  }, []);
+
   // Detect share link (?z=, ?b= or legacy #) — show "Drop this beat" modal instead of auto-starting
   const initParams = new URLSearchParams(window.location.search);
   const { payload: initPayload, compressed: initCompressed } = extractPayloadFromUrl(new URL(window.location.href));
