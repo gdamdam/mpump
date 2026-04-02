@@ -523,6 +523,7 @@ export function MixerPanel({
   });
   // Per-channel EQ
   const [chEQ, setChEQ] = useState<Record<number, { low: number; mid: number; high: number }>>({});
+  const [chHPF, setChHPF] = useState<Record<number, number>>({ 1: 50, 0: 40 });
   const [showChEQ, setShowChEQ] = useState<number | null>(null);
   const getChEQ = (ch: number) => chEQ[ch] ?? { low: 0, mid: 0, high: 0 };
   const updateChEQ = (ch: number, band: "low" | "mid" | "high", v: number) => {
@@ -941,20 +942,29 @@ export function MixerPanel({
               </svg>;
             })()}
             {[
-              { label: "LOW", value: eq.low, band: "low" as const },
-              { label: "MID", value: eq.mid, band: "mid" as const },
-              { label: "HIGH", value: eq.high, band: "high" as const },
-            ].map(({ label, value, band }) => (
+              { label: "LOW", value: eq.low, band: "low" as const, min: -12, max: 12 },
+              { label: "CUT", value: eq.mid, band: "mid" as const, min: -8, max: 0 },
+              { label: "HIGH", value: eq.high, band: "high" as const, min: -12, max: 12 },
+            ].map(({ label, value, band, min, max }) => (
               <div className="fx-editor-row" key={label}>
                 <span className="fx-editor-label">{label}</span>
-                <input type="range" min={-12} max={12} step={1} value={value} className="fx-editor-slider"
+                <input type="range" min={min} max={max} step={1} value={value} className="fx-editor-slider"
                   onChange={(e) => updateChEQ(ch, band, parseFloat(e.target.value))} />
                 <span className="fx-editor-value">{value > 0 ? "+" : ""}{value} dB</span>
               </div>
             ))}
+            {(ch === 1 || ch === 0) && <div className="fx-editor-row">
+              <span className="fx-editor-label">HPF</span>
+              <input type="range" min={20} max={200} step={5} value={chHPF[ch] ?? 0} className="fx-editor-slider"
+                onChange={(e) => { const f = parseFloat(e.target.value); setChHPF(prev => ({ ...prev, [ch]: f })); command({ type: "set_channel_hpf", channel: ch, freq: f } as ClientMessage); }} />
+              <span className="fx-editor-value">{chHPF[ch] ?? 0} Hz</span>
+            </div>}
             <span className="mx-modal-reset" onClick={() => {
               setChEQ(prev => ({ ...prev, [ch]: { low: 0, mid: 0, high: 0 } }));
               command({ type: "set_channel_eq", channel: ch, low: 0, mid: 0, high: 0 } as ClientMessage);
+              const defHPF = ch === 1 ? 50 : ch === 0 ? 40 : 0;
+              setChHPF(prev => ({ ...prev, [ch]: defHPF }));
+              command({ type: "set_channel_hpf", channel: ch, freq: defHPF } as ClientMessage);
             }}>RST</span>
           </MasterModal>
         );

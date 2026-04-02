@@ -227,6 +227,9 @@ export function useEngine() {
       case "set_channel_eq":
         engine.setChannelEQ(msg.channel, msg.low, msg.mid, msg.high);
         break;
+      case "set_channel_hpf":
+        engine.setChannelHPF(msg.channel, msg.freq);
+        break;
       case "set_channel_gate":
         engine.setChannelGate(msg.channel, msg.on, msg.rate, msg.depth, msg.shape, msg.mode, msg.pattern);
         break;

@@ -44,6 +44,7 @@ export class AudioPort {
   private channelAnalysers: Map<number, AnalyserNode> = new Map();
   /** Per-channel 3-band EQ (low shelf, mid peak, high shelf). */
   private channelEQs: Map<number, [BiquadFilterNode, BiquadFilterNode, BiquadFilterNode]> = new Map();
+  private channelHPFs: Map<number, BiquadFilterNode> = new Map();
   /** Per-channel trance gate (LFO or pattern → GainNode). */
   private channelGates: Map<number, { lfo: OscillatorNode | null; depth: GainNode | null; gate: GainNode; on: boolean; timerId?: number; smoother?: BiquadFilterNode }> = new Map();
   /** Per-note drum voice params (tune, decay, level). */
@@ -817,6 +818,7 @@ export class AudioPort {
         // Bass: HP at 50Hz (kick owns sub) + LP at 3kHz (synth owns highs)
         const hp = this.ctx.createBiquadFilter();
         hp.type = "highpass"; hp.frequency.value = 50; hp.Q.value = 0.7;
+        this.channelHPFs.set(ch, hp);
         const lp = this.ctx.createBiquadFilter();
         lp.type = "lowpass"; lp.frequency.value = 3000; lp.Q.value = 0.7;
         bus.connect(hp);
@@ -826,6 +828,7 @@ export class AudioPort {
         // Synth: HP at 40Hz (kick owns sub)
         const hp = this.ctx.createBiquadFilter();
         hp.type = "highpass"; hp.frequency.value = 40; hp.Q.value = 0.7;
+        this.channelHPFs.set(ch, hp);
         bus.connect(hp);
         hp.connect(eqLow);
       } else {
@@ -859,6 +862,21 @@ export class AudioPort {
     const eq = this.channelEQs.get(ch);
     if (!eq) return { low: 0, mid: 0, high: 0 };
     return { low: eq[0].gain.value, mid: eq[1].gain.value, high: eq[2].gain.value };
+  }
+
+  /** Set per-channel high-pass filter frequency (0 = off/bypass). */
+  setChannelHPF(ch: number, freq: number): void {
+    const hp = this.channelHPFs.get(ch);
+    if (!hp) return;
+    if (freq <= 20) { hp.type = "allpass"; return; }
+    hp.type = "highpass";
+    hp.frequency.value = Math.max(20, Math.min(500, freq));
+  }
+
+  getChannelHPF(ch: number): number {
+    const hp = this.channelHPFs.get(ch);
+    if (!hp || hp.type === "allpass") return 0;
+    return hp.frequency.value;
   }
 
   /** Set per-channel trance gate. Rate is a delay division string. */
@@ -1175,25 +1193,19 @@ export class AudioPort {
   setLowCut(freq: number): void {
     const f = Math.max(0, Math.min(500, freq));
     if (f <= 20) {
-      // Disable low cut
       if (this.lowCutFilter) {
-        this.lowCutFilter.frequency.value = 0;
         this.lowCutFilter.type = "allpass"; // bypass
       }
       return;
     }
+    const needsRebuild = !this.lowCutFilter;
     if (!this.lowCutFilter) {
-      // Insert HP filter between fxOutput and eqLow
       this.lowCutFilter = this.ctx.createBiquadFilter();
-      this.lowCutFilter.type = "highpass";
       this.lowCutFilter.Q.value = 0.7;
-      // Rewire: fxOutput → lowCut → eqLow
-      this.fxOutput.disconnect(this.eqLow);
-      this.fxOutput.connect(this.lowCutFilter);
-      this.lowCutFilter.connect(this.eqLow);
     }
     this.lowCutFilter.type = "highpass";
     this.lowCutFilter.frequency.value = f;
+    if (needsRebuild) this.rebuildAntiClipChain(); // safe wiring through rebuildAntiClipChain
   }
 
   getLowCut(): number {
@@ -1321,18 +1333,19 @@ export class AudioPort {
 
     // Sidechain duck: dip non-drum channel gains on kick
     if (this.sidechainDuck && note === 36) {
-      const now = this.ctx.currentTime;
-      const when = perfToCtx(this.ctx, time);
       const duckTo = 1 - this.duckDepth;
+      const relMs = this.duckRelease * 1000;
       for (const [ch, bus] of this.channelBuses) {
         if (ch === DRUM_CH) continue;
         const vol = this.channelVolumes.get(ch) ?? 1;
         if (vol <= 0) continue;
-        // Cancel ALL pending automation to prevent timeline buildup
-        bus.gain.cancelScheduledValues(now);
-        bus.gain.setValueAtTime(bus.gain.value, now);
-        bus.gain.setTargetAtTime(vol * duckTo, when, 0.003);
-        bus.gain.setTargetAtTime(vol, when + 0.02, this.duckRelease);
+        // Instant duck via .value — no automation timeline conflict with setChannelVolume
+        bus.gain.value = vol * duckTo;
+        // Recovery via setTimeout — lightweight, no AudioParam scheduling
+        clearTimeout((bus as unknown as Record<string, number>).__duckTimer);
+        (bus as unknown as Record<string, number>).__duckTimer = window.setTimeout(() => {
+          bus.gain.value = vol;
+        }, relMs + 20) as unknown as number;
       }
     }
   }

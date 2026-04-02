@@ -1510,6 +1510,14 @@ export class Engine {
     if (this.audioPort) this.audioPort.setChannelEQ(ch, low, mid, high);
   }
 
+  setChannelHPF(ch: number, freq: number): void {
+    if (this.audioPort) this.audioPort.setChannelHPF(ch, freq);
+  }
+
+  getChannelHPF(ch: number): number {
+    return this.audioPort?.getChannelHPF(ch) ?? 0;
+  }
+
   setChannelGate(ch: number, on: boolean, rate: string, depth: number, shape: string, mode = "lfo", pattern?: number[]): void {
     if (this.audioPort) this.audioPort.setChannelGate(ch, on, rate, depth, shape, mode, pattern);
   }
