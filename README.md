@@ -21,7 +21,7 @@
   <img src="mpump-demo.gif?v=1.5.1" width="600" alt="mpump demo">
 </p>
 
-Curated patterns across 15 genres. Built-in drums, bass, synth, real-time effects, and an analog needle VU meter. All synthesized in the browser via Web Audio. No install. No account. No personal data.
+Curated patterns across 20 genres. Built-in drums, bass, synth, real-time effects, and an analog needle VU meter. All synthesized in the browser via Web Audio. No install. No account. No personal data.
 
 ---
 
@@ -92,7 +92,7 @@ All sounds are synthesized in real-time via the Web Audio API. No sample files n
 ## Features
 
 **Performance**
-- 910 curated patterns across 15 genres (techno, acid-techno, trance, dub-techno, IDM, EDM, DnB, house, breakbeat, jungle, garage, ambient, glitch, electro, downtempo)
+- 1210+ curated patterns across 20 genres (techno, acid-techno, trance, dub-techno, IDM, EDM, DnB, house, breakbeat, jungle, garage, ambient, glitch, electro, downtempo, dubstep, lo-fi, synthwave, deep-house, psytrance)
 - Randomize all (MIX button) with 3-level undo history
 - Swing/shuffle (50–75%)
 - Tap tempo
@@ -191,10 +191,10 @@ Features: tick-driven stepping (6 ticks = 1 sixteenth note at 24 PPQN), Start/St
 
 | Source | Patterns | Genres | Notes |
 |---|---|---|---|
-| Melodic (S-1) | 310 | 15 | Semitone offsets, transposable via key/octave |
-| Drums (T-8) | 300 | 15 | 6-voice drum hits per step |
-| Bass (T-8) | 300 | 15 | Independent from drums |
-| **Total** | **910** | **15** | |
+| Melodic (S-1) | 410 | 20 | Semitone offsets, transposable via key/octave |
+| Drums (T-8) | 400 | 20 | 6-voice drum hits per step |
+| Bass (T-8) | 400 | 20 | Independent from drums |
+| **Total** | **1210+** | **20** | |
 
 Patterns are shared across all synth-mode and drums-mode devices. User-edited patterns are saved to the **EXTRAS** genre (localStorage).
 
@@ -262,7 +262,7 @@ docs/                   # Documentation (6 chapters)
 
 **Audio chain:** Voice → Channel Bus (per-instrument gain + analyser) → Master Gain → Effects Chain (10 effects in series) → Soft Clip (hybrid mode) → Limiter → Analyser → Destination.
 
-**Pattern system:** 910 patterns stored as JSON. Melodic patterns are semitone offsets (transposable). Drum patterns are note/velocity arrays. Bass runs on a separate sequencer with independent genre/pattern selection.
+**Pattern system:** 1210+ patterns stored as JSON. Melodic patterns are semitone offsets (transposable). Drum patterns are note/velocity arrays. Bass runs on a separate sequencer with independent genre/pattern selection.
 
 ---
 
