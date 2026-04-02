@@ -131,7 +131,7 @@ const SECTIONS = [
       "**Share link (⤴)** — generates a URL with your setup. Anyone who opens it gets the same genre, pattern, BPM, and effects",
       "**Record (REC)** — captures mixed audio output as WAV",
       "**MIDI export** — downloads the current pattern as a .mid file",
-      "**Pattern Library (♫)** — browse all 910 patterns with search",
+      "**Pattern Library (♫)** — browse all 1210+ patterns with search",
       "**Presets** — save/load named presets from the sub-header bar",
     ],
   },
