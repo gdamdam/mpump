@@ -243,7 +243,7 @@ export function useJam() {
         const delay = Math.min(1000 * (retryRef.current + 1), 5000);
         console.log(`[jam] retrying in ${delay}ms...`);
         retryRef.current++;
-        retryTimerRef.current = window.setTimeout(() => connect(roomId), delay);
+        retryTimerRef.current = window.setTimeout(() => connect(roomId, roomTypeRef.current, nameRef.current ?? undefined), delay);
       } else {
         setState(s => s.status !== "idle" ? { ...s, status: "idle", peerCount: 0 } : s);
         retryRef.current = 0;
