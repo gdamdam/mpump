@@ -3,7 +3,7 @@ import type { StepData, ArpMode, ArpRate } from "../types";
 
 // How far ahead to schedule notes (ms). Must be > 4× SCHEDULE_INTERVAL
 // to guarantee no gaps. Higher = more latency, lower = more CPU.
-const LOOKAHEAD_MS = 100;
+const LOOKAHEAD_MS = 200;
 // How often the scheduler runs (ms). 25ms = ~40 checks/sec.
 const SCHEDULE_INTERVAL_MS = 25;
 

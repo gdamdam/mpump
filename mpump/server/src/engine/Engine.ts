@@ -94,6 +94,26 @@ export class Engine {
   // Global step grid origin
   private t0: number = performance.now();
 
+  // Throttled state emission — collapses rapid parameter changes into one React update
+  private stateTimer = 0;
+  private stateScheduled = false;
+  private emitState(): void {
+    if (this.stateScheduled) return;
+    this.stateScheduled = true;
+    this.stateTimer = window.setTimeout(() => {
+      this.stateScheduled = false;
+      this.cb.onStateChange(this.getState());
+    }, 60); // 60ms debounce — imperceptible, prevents scheduler starvation
+  }
+  /** Emit state immediately (for actions that need instant UI feedback). */
+  private emitStateNow(): void {
+    if (this.stateScheduled) {
+      clearTimeout(this.stateTimer);
+      this.stateScheduled = false;
+    }
+    this.cb.onStateChange(this.getState());
+  }
+
   // Visibility handling
   private visHandler: (() => void) | null = null;
   private unloadHandler: ((e: BeforeUnloadEvent) => void) | null = null;
@@ -109,7 +129,7 @@ export class Engine {
         for (const [, seq] of this.sequencers) seq.setBpm(bpm);
         for (const [, clk] of this.clocks) clk.setBpm(bpm);
         if (this.audioPort) this.audioPort.setBpm(bpm);
-        this.cb.onStateChange(this.getState());
+        this.emitState();
       },
       onStart: () => {
         for (const [, seq] of this.sequencers) { seq.stop(); seq.start(); }
@@ -121,7 +141,7 @@ export class Engine {
       },
       onStop: () => {
         for (const [, seq] of this.sequencers) seq.stop();
-        this.cb.onStateChange(this.getState());
+        this.emitState();
       },
     });
 
@@ -172,7 +192,7 @@ export class Engine {
 
     // Broadcast initial state + catalog
     this.cb.onCatalogChange(this.getCatalog());
-    this.cb.onStateChange(this.getState());
+    this.emitStateNow();
   }
 
   shutdown(): void {
@@ -224,7 +244,7 @@ export class Engine {
       }
     }
 
-    this.cb.onStateChange(this.getState());
+    this.emitStateNow();
   }
 
   // ── Audio preview ───────────────────────────────────────────────────
@@ -369,7 +389,7 @@ export class Engine {
       }
     }
 
-    this.cb.onStateChange(this.getState());
+    this.emitStateNow();
     this.cb.onCatalogChange(this.getCatalog());
   }
 
@@ -388,7 +408,7 @@ export class Engine {
       this.audioPort.close();
       this.audioPort = null;
     }
-    this.cb.onStateChange(this.getState());
+    this.emitStateNow();
   }
 
   // ── Sequencer lifecycle ──────────────────────────────────────────────
@@ -660,7 +680,7 @@ export class Engine {
       }
     }
     this.hotSwapPatterns(deviceId);
-    this.cb.onStateChange(this.getState());
+    this.emitStateNow();
   }
 
   setPattern(device: string, idx: number): void {
@@ -692,7 +712,7 @@ export class Engine {
       }
     }
     this.hotSwapPatterns(deviceId);
-    this.cb.onStateChange(this.getState());
+    this.emitStateNow();
   }
 
   private static KEY_OCTAVE_SYNC = new Map([
@@ -718,7 +738,7 @@ export class Engine {
     // Stop all first, then start all — prevents overlapping sequencers
     for (const id of toRestart) this.stopDevice(id);
     for (const id of toRestart) { const s = this.deviceStates.get(id); if (s && this.ports[id] && !this.stopped.has(id)) this.startDevice(id); }
-    this.cb.onStateChange(this.getState());
+    this.emitState();
   }
 
   setOctave(device: string, octave: number): void {
@@ -733,7 +753,7 @@ export class Engine {
     }
     for (const id of toRestart) this.stopDevice(id);
     for (const id of toRestart) { const s = this.deviceStates.get(id); if (s && this.ports[id] && !this.stopped.has(id)) this.startDevice(id); }
-    this.cb.onStateChange(this.getState());
+    this.emitState();
   }
 
   setBpm(bpm: number): void {
@@ -744,7 +764,7 @@ export class Engine {
     for (const [, clk] of this.clocks) clk.setBpm(this.bpm);
     if (this.audioPort) this.audioPort.setBpm(this.bpm);
 
-    this.cb.onStateChange(this.getState());
+    this.emitState();
   }
 
   private randomizeDevice(id: string, forceGenreIdx?: number, skipRestart = false): void {
@@ -829,12 +849,12 @@ export class Engine {
       if (i === 0) this.restartDevice(id);
       else setTimeout(() => this.restartDevice(id), i * 80);
     });
-    this.cb.onStateChange(this.getState());
+    this.emitState();
   }
 
   randomizeSingle(device: string): void {
     this.randomizeDevice(device);
-    this.cb.onStateChange(this.getState());
+    this.emitState();
   }
 
   randomizeBass(device: string): void {
@@ -850,7 +870,7 @@ export class Engine {
     ds.bassEdit = null;
 
     this.restartDevice(device);
-    this.cb.onStateChange(this.getState());
+    this.emitState();
   }
 
   setPatternLength(device: string, length: 1 | 2 | 3 | 4 | 8 | 16 | 32): void {
@@ -880,7 +900,7 @@ export class Engine {
 
     ds.patternLength = length;
     this.restartDevice(device);
-    this.cb.onStateChange(this.getState());
+    this.emitState();
   }
 
   loadPreset(bpm: number, genres: Record<string, { gi: number; pi: number; bgi: number; bpi: number }>): void {
@@ -918,7 +938,7 @@ export class Engine {
       }
     }
 
-    this.cb.onStateChange(this.getState());
+    this.emitState();
   }
 
   setSwing(swing: number): void {
@@ -926,7 +946,7 @@ export class Engine {
     for (const [, seq] of this.sequencers) {
       seq.setSwing(this.swing);
     }
-    this.cb.onStateChange(this.getState());
+    this.emitState();
   }
 
   setDeviceVolume(device: string, volume: number): void {
@@ -940,7 +960,7 @@ export class Engine {
         this.audioPort.setChannelVolume(cfg.channels.bass, ds.deviceVolume);
       }
     }
-    this.cb.onStateChange(this.getState());
+    this.emitState();
   }
 
   undoEdit(device: string): void {
@@ -951,7 +971,7 @@ export class Engine {
     ds.drumEdit = prev.drum;
     ds.bassEdit = prev.bass;
     this.hotSwapPatterns(device);
-    this.cb.onStateChange(this.getState());
+    this.emitState();
   }
 
   /** Swap between pattern A and B on bar boundary. */
@@ -986,7 +1006,7 @@ export class Engine {
       }
     }
     // Notify UI so grid shows the active pattern
-    this.cb.onStateChange(this.getState());
+    this.emitState();
   }
 
   toggleChain(device: string, chainIdx: number): void {
@@ -1000,7 +1020,7 @@ export class Engine {
       ds.chainPatternIdx = chainIdx;
       ds.chainCycle = 0;
     }
-    this.cb.onStateChange(this.getState());
+    this.emitState();
   }
 
   toggleDrumsMute(device: string): void {
@@ -1008,7 +1028,7 @@ export class Engine {
     if (!ds) return;
     ds.drumsMuted = !ds.drumsMuted;
     this.hotSwapPatterns(device);
-    this.cb.onStateChange(this.getState());
+    this.emitState();
   }
 
   setDrumsMute(device: string, muted: boolean): void {
@@ -1016,7 +1036,7 @@ export class Engine {
     if (!ds || ds.drumsMuted === muted) return;
     ds.drumsMuted = muted;
     this.hotSwapPatterns(device);
-    this.cb.onStateChange(this.getState());
+    this.emitState();
   }
 
   setBassMute(device: string, muted: boolean): void {
@@ -1030,7 +1050,7 @@ export class Engine {
       ds.bassMuted = muted;
     } else return;
     this.hotSwapPatterns(device);
-    this.cb.onStateChange(this.getState());
+    this.emitState();
   }
 
   toggleBassMute(device: string): void {
@@ -1040,14 +1060,14 @@ export class Engine {
     if (ds.config.mode === "bass") {
       ds.drumsMuted = !ds.drumsMuted;
       this.hotSwapPatterns(device);
-      this.cb.onStateChange(this.getState());
+      this.emitState();
       return;
     }
     // Legacy: drums+bass hardware devices
     if (ds.config.mode !== "drums+bass") return;
     ds.bassMuted = !ds.bassMuted;
     this.hotSwapPatterns(device);
-    this.cb.onStateChange(this.getState());
+    this.emitState();
   }
 
   setSynthParams(device: string, params: Partial<SynthParams>): void {
@@ -1059,7 +1079,7 @@ export class Engine {
       const ch = ds.config.channels.main;
       this.audioPort.setSynthParams(ch, ds.synthParams);
     }
-    this.cb.onStateChange(this.getState());
+    this.emitState();
   }
 
   setBassSynthParams(device: string, params: Partial<SynthParams>): void {
@@ -1077,7 +1097,7 @@ export class Engine {
         this.audioPort.setSynthParams(ch, ds.bassSynthParams);
       }
     }
-    this.cb.onStateChange(this.getState());
+    this.emitState();
   }
 
   togglePause(device: string): void {
@@ -1094,7 +1114,7 @@ export class Engine {
       ds.step = -1;
       this.stopDevice(device);
     }
-    this.cb.onStateChange(this.getState());
+    this.emitStateNow();
   }
 
   // ── Edit commands ────────────────────────────────────────────────────
@@ -1128,7 +1148,7 @@ export class Engine {
       const seq = this.sequencers.get(deviceId) as Sequencer | undefined;
       seq?.setPattern(ds.melodicEdit);
     }
-    this.cb.onStateChange(this.getState());
+    this.emitState();
   }
 
   bulkSetPattern(device: string, patternData?: (StepData | null)[], drumData?: DrumHit[][], bassData?: (StepData | null)[]): void {
@@ -1147,7 +1167,7 @@ export class Engine {
       ds.bassEdit = [...bassData];
       (seq as T8Sequencer).setBassPattern(ds.bassEdit);
     }
-    this.cb.onStateChange(this.getState());
+    this.emitState();
   }
 
   clearPattern(device: string): void {
@@ -1167,7 +1187,7 @@ export class Engine {
       const seq = this.sequencers.get(deviceId) as Sequencer | undefined;
       seq?.setPattern(ds.melodicEdit);
     }
-    this.cb.onStateChange(this.getState());
+    this.emitState();
   }
 
   editDrumStep(device: string, stepIdx: number, hits: DrumHit[]): void {
@@ -1180,7 +1200,7 @@ export class Engine {
     ds.drumEdit[stepIdx] = hits;
     const seq = this.sequencers.get(device) as T8Sequencer | undefined;
     if (seq) seq.setDrumPattern(ds.drumEdit);
-    this.cb.onStateChange(this.getState());
+    this.emitState();
   }
 
   discardEdit(device: string): void {
@@ -1190,7 +1210,7 @@ export class Engine {
     ds.drumEdit = null;
     ds.bassEdit = null;
     this.hotSwapPatterns(device);
-    this.cb.onStateChange(this.getState());
+    this.emitState();
   }
 
   saveToExtras(device: string, name: string, desc: string): void {
@@ -1232,7 +1252,7 @@ export class Engine {
     this.data = loadCatalogSync(this.data, extras);
     this.hotSwapPatterns(device);
     this.cb.onCatalogChange(this.getCatalog());
-    this.cb.onStateChange(this.getState());
+    this.emitState();
   }
 
   deleteExtra(device: string, idx: number): void {
@@ -1258,7 +1278,7 @@ export class Engine {
     saveExtras(extras);
     this.data = loadCatalogSync(this.data, extras);
     this.cb.onCatalogChange(this.getCatalog());
-    this.cb.onStateChange(this.getState());
+    this.emitState();
   }
 
 
@@ -1517,7 +1537,7 @@ export class Engine {
     }
 
     this.hotSwapPatterns(device);
-    this.cb.onStateChange(this.getState());
+    this.emitState();
   }
 
   // ── Sidechain duck ─────────────────────────────────────────────────

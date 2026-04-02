@@ -1,7 +1,7 @@
 import type { MidiPort } from "./MidiPort";
 import type { StepData, DrumHit } from "../types";
 
-const LOOKAHEAD_MS = 100;
+const LOOKAHEAD_MS = 200;
 const SCHEDULE_INTERVAL_MS = 25;
 
 /**

@@ -1042,7 +1042,7 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
         addActionBubbleRef.current(sender, labels[type] || "sound", { type } as Record<string, unknown>);
       }
     });
-  });
+  }, [jam, applyDrumKit, applySynth, applyBass]);
 
   // Apply pending sound presets from jam sync (deferred until apply functions are available)
   useEffect(() => {
@@ -1052,7 +1052,7 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
     if (p.dk != null) applyDrumKit(p.dk);
     if (p.sp != null) applySynth(p.sp);
     if (p.bp != null) applyBass(p.bp);
-  });
+  }, [applyDrumKit, applySynth, applyBass]);
 
   const presetState = { activeDrumKit, activeSynth, activeBass, onDrumKitChange: handleDrumKitChange, onSynthChange: handleSynthChange, onBassChange: handleBassChange, soundLock, setSoundLock, patternLock, setPatternLock, stepPatternLock, setStepPatternLock };
 
