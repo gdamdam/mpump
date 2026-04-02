@@ -187,6 +187,7 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
   const [kbdFocusDevice, setKbdFocusDevice] = useState<string | null>(null);
   const [showBpmModal, setShowBpmModal] = useState(false);
   const [showDrumKitFromMixer, setShowDrumKitFromMixer] = useState(false);
+  const [keyLocked, setKeyLocked] = useState(false);
   const [channelVolumes, setChannelVolumes] = useState<Record<number, number>>({ 9: 0.7, 0: 0.7, 1: 0.7 });
   const [antiClipMode, setAntiClipMode] = useState<"off" | "limiter" | "hybrid">("limiter");
 
@@ -1301,6 +1302,15 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
     }
     mixCountRef.current++;
     setMixCount(c => c + 1);
+    // Reset key/octave/scale to defaults unless locked
+    if (!keyLocked) {
+      command({ type: "set_key", device: "preview_synth", idx: 0 });
+      command({ type: "set_key", device: "preview_bass", idx: 0 });
+      command({ type: "set_octave", device: "preview_synth", octave: 2 });
+      command({ type: "set_octave", device: "preview_bass", octave: 2 });
+      setScaleLock("chromatic");
+      setItem("mpump-scale-lock", "chromatic");
+    }
     const anyLock = !!genreLock || patternLock.drums || patternLock.synth || patternLock.bass || soundLock.drums || soundLock.synth || soundLock.bass;
     if (!anyLock) {
       setTrackName(generateTrackName(state.bpm));
@@ -1927,6 +1937,8 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
                 stopNote={stopNote}
                 kbdFocusDevice={kbdFocusDevice}
                 onKbdFocusChange={setKbdFocusDevice}
+                keyLocked={keyLocked}
+                onKeyLockedChange={setKeyLocked}
               />
             )
           )

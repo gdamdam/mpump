@@ -49,6 +49,8 @@ interface Props {
   stopNote?: (ch: number, note: number) => void;
   kbdFocusDevice?: string | null;
   onKbdFocusChange?: (device: string | null) => void;
+  keyLocked?: boolean;
+  onKeyLockedChange?: (locked: boolean) => void;
 }
 
 // QWERTY → semitone offset from C (standard piano roll mapping)
@@ -62,7 +64,7 @@ const QWERTY_MAP: Record<string, number> = {
   KeyI: 24,
 };
 
-export function DevicePanel({ state, catalog, command, onLoadSamples, bpm, presetState, allDevices, scaleLock: scaleLockProp, onScaleLockChange, soloChannel: soloProp, onSoloChange, channelVolumes, onChannelVolumeChange, getChannelAnalyser, getMutedDrumNotes, playNote, stopNote, kbdFocusDevice, onKbdFocusChange }: Props) {
+export function DevicePanel({ state, catalog, command, onLoadSamples, bpm, presetState, allDevices, scaleLock: scaleLockProp, onScaleLockChange, soloChannel: soloProp, onSoloChange, channelVolumes, onChannelVolumeChange, getChannelAnalyser, getMutedDrumNotes, playNote, stopNote, kbdFocusDevice, onKbdFocusChange, keyLocked, onKeyLockedChange }: Props) {
   const { id: device, label, accent, mode, editing } = state;
   const isPreview = device.startsWith("preview_");
 
@@ -768,6 +770,9 @@ export function DevicePanel({ state, catalog, command, onLoadSamples, bpm, prese
                 <span className="info-key">oct</span>
                 <span className="info-val">{state.octave}</span>
               </button>
+              {onKeyLockedChange && <button className={`sound-lock-btn ${keyLocked ? "locked" : ""}`} title={keyLocked ? "Key locked — MIX won't reset key/octave" : "Lock key — prevent MIX from resetting"} onClick={() => onKeyLockedChange(!keyLocked)}>
+                {keyLocked ? "\u{1F512}" : "\u{1F513}"}
+              </button>}
             </div>
           )}
           <BeatIndicator step={state.step} accent={accent} numSteps={state.patternLength} />
