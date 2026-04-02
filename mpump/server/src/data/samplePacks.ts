@@ -40,7 +40,7 @@ export const SAMPLE_PACKS: SamplePack[] = [
     id: "linn", name: "LinnDrum", genres: "Synth-Pop, New Wave, Hip-Hop",
     voices: {
       36: { tune: -2, decay: 0.3, level: 1.0, click: 0.18, sweepDepth: 0.5, sweepRate: 0.4 },
-      38: { tune: -1, decay: 0.8, level: 1.0, noiseMix: 0.5 },
+      38: { tune: -1, decay: 0.6, level: 1.0, noiseMix: 0.5 },
       42: { tune: 3, decay: 0.5, level: 0.85, color: 0.2 },
       46: { tune: 2, decay: 0.7, level: 0.8, color: 0.2 },
       50: { tune: 2, decay: 0.3, level: 0.9 },
@@ -73,7 +73,7 @@ export const SAMPLE_PACKS: SamplePack[] = [
     id: "808", name: "TR-808", genres: "Hip-Hop, Trap, Electro",
     voices: {
       36: { tune: -2, decay: 0.3, level: 1, click: 0.05, sweepDepth: 0.7, sweepRate: 0.3 },
-      38: { tune: 0, decay: 0.6, level: 0.9, noiseMix: 0.7 },
+      38: { tune: 0, decay: 0.4, level: 0.9, noiseMix: 0.7 },
       42: { tune: 0, decay: 0.5, level: 0.8, color: -0.3 },
       46: { tune: -1, decay: 0.6, level: 0.75, color: -0.3 },
       50: { tune: 2, decay: 0.4, level: 0.85 },
