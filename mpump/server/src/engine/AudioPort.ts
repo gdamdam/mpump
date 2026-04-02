@@ -1458,7 +1458,7 @@ export class AudioPort {
     // Analog drift: slow random pitch modulation per oscillator
     // Skip on retrigger to avoid beating between old and new drift phases
     const driftAmount = freq < 200 ? 0.0006 : 0.0017;
-    const addDrift = (osc: OscillatorNode) => {
+    const addDrift = (osc: OscillatorNode, extras: AudioNode[]) => {
       if (isRetrigger) return null; // no drift on fast retrigger
       const driftLfo = this.ctx.createOscillator();
       driftLfo.type = "sine";
@@ -1468,6 +1468,7 @@ export class AudioPort {
       driftLfo.connect(driftGain);
       driftGain.connect(osc.frequency);
       driftLfo.start(when);
+      extras.push(driftGain); // track for cleanup
       return driftLfo;
     };
     const driftLFOs: OscillatorNode[] = [];
@@ -1518,7 +1519,7 @@ export class AudioPort {
       osc.type = oscTypeForNode;
       osc.frequency.setValueAtTime(freq, when);
       osc.detune.setValueAtTime(detuneCents, when);
-      const d1 = addDrift(osc);
+      const d1 = addDrift(osc, pwmExtras);
       if (d1) driftLFOs.push(d1);
       osc.start(when);
 
@@ -1532,7 +1533,7 @@ export class AudioPort {
       osc2.type = "sawtooth";
       osc2.frequency.setValueAtTime(freq, when);
       osc2.detune.setValueAtTime(detuneCents, when);
-      const d2 = addDrift(osc2);
+      const d2 = addDrift(osc2, pwmExtras);
       if (d2) driftLFOs.push(d2);
       osc2.start(when);
 
@@ -1589,6 +1590,7 @@ export class AudioPort {
         const osc = createOsc(voiceAmp, detuneCents);
         oscs.push(osc);
         panNodes.push(pan);
+        pwmExtras.push(voiceAmp); // track for cleanup
       }
     } else if (p.detune && p.detune > 0) {
       // Stereo detune: 2 oscillators panned L/R
