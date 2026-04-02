@@ -633,7 +633,7 @@ export function DevicePanel({ state, catalog, command, onLoadSamples, bpm, prese
                 <div className="key-octave-row">
                   <label className="info-row half" title="Constrain notes to a musical scale" style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
                     <span className="info-key">scale</span>
-                    <KaosDropdown className="kaos-dropdown-pat" value={scaleLock} onChange={(v: string) => setScaleLock(v)} options={SCALE_NAMES.map(s => ({ label: s.charAt(0).toUpperCase() + s.slice(1), value: s }))} />
+                    <KaosDropdown className="kaos-dropdown-pat" title="Scale — constrains notes on MIX and editing. Chromatic = all notes allowed." value={scaleLock} onChange={(v: string) => setScaleLock(v)} options={SCALE_NAMES.map(s => ({ label: s.charAt(0).toUpperCase() + s.slice(1), value: s }))} />
                   </label>
                   <button className="info-row half" onClick={() => setPicker("key")}>
                     <span className="info-key">key</span>
@@ -760,7 +760,7 @@ export function DevicePanel({ state, catalog, command, onLoadSamples, bpm, prese
             <div className="key-octave-row">
               <label className="info-row half" title="Constrain notes to a musical scale" style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
                 <span className="info-key">scale</span>
-                <KaosDropdown className="kaos-dropdown-pat" value={scaleLock} onChange={(v: string) => setScaleLock(v)} options={SCALE_NAMES.map(s => ({ label: s.charAt(0).toUpperCase() + s.slice(1), value: s }))} />
+                <KaosDropdown className="kaos-dropdown-pat" title="Scale — constrains notes on MIX and editing. Chromatic = all notes allowed." value={scaleLock} onChange={(v: string) => setScaleLock(v)} options={SCALE_NAMES.map(s => ({ label: s.charAt(0).toUpperCase() + s.slice(1), value: s }))} />
               </label>
               <button className="info-row half" onClick={() => setPicker("key")}>
                 <span className="info-key">key</span>
