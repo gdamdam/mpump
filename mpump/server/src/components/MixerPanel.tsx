@@ -954,7 +954,7 @@ export function MixerPanel({
               </div>
             ))}
             {(ch === 1 || ch === 0) && <div className="fx-editor-row">
-              <span className="fx-editor-label">HPF</span>
+              <span className="fx-editor-label">Low Cut</span>
               <input type="range" min={20} max={200} step={5} value={chHPF[ch] ?? 0} className="fx-editor-slider"
                 onChange={(e) => { const f = parseFloat(e.target.value); setChHPF(prev => ({ ...prev, [ch]: f })); command({ type: "set_channel_hpf", channel: ch, freq: f } as ClientMessage); }} />
               <span className="fx-editor-value">{chHPF[ch] ?? 0} Hz</span>
