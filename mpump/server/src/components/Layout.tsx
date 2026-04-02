@@ -75,19 +75,21 @@ const toUrlSafeB64 = (obj: object) => encodeSharePayload(obj);
 
 /** Tiny CPU load indicator — polls every 2s, green/yellow/red dot. */
 function CpuDot({ getCpuLoad }: { getCpuLoad?: () => number }) {
-  const dotRef = useRef<HTMLSpanElement>(null);
+  const ref = useRef<HTMLSpanElement>(null);
   useEffect(() => {
     if (!getCpuLoad) return;
     const id = setInterval(() => {
       const load = getCpuLoad();
-      if (!dotRef.current) return;
-      const color = load < 0.3 ? "#66ff99" : load < 0.7 ? "#ffcc00" : "#ff4444";
-      dotRef.current.style.color = color;
-      dotRef.current.title = `Audio CPU: ${Math.round(load * 100)}%`;
+      if (!ref.current) return;
+      const hot = load > 0.5;
+      ref.current.style.color = hot ? "#ff4444" : "var(--border)";
+      ref.current.style.opacity = hot ? "1" : "0.4";
+      ref.current.style.animation = hot ? "cpu-blink 0.6s ease-in-out infinite" : "none";
+      ref.current.title = `Audio CPU: ${Math.round(load * 100)}%`;
     }, 2000);
     return () => clearInterval(id);
   }, [getCpuLoad]);
-  return <span ref={dotRef} style={{ fontSize: 6, marginLeft: 3, verticalAlign: "top", color: "#66ff99" }}>●</span>;
+  return <span ref={ref} style={{ fontSize: 7, fontWeight: 700, marginLeft: 4, verticalAlign: "top", color: "var(--border)", opacity: 0.4, letterSpacing: 0.5 }}>CPU</span>;
 }
 
 export function Layout({ state, catalog, command: rawCommand, isPreview, getAnalyser, getChannelAnalyser, onConnectMidi, onStartPreview, onLoadSamples, getMutedDrumNotes, playNote, stopNote, getMixerState, getCpuLoad }: Props) {
