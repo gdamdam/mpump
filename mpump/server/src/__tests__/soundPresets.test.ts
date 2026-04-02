@@ -3,7 +3,7 @@ import { SYNTH_PRESETS, BASS_PRESETS, DRUM_KIT_PRESETS, groupPresets } from "../
 import type { SynthParams } from "../types";
 
 function validateSynthParams(p: SynthParams, name: string) {
-  expect(["sawtooth", "square", "sine", "triangle"]).toContain(p.oscType);
+  expect(["sawtooth", "square", "sine", "triangle", "pwm", "sync", "fm", "wavetable"]).toContain(p.oscType);
   expect(["lowpass", "highpass", "bandpass", "notch"]).toContain(p.filterType);
   expect(p.attack, `${name} attack`).toBeGreaterThan(0);
   expect(p.decay, `${name} decay`).toBeGreaterThan(0);

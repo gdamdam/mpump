@@ -38,6 +38,17 @@ async function decompressPayload(z) {
   }
 }
 
+/** Try to decode as plain base64 JSON — returns true if valid, false if likely compressed. */
+function tryDecodeB64(payload) {
+  try {
+    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
+    const json = atob(padded);
+    JSON.parse(json);
+    return true;
+  } catch { return false; }
+}
+
 /** Decode full payload for image generation. */
 function decodePayload(payload) {
   try {
@@ -439,10 +450,10 @@ async function handleRequest(url) {
     let path = url.pathname.slice(1); // strip leading "/"
     if (path.startsWith("s/")) path = path.slice(2);
 
-    // Image endpoint: /img/<payload> or /img?b=<payload> → PNG
+    // Image endpoint: /img/<payload> or /img?b=<payload> or /img?z=<payload> → PNG
     if (path.startsWith("img/") || path === "img") {
       const imgRawPayload = path.startsWith("img/") ? path.slice(4) : (url.searchParams.get("z") || url.searchParams.get("b") || "");
-      const imgIsCompressed = !!url.searchParams.get("z") && !path.startsWith("img/");
+      const imgIsCompressed = !!url.searchParams.get("z") || (path.startsWith("img/") && !(await tryDecodeB64(imgRawPayload)));
       const payload = imgIsCompressed ? await decompressPayload(imgRawPayload) : imgRawPayload;
       if (!payload) return new Response("Missing payload", { status: 400 });
       const png = await generatePng(payload);

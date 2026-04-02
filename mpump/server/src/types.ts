@@ -13,7 +13,8 @@ export interface DrumHit {
 
 // ── Synth params (audio preview only) ────────────────────────────────────
 
-export type OscType = "sawtooth" | "square" | "sine" | "triangle";
+export type OscType = "sawtooth" | "square" | "sine" | "triangle" | "pwm" | "sync" | "fm" | "wavetable";
+export type FilterModel = "digital" | "mog" | "303";
 
 export type LfoShape = "sine" | "square" | "triangle" | "sawtooth";
 export type LfoTarget = "cutoff" | "pitch" | "both";
@@ -40,6 +41,13 @@ export interface SynthParams {
   lfoShape: LfoShape;
   lfoTarget: LfoTarget;
   filterEnvDepth?: number; // filter envelope mod depth (0-1, default 0). Sweeps cutoff from cutoff+depth down to cutoff on each note.
+  filterDrive?: number;    // pre-filter drive (0-1, default 0). Pushes signal into filter for resonance/self-oscillation.
+  filterModel?: FilterModel; // filter algorithm: digital (BiquadFilter), mog (4-pole ladder), 303 (diode)
+  syncRatio?: number;     // hard sync slave ratio (1-16, default 2). Only used when oscType="sync".
+  fmRatio?: number;       // FM modulator ratio (0.5-16, default 2). Only used when oscType="fm".
+  fmIndex?: number;       // FM modulation index (0-100, default 5). Only used when oscType="fm".
+  wavetable?: string;     // wavetable name (basic/vocal/metallic/pad/organ). Only used when oscType="wavetable".
+  wavetablePos?: number;  // wavetable morph position (0-1, default 0.5). Only used when oscType="wavetable".
   unison?: number;        // voice count (1-7, default 1)
   unisonSpread?: number;  // detune spread in cents (0-50, default 0)
 }
@@ -112,6 +120,7 @@ export interface DrumVoiceParams {
   sweepRate?: number;    // kick: pitch sweep speed (0-1, default 0.5)
   noiseMix?: number;     // snare: noise vs tone balance (0=tone, 1=noise, default 0.55)
   color?: number;        // hats: brightness (-1=dark, 0=neutral, 1=bright, default 0)
+  clickTune?: number;    // kick: click pitch (-1=warm/low, 0=mid, 1=bright/high, default 0)
   filterCutoff?: number; // per-voice LP filter (0=very dark, 1=bypass, default 1)
   pan?: number;          // stereo pan (-1=left, 0=center, 1=right)
 }
@@ -213,13 +222,15 @@ export type PreviewMode = "kaos" | "synth" | "ease" | "mixer";
 export interface EffectParams {
   delay: { on: boolean; time: number; feedback: number; mix: number; sync: boolean; division: string };
   distortion: { on: boolean; drive: number };
-  reverb: { on: boolean; decay: number; mix: number };
+  reverb: { on: boolean; decay: number; mix: number; type: string };
   compressor: { on: boolean; threshold: number; ratio: number };
   highpass: { on: boolean; cutoff: number; q: number };
   chorus: { on: boolean; rate: number; depth: number; mix: number };
   phaser: { on: boolean; rate: number; depth: number };
-  bitcrusher: { on: boolean; bits: number };
+  bitcrusher: { on: boolean; bits: number; crushRate?: number };
   duck: { on: boolean; depth: number; release: number };
+  flanger: { on: boolean; rate: number; depth: number; feedback: number; mix: number };
+  tremolo: { on: boolean; rate: number; depth: number; shape: string };
 }
 
 export type EffectName = keyof EffectParams;
@@ -227,13 +238,15 @@ export type EffectName = keyof EffectParams;
 export const DEFAULT_EFFECTS: EffectParams = {
   delay: { on: false, time: 0.3, feedback: 0.4, mix: 0.3, sync: true, division: "1/16" },
   distortion: { on: false, drive: 20 },
-  reverb: { on: false, decay: 2, mix: 0.45 },
+  reverb: { on: false, decay: 2, mix: 0.45, type: "room" },
   compressor: { on: false, threshold: -24, ratio: 4 },
   highpass: { on: false, cutoff: 200, q: 1 },
   chorus: { on: false, rate: 1.5, depth: 0.003, mix: 0.3 },
   phaser: { on: false, rate: 0.5, depth: 1000 },
   bitcrusher: { on: false, bits: 5 },
   duck: { on: false, depth: 0.85, release: 0.04 },
+  flanger: { on: false, rate: 0.5, depth: 0.7, feedback: 0.7, mix: 0.5 },
+  tremolo: { on: false, rate: 4, depth: 0.5, shape: "sine" },
 };
 
 // ── Commands (same as frontend ClientMessage) ────────────────────────────
@@ -290,7 +303,13 @@ export type ClientMessage =
   | { type: "set_effect_order"; order: EffectName[] }
   | { type: "set_duck_params"; depth: number; release: number }
   | { type: "set_eq"; low: number; mid: number; high: number }
-  | { type: "set_master_boost"; gain: number };
+  | { type: "set_master_boost"; gain: number }
+  | { type: "set_channel_eq"; channel: number; low: number; mid: number; high: number }
+  | { type: "set_channel_gate"; channel: number; on: boolean; rate: string; depth: number; shape: string; mode?: string; pattern?: number[] }
+  | { type: "set_multiband"; on: boolean }
+  | { type: "set_multiband_amount"; amount: number }
+  | { type: "set_width"; width: number }
+  | { type: "set_low_cut"; freq: number };
 
 export type ArpMode = "up" | "down" | "up-down" | "random";
 export type ArpRate = "1/4" | "1/8" | "1/16";

@@ -11,12 +11,24 @@ interface Props {
   hideVoices?: boolean;
 }
 
-const OSC_TYPES: OscType[] = ["sawtooth", "square", "sine", "triangle"];
+const OSC_TYPES: OscType[] = ["sawtooth", "square", "sine", "triangle", "pwm", "sync", "fm", "wavetable"];
 const OSC_LABELS: Record<OscType, string> = {
   sawtooth: "SAW",
   square: "SQR",
   sine: "SIN",
   triangle: "TRI",
+  pwm: "PWM",
+  sync: "SYNC",
+  fm: "FM",
+  wavetable: "WTB",
+};
+
+import type { FilterModel } from "../types";
+const FILTER_MODELS: FilterModel[] = ["digital", "mog", "303"];
+const FILTER_MODEL_LABELS: Record<FilterModel, string> = {
+  digital: "DIG",
+  mog: "MOG",
+  "303": "303",
 };
 
 /** Render a tiny SVG of the ADSR envelope shape. Standard fixed-segment layout. */
@@ -139,7 +151,7 @@ export function SynthEditor({ params, accent, label, onChange, hideVoices }: Pro
       <div className="synth-editor-label" style={{ color: accent }}>{label}</div>
 
       <div className="synth-osc-row">
-        {OSC_TYPES.map((t) => (
+        {OSC_TYPES.slice(0, 5).map((t) => (
           <button
             key={t}
             className={`synth-osc-btn ${params.oscType === t ? "active" : ""}`}
@@ -150,7 +162,49 @@ export function SynthEditor({ params, accent, label, onChange, hideVoices }: Pro
             {OSC_LABELS[t]}
           </button>
         ))}
+        <span style={{ width: 1, background: "var(--border)", margin: "0 2px", alignSelf: "stretch" }} />
+        {OSC_TYPES.slice(5).map((t) => (
+          <button
+            key={t}
+            className={`synth-osc-btn ${params.oscType === t ? "active" : ""}`}
+            title={`Oscillator: ${t} (AudioWorklet)`}
+            style={params.oscType === t ? { background: accent, color: "#000" } : undefined}
+            onClick={() => onChange({ oscType: t })}
+          >
+            {OSC_LABELS[t]}
+          </button>
+        ))}
       </div>
+
+      {/* Worklet osc params — shown when sync/fm/wavetable selected */}
+      {params.oscType === "sync" && (
+        <div className="synth-knobs" style={{ marginBottom: 6 }}>
+          <Knob label="RATIO" value={params.syncRatio ?? 2} min={1} max={16} step={0.1} accent={accent} onChange={(v) => onChange({ syncRatio: v })} />
+        </div>
+      )}
+      {params.oscType === "fm" && (
+        <div className="synth-knobs" style={{ marginBottom: 6 }}>
+          <Knob label="RATIO" value={params.fmRatio ?? 2} min={0.5} max={16} step={0.1} accent={accent} onChange={(v) => onChange({ fmRatio: v })} />
+          <Knob label="INDEX" value={params.fmIndex ?? 5} min={0} max={100} step={1} accent={accent} onChange={(v) => onChange({ fmIndex: v })} />
+        </div>
+      )}
+      {params.oscType === "wavetable" && (
+        <div style={{ marginBottom: 6 }}>
+          <div className="synth-osc-row">
+            {(["basic", "vocal", "metallic", "pad", "organ"] as const).map(t => (
+              <button
+                key={t}
+                className={`synth-osc-btn ${(params.wavetable ?? "basic") === t ? "active" : ""}`}
+                style={(params.wavetable ?? "basic") === t ? { background: accent, color: "#000" } : undefined}
+                onClick={() => onChange({ wavetable: t })}
+              >{t.toUpperCase()}</button>
+            ))}
+          </div>
+          <div className="synth-knobs">
+            <Knob label="MORPH" value={params.wavetablePos ?? 0.5} min={0} max={1} step={0.01} accent={accent} onChange={(v) => onChange({ wavetablePos: v })} />
+          </div>
+        </div>
+      )}
 
       <div className="synth-section">
         <div className="synth-section-header">ADSR</div>
@@ -226,6 +280,18 @@ export function SynthEditor({ params, accent, label, onChange, hideVoices }: Pro
                   {ft === "lowpass" ? "LPF" : ft === "highpass" ? "HPF" : ft === "bandpass" ? "BPF" : "NOTCH"}
                 </button>
               ))}
+              <span style={{ width: 4 }} />
+              {FILTER_MODELS.map((fm) => (
+                <button
+                  key={fm}
+                  className={`synth-osc-btn ${(params.filterModel ?? "digital") === fm ? "active" : ""}`}
+                  title={`Filter model: ${fm}`}
+                  style={(params.filterModel ?? "digital") === fm ? { background: accent, color: "#000" } : undefined}
+                  onClick={() => onChange({ filterModel: fm })}
+                >
+                  {FILTER_MODEL_LABELS[fm]}
+                </button>
+              ))}
             </div>
             <div className="synth-filter-row">
               <FilterCurve cutoff={params.cutoff} resonance={params.resonance} accent={accent} filterType={params.filterType} />
@@ -233,6 +299,7 @@ export function SynthEditor({ params, accent, label, onChange, hideVoices }: Pro
                 <Knob label="CUT" value={params.cutoff} min={100} max={8000} step={50} accent={accent} onChange={(v) => onChange({ cutoff: v })} />
                 <Knob label="RES" value={params.resonance} min={0.5} max={20} step={0.5} accent={accent} onChange={(v) => onChange({ resonance: v })} />
                 <Knob label="ENV" value={params.filterEnvDepth ?? 0} min={0} max={1} step={0.01} accent={accent} onChange={(v) => onChange({ filterEnvDepth: v })} />
+                <Knob label="DRV" value={params.filterDrive ?? 0} min={0} max={1} step={0.01} accent={accent} onChange={(v) => onChange({ filterDrive: v })} />
               </div>
             </div>
           </>

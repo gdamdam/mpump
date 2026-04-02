@@ -169,6 +169,7 @@ export class T8Sequencer {
   }
 
   private schedule(): void {
+    if (!this.running) return;
     const horizon = performance.now() + LOOKAHEAD_MS;
     const stepDur = 60000 / (this.bpm * 4);
     const drumGate = stepDur * this.drumGateFrac;

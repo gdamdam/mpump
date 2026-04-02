@@ -4,7 +4,7 @@ How mpump's UI works — from the header to the step grid, and everything in bet
 
 ## The Big Picture
 
-mpump has four views, each designed for a different way of making music:
+mpump has three main views, each designed for a different way of making music:
 
 ```
   KAOS          SYNTH           SIMPLE          MIXER
@@ -21,7 +21,7 @@ mpump has four views, each designed for a different way of making music:
 
 You switch between them using the mode buttons in the header: **KAOS | SYNTH | MIXER**. SIMPLE is activated in Settings — it's an accessibility-focused mode with large touch targets (56px+, WCAG AAA).
 
-All four views share the same audio engine and state. Change a drum pattern in SYNTH, switch to KAOS — the pattern keeps playing. They're just different windows into the same session.
+All three views share the same audio engine and state. Change a drum pattern in SYNTH, switch to KAOS — the pattern keeps playing. They're just different windows into the same session.
 
 ## The Header
 
@@ -80,7 +80,7 @@ mpump always runs three instruments simultaneously:
 ```
 
 Each instrument has:
-- Its own **genre** (techno, house, DnB, etc.) — 15 genres available
+- Its own **genre** (techno, house, DnB, etc.) — 20 genres available
 - Its own **pattern** — sequences of notes or drum hits (910 total)
 - Its own **sound preset** — the timbre/character of the sound
 - Its own **volume**, **mute**, **solo**, and **mono** controls

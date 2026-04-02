@@ -245,6 +245,11 @@ export class Engine {
     { genre: "glitch", bpm: 130 },
     { genre: "electro", bpm: 128 },
     { genre: "downtempo", bpm: 95 },
+    { genre: "dubstep", bpm: 140 },
+    { genre: "lo-fi", bpm: 80 },
+    { genre: "synthwave", bpm: 118 },
+    { genre: "deep-house", bpm: 122 },
+    { genre: "psytrance", bpm: 145 },
   ];
 
   /** Create AudioPort early (must be called synchronously during user gesture for Safari). */
@@ -461,8 +466,14 @@ export class Engine {
     if (clk) { clk.stop(); this.clocks.delete(id); }
   }
 
-  /** Stop then re-start a device (used after pattern/key/BPM changes). */
+  /** Stop then re-start a device (used after pattern/key/BPM changes).
+   *  Throttled: ignores calls within 50ms for the same device to prevent cascading restarts. */
+  private restartTimers: Map<string, number> = new Map();
   private restartDevice(id: string): void {
+    const now = performance.now();
+    const last = this.restartTimers.get(id) ?? 0;
+    if (now - last < 50) return; // throttle rapid restarts
+    this.restartTimers.set(id, now);
     this.stopDevice(id);
     const ds = this.deviceStates.get(id);
     if (ds && this.ports[id] && !this.stopped.has(id)) {
@@ -648,12 +659,15 @@ export class Engine {
     const ds = this.deviceStates.get(device);
     if (!ds || !ds.config.hasKey) return;
     ds.keyIdx = idx;
-    this.restartDevice(device);
+    const toRestart = [device];
     if (this.isKeyLocked()) {
       const peer = Engine.KEY_OCTAVE_SYNC.get(device);
       const ps = peer && this.deviceStates.get(peer);
-      if (ps && ps.config.hasKey) { ps.keyIdx = idx; this.restartDevice(peer); }
+      if (ps && ps.config.hasKey) { ps.keyIdx = idx; toRestart.push(peer); }
     }
+    // Stop all first, then start all — prevents overlapping sequencers
+    for (const id of toRestart) this.stopDevice(id);
+    for (const id of toRestart) { const s = this.deviceStates.get(id); if (s && this.ports[id] && !this.stopped.has(id)) this.startDevice(id); }
     this.cb.onStateChange(this.getState());
   }
 
@@ -661,12 +675,14 @@ export class Engine {
     const ds = this.deviceStates.get(device);
     if (!ds || !ds.config.hasOctave) return;
     ds.octave = octave;
-    this.restartDevice(device);
+    const toRestart = [device];
     if (this.isKeyLocked()) {
       const peer = Engine.KEY_OCTAVE_SYNC.get(device);
       const ps = peer && this.deviceStates.get(peer);
-      if (ps && ps.config.hasOctave) { ps.octave = octave; this.restartDevice(peer); }
+      if (ps && ps.config.hasOctave) { ps.octave = octave; toRestart.push(peer); }
     }
+    for (const id of toRestart) this.stopDevice(id);
+    for (const id of toRestart) { const s = this.deviceStates.get(id); if (s && this.ports[id] && !this.stopped.has(id)) this.startDevice(id); }
     this.cb.onStateChange(this.getState());
   }
 
@@ -877,7 +893,7 @@ export class Engine {
     ds.melodicEdit = prev.melodic;
     ds.drumEdit = prev.drum;
     ds.bassEdit = prev.bass;
-    this.restartDevice(device);
+    this.hotSwapPatterns(device);
     this.cb.onStateChange(this.getState());
   }
 
@@ -930,7 +946,7 @@ export class Engine {
     const ds = this.deviceStates.get(device);
     if (!ds) return;
     ds.drumsMuted = !ds.drumsMuted;
-    this.restartDevice(device);
+    this.hotSwapPatterns(device);
     this.cb.onStateChange(this.getState());
   }
 
@@ -938,7 +954,7 @@ export class Engine {
     const ds = this.deviceStates.get(device);
     if (!ds || ds.drumsMuted === muted) return;
     ds.drumsMuted = muted;
-    this.restartDevice(device);
+    this.hotSwapPatterns(device);
     this.cb.onStateChange(this.getState());
   }
 
@@ -952,7 +968,7 @@ export class Engine {
       if (ds.bassMuted === muted) return;
       ds.bassMuted = muted;
     } else return;
-    this.restartDevice(device);
+    this.hotSwapPatterns(device);
     this.cb.onStateChange(this.getState());
   }
 
@@ -962,14 +978,14 @@ export class Engine {
     // For standalone bass device, use drumsMuted (same as toggleDrumsMute)
     if (ds.config.mode === "bass") {
       ds.drumsMuted = !ds.drumsMuted;
-      this.restartDevice(device);
+      this.hotSwapPatterns(device);
       this.cb.onStateChange(this.getState());
       return;
     }
     // Legacy: drums+bass hardware devices
     if (ds.config.mode !== "drums+bass") return;
     ds.bassMuted = !ds.bassMuted;
-    this.restartDevice(device);
+    this.hotSwapPatterns(device);
     this.cb.onStateChange(this.getState());
   }
 
@@ -1112,7 +1128,7 @@ export class Engine {
     ds.melodicEdit = null;
     ds.drumEdit = null;
     ds.bassEdit = null;
-    this.restartDevice(device);
+    this.hotSwapPatterns(device);
     this.cb.onStateChange(this.getState());
   }
 
@@ -1153,7 +1169,7 @@ export class Engine {
 
     saveExtras(extras);
     this.data = loadCatalogSync(this.data, extras);
-    this.restartDevice(device);
+    this.hotSwapPatterns(device);
     this.cb.onCatalogChange(this.getCatalog());
     this.cb.onStateChange(this.getState());
   }
@@ -1272,6 +1288,18 @@ export class Engine {
   }
 
   /** Send a single C4 (MIDI 60) test note for 1 second (CV calibration). */
+  /** Play a note on a given channel (for keyboard input). */
+  playNote(ch: number, note: number, vel = 100): void {
+    if (!this.audioPort) return;
+    (this.audioPort as unknown as MidiPort).noteOn(ch, note, vel);
+  }
+
+  /** Stop a note on a given channel. */
+  stopNote(ch: number, note: number): void {
+    if (!this.audioPort) return;
+    (this.audioPort as unknown as MidiPort).noteOff(ch, note);
+  }
+
   cvTestNote(): void {
     if (!this.audioPort) return;
     const port = this.audioPort as unknown as MidiPort;
@@ -1414,7 +1442,7 @@ export class Engine {
       if (this.clipboard.bass) ds.bassEdit = this.clipboard.bass as typeof ds.bassEdit;
     }
 
-    this.restartDevice(device);
+    this.hotSwapPatterns(device);
     this.cb.onStateChange(this.getState());
   }
 
@@ -1440,6 +1468,16 @@ export class Engine {
     if (this.audioPort) this.audioPort.setDrive(db);
   }
 
+  getMixerState() {
+    return {
+      drive: this.audioPort?.getDrive() ?? 0,
+      eq: this.audioPort?.getEQ() ?? { low: 1, mid: 0, high: 0 },
+      width: this.audioPort?.getWidth() ?? 0.5,
+      lowCut: this.audioPort?.getLowCut() ?? 0,
+      mbOn: this.audioPort?.isMultibandEnabled() ?? true,
+    };
+  }
+
   getDrive(): number {
     return this.audioPort?.getDrive() ?? 0;
   }
@@ -1450,6 +1488,30 @@ export class Engine {
 
   getMono(): boolean {
     return this.audioPort?.getMono() ?? false;
+  }
+
+  setMultibandEnabled(on: boolean): void {
+    if (this.audioPort) this.audioPort.setMultibandEnabled(on);
+  }
+
+  setMultibandAmount(amount: number): void {
+    if (this.audioPort) this.audioPort.setMultibandAmount(amount);
+  }
+
+  setWidth(width: number): void {
+    if (this.audioPort) this.audioPort.setWidth(width);
+  }
+
+  setLowCut(freq: number): void {
+    if (this.audioPort) this.audioPort.setLowCut(freq);
+  }
+
+  setChannelEQ(ch: number, low: number, mid: number, high: number): void {
+    if (this.audioPort) this.audioPort.setChannelEQ(ch, low, mid, high);
+  }
+
+  setChannelGate(ch: number, on: boolean, rate: string, depth: number, shape: string, mode = "lfo", pattern?: number[]): void {
+    if (this.audioPort) this.audioPort.setChannelGate(ch, on, rate, depth, shape, mode, pattern);
   }
 
   setChannelPan(ch: number, pan: number): void {

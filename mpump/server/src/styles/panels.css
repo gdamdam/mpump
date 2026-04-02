@@ -138,16 +138,30 @@
 .update-banner {
   background: var(--preview);
   color: #000;
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: 6px 12px;
   font-size: 12px;
   font-weight: 700;
-  cursor: pointer;
   letter-spacing: 0.5px;
 }
-.update-banner:hover {
-  opacity: 0.9;
+.update-banner span {
+  cursor: pointer;
+  flex: 1;
+  text-align: center;
 }
+.update-banner span:hover { opacity: 0.8; }
+.update-banner-close {
+  background: none;
+  border: none;
+  color: #000;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 0 4px;
+  opacity: 0.5;
+}
+.update-banner-close:hover { opacity: 1; }
 
 /* ── Sub-header (waveform + presets) ──────────────────────────────────── */
 
@@ -238,9 +252,9 @@
 .preset-toggle-btn {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
   font-size: 11px;
-  padding: 3px 8px;
+  padding: 3px 5px;
   opacity: 0.7;
   border-radius: 4px;
   border: 1px solid var(--preview);

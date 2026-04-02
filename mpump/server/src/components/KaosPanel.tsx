@@ -10,9 +10,10 @@ import { useGestureRecorder } from "../hooks/useGestureRecorder";
 import { tapVibrate, pressVibrate } from "../utils/haptic";
 import { ChainEditor } from "./ChainEditor";
 import { KaosDropdown } from "./KaosDropdown";
+import { DrumKitEditor } from "./DrumKitEditor";
 import { startVideoRecording, saveVideo, type VideoRecorderHandle } from "../utils/videoRecorder";
 
-const DEFAULT_EFFECT_ORDER: EffectName[] = ["compressor", "highpass", "distortion", "bitcrusher", "chorus", "phaser", "delay", "reverb"];
+const DEFAULT_EFFECT_ORDER: EffectName[] = ["compressor", "highpass", "distortion", "bitcrusher", "chorus", "phaser", "flanger", "delay", "reverb", "tremolo"];
 
 const XY_OPTIONS: { value: XYTarget; label: string }[] = [
   { value: "cutoff", label: "Cutoff" },
@@ -60,13 +61,17 @@ interface Props {
   currentStep?: number;
   /** Receive a 1-bar XY loop from a jam peer */
   jamXYLoopRef?: React.MutableRefObject<{ x: number; y: number }[] | null>;
+  onKbdFocusChange?: (deviceId: string) => void;
+  kbdFocusDevice?: string | null;
+  soloChannel?: "drums" | "bass" | "synth" | null;
+  onSoloChange?: (ch: "drums" | "bass" | "synth" | null) => void;
 }
 
 interface TouchPoint { x: number; y: number; age: number; senderId?: number; senderName?: string | null }
 
 const PEER_COLORS = ["#66ff99", "#ff6699", "#6699ff", "#ffcc66"];
 // Grid shows these effects — DUCK replaces HPF
-const GRID_EFFECTS: EffectName[] = ["delay", "distortion", "reverb", "compressor", "duck", "chorus", "phaser", "bitcrusher"];
+const GRID_EFFECTS: EffectName[] = ["delay", "distortion", "reverb", "compressor", "flanger", "duck", "chorus", "phaser", "bitcrusher", "tremolo"];
 
 const EFFECT_LABELS: Record<EffectName, string> = {
   delay: "DELAY",
@@ -78,9 +83,11 @@ const EFFECT_LABELS: Record<EffectName, string> = {
   phaser: "PHASER",
   bitcrusher: "CRUSH",
   duck: "DUCK",
+  flanger: "FLANG",
+  tremolo: "TREM",
 };
 
-export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChange, channelVolumes, onChannelVolumeChange, presetState, getAnalyser, getChannelAnalyser, onMix, onExport, trackName, onTrackNameChange, onJamXY, jamApplyXYRef, peerList, myPeerId, jamFxRef, inJam, isListener, pendingMutes, currentStep, jamXYLoopRef }: Props) {
+export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChange, channelVolumes, onChannelVolumeChange, presetState, getAnalyser, getChannelAnalyser, onMix, onExport, trackName, onTrackNameChange, onJamXY, jamApplyXYRef, peerList, myPeerId, jamFxRef, inJam, isListener, pendingMutes, currentStep, jamXYLoopRef, onKbdFocusChange, kbdFocusDevice, soloChannel: soloProp, onSoloChange }: Props) {
   const drumsDevice = devices.find(d => d.id === "preview_drums");
   const bassDevice = devices.find(d => d.id === "preview_bass");
   const synthDevice = devices.find(d => d.id === "preview_synth");
@@ -88,16 +95,16 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
   const allPaused = devices.length > 0 && devices.every(d => d.paused);
   allPausedRef.current = allPaused;
 
-  const [soloChannel, setSoloChannel] = useState<"drums" | "bass" | "synth" | null>(null);
-  const [duckOn, setDuckOn] = useState(() => getBool("mpump-sidechain"));
-  const [duckDepth, setDuckDepth] = useState(() => parseFloat(getItem("mpump-duck-depth", "0.85")));
+  const soloChannel = soloProp ?? null;
+  const [duckOn, setDuckOn] = useState(() => getBool("mpump-sidechain", true));
+  const [duckDepth, setDuckDepth] = useState(() => parseFloat(getItem("mpump-duck-depth", "0.5")));
   const [duckRelease, setDuckRelease] = useState(() => parseFloat(getItem("mpump-duck-release", "0.04")));
   const toggleSolo = (channel: "drums" | "bass" | "synth") => {
     const unsolo = soloChannel === channel;
     command({ type: "set_drums_mute", device: "preview_drums", muted: unsolo ? false : channel !== "drums" });
     command({ type: "set_drums_mute", device: "preview_synth", muted: unsolo ? false : channel !== "synth" });
     command({ type: "set_drums_mute", device: "preview_bass", muted: unsolo ? false : channel !== "bass" });
-    setSoloChannel(unsolo ? null : channel);
+    onSoloChange?.(unsolo ? null : channel);
   };
 
 
@@ -113,6 +120,36 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
     return getJSON<EffectParams>("mpump-effects", JSON.parse(JSON.stringify(DEFAULT_EFFECTS)));
   });
   const [editingFx, setEditingFx] = useState<EffectName | null>(null);
+
+  // Channel mix modals (separate for VOL, EQ, GATE)
+  const [mixModalCh, setMixModalCh] = useState<number | null>(null);
+  const [mixModalTab, setMixModalTab] = useState<"vol" | "eq" | "gate">("vol");
+  const openMixModal = (ch: number, tab: "vol" | "eq" | "gate") => { setMixModalCh(ch); setMixModalTab(tab); };
+  const [volDropCh, setVolDropCh] = useState<number | null>(null);
+  const [chEQ, setChEQ] = useState<Record<number, { low: number; mid: number; high: number }>>({});
+  const getChEQ = (ch: number) => chEQ[ch] ?? { low: ch === 9 ? 4 : 0, mid: ch === 1 ? -4 : ch === 0 ? -1.5 : 0, high: ch === 9 ? -1 : ch === 1 ? -1 : 0 };
+  const updateChEQ = (ch: number, band: "low" | "mid" | "high", v: number) => {
+    const eq = { ...getChEQ(ch), [band]: v };
+    setChEQ(prev => ({ ...prev, [ch]: eq }));
+    command({ type: "set_channel_eq", channel: ch, low: eq.low, mid: eq.mid, high: eq.high } as ClientMessage);
+  };
+  const defaultPattern = [1,0,0,0, 1,0,0,0, 1,0,1,0, 1,1,1,1];
+  const [chGate, setChGate] = useState<Record<number, { on: boolean; rate: string; depth: number; shape: string; mode: string; pattern: number[] }>>({});
+  const getChGate = (ch: number) => chGate[ch] ?? { on: false, rate: "1/8", depth: 0.8, shape: "square", mode: "lfo", pattern: defaultPattern };
+  const updateChGate = (ch: number, params: Partial<{ on: boolean; rate: string; depth: number; shape: string; mode: string; pattern: number[] }>) => {
+    const g = { ...getChGate(ch), ...params };
+    setChGate(prev => ({ ...prev, [ch]: g }));
+    command({ type: "set_channel_gate", channel: ch, ...g } as ClientMessage);
+  };
+  const STUTTER_PRESETS: { name: string; pattern: number[] }[] = [
+    { name: "Buildup", pattern: [1,0,0,0, 1,0,0,0, 1,0,1,0, 1,1,1,1] },
+    { name: "Triplet", pattern: [1,1,0, 1,1,0, 1,1,0, 1,1,0, 1,0,0,0] },
+    { name: "Stutter", pattern: [1,1,1,0, 0,0,0,0, 1,1,1,1, 0,0,0,0] },
+    { name: "Breakbeat", pattern: [1,0,1,0, 0,0,1,0, 1,0,0,1, 0,1,0,0] },
+    { name: "Glitch", pattern: [1,0,1,1, 0,1,0,0, 1,1,0,1, 0,0,1,0] },
+  ];
+  const chLabels: Record<number, string> = { 9: "DRUMS", 1: "BASS", 0: "SYNTH" };
+  const [showDrumKit, setShowDrumKit] = useState(false);
   const [showChainEditor, setShowChainEditor] = useState(false);
   const [effectOrder, setEffectOrder] = useState<EffectName[]>(() => getJSON("mpump-effect-order", DEFAULT_EFFECT_ORDER));
   // Expose fx setters to parent for jam sync
@@ -194,8 +231,10 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
     const ro = new ResizeObserver(resize);
     ro.observe(canvas);
 
+    let vizFrameSkip = 0;
     const draw = () => {
       waveRafRef.current = requestAnimationFrame(draw);
+      if (++vizFrameSkip % 2 !== 0) return; // ~30fps for visualizer
       const mode = getMode();
       const rect = canvas.getBoundingClientRect();
       const w = rect.width, h = rect.height;
@@ -453,16 +492,14 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
       case "cutoff": {
         const cutoff = 100 + nv * 7900;
         for (const d of devices) {
-          if (d.mode === "synth") command({ type: "set_synth_params", device: d.id, params: { cutoff, filterOn: true, filterType: "lowpass" } });
-          else if (d.mode === "bass") command({ type: "set_synth_params", device: d.id, params: { cutoff, filterOn: true, filterType: "lowpass" } });
+          if (d.mode === "synth" || d.mode === "bass") command({ type: "set_synth_params", device: d.id, params: { cutoff } });
         }
         break;
       }
       case "resonance": {
         const resonance = 0.5 + nv * 19.5;
         for (const d of devices) {
-          if (d.mode === "synth") command({ type: "set_synth_params", device: d.id, params: { resonance, filterOn: true } });
-          else if (d.mode === "bass") command({ type: "set_synth_params", device: d.id, params: { resonance, filterOn: true } });
+          if (d.mode === "synth" || d.mode === "bass") command({ type: "set_synth_params", device: d.id, params: { resonance } });
         }
         break;
       }
@@ -513,9 +550,9 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
       if (gestureStart.current === 0) gestureStart.current = performance.now();
       gesturePoints.current.push({ t: performance.now() - gestureStart.current, x: nx, y: ny });
     }
-    // Throttle commands to every 30ms
+    // Throttle commands to every 50ms (~20fps — enough for smooth control, light on audio thread)
     const now = performance.now();
-    if (now - lastXYTime.current > 30) {
+    if (now - lastXYTime.current > 50) {
       lastXYTime.current = now;
       applyXY(nx, ny);
       onJamXY?.(nx, ny);
@@ -680,7 +717,7 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
       {/* Unified channel cards: sound + genre + pattern in one block */}
       <div className="kaos-selectors">
         {drumsDevice && (
-          <div className="kaos-selector" data-jam="drums">
+          <div className={`kaos-selector${kbdFocusDevice === "preview_drums" ? " kaos-focused" : ""}`} data-jam="drums" onClick={() => onKbdFocusChange?.("preview_drums")}>
             <div className="kaos-sel-header">
               {getChannelAnalyser && <SignalLed getAnalyser={() => getChannelAnalyser(9)} />}
               <span className="kaos-sel-label">DRUMS</span>
@@ -692,7 +729,14 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
               ]} />
               <button className={`sound-lock-btn ${presetState?.soundLock.drums ? "locked" : ""}`} title={presetState?.soundLock.drums ? "Unlock drum kit for MIX" : "Lock drum kit from MIX"} onClick={() => presetState?.setSoundLock(prev => ({ ...prev, drums: !prev.drums }))}>{presetState?.soundLock.drums ? "\u{1F512}" : "\u{1F513}"}</button>
             </div>
-            <label className="ch-vol-inline"><span className="ch-vol-label">VOL</span><input type="range" className="kaos-ch-vol" min={0} max={1} step={0.01} value={channelVolumes[9] ?? 1} title={`Drums: ${Math.round((channelVolumes[9] ?? 1) * 100)}%`} onChange={(e) => onChannelVolumeChange(9, parseFloat(e.target.value))} /></label>
+            <div style={{ display: "flex", gap: 3, justifyContent: "center" }}>
+              <div style={{ position: "relative" }}>
+                <button className="ch-vol-inline" style={{ cursor: "pointer", background: "none", border: `1px solid ${volDropCh === 9 ? "var(--preview)" : "var(--border)"}`, borderRadius: 4, padding: "8px 12px", color: "var(--fg)", fontSize: 11, fontWeight: 600, fontFamily: "inherit", minHeight: 32 }} onClick={() => setVolDropCh(volDropCh === 9 ? null : 9)} title="Volume">VOL<span className="vol-pct">: {Math.round((channelVolumes[9] ?? 0.7) * 100)}%</span></button>
+                {volDropCh === 9 && <div className="kaos-vol-drop"><input type="range" min={0} max={1} step={0.01} value={channelVolumes[9] ?? 0.7} onChange={e => onChannelVolumeChange(9, parseFloat(e.target.value))} className="kaos-vol-slider" /></div>}
+              </div>
+              <button className="ch-vol-inline" style={{ cursor: "pointer", background: "none", border: "1px solid var(--border)", borderRadius: 4, padding: "6px 10px", color: "var(--fg)", fontSize: 10, fontWeight: 600, fontFamily: "inherit", minHeight: 28 }} onClick={() => openMixModal(9, "eq")} title="Equalizer">EQ</button>
+              <button className="ch-vol-inline" style={{ cursor: "pointer", background: "none", border: "1px solid var(--border)", borderRadius: 4, padding: "6px 10px", color: "var(--fg)", fontSize: 10, fontWeight: 600, fontFamily: "inherit", minHeight: 28 }} onClick={() => setShowDrumKit(true)} title="Drum kit tuning">KIT</button>
+            </div>
             <div className="kaos-sel-divider" />
             <div className="kaos-sel-row"><span className="kaos-sel-row-label">GENRE</span>
               <div className="kaos-sel-nav">
@@ -711,7 +755,7 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
               {presetState?.patternLock.drums && <button className={`sound-lock-btn ${presetState?.stepPatternLock.drums ? "locked" : ""}`} title={presetState?.stepPatternLock.drums ? "Unlock drums pattern from MIX" : "Lock drums pattern from MIX"} onClick={() => presetState?.setStepPatternLock(prev => ({ ...prev, drums: !prev.drums }))}>{presetState?.stepPatternLock.drums ? "\u{1F512}" : "\u{1F513}"}</button>}
             </div>
             <div className="kaos-sel-actions">
-              <button className={`kaos-action-btn ${drumsDevice.drumsMuted ? "muted" : ""} ${pendingMutes?.[drumsDevice.id]?.has("drums_mute") ? "pending" : ""}`} title={drumsDevice.drumsMuted ? "Unmute drums" : "Mute drums"} onClick={() => { setSoloChannel(null); command({ type: "toggle_drums_mute", device: drumsDevice.id }); }}>
+              <button className={`kaos-action-btn ${drumsDevice.drumsMuted ? "muted" : ""} ${pendingMutes?.[drumsDevice.id]?.has("drums_mute") ? "pending" : ""}`} title={drumsDevice.drumsMuted ? "Unmute drums" : "Mute drums"} onClick={() => { onSoloChange?.(null); command({ type: "toggle_drums_mute", device: drumsDevice.id }); }}>
                 {drumsDevice.drumsMuted ? "MUTED" : "MUTE"}
               </button>
               <button className={`kaos-action-btn ${soloChannel === "drums" ? "solo-on" : ""}`} title={soloChannel === "drums" ? "Unsolo" : "Solo drums"} onClick={() => toggleSolo("drums")}>
@@ -721,7 +765,7 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
           </div>
         )}
         {bassDevice && (
-          <div className="kaos-selector" data-jam="bass">
+          <div className={`kaos-selector${kbdFocusDevice === "preview_bass" ? " kaos-focused" : ""}`} data-jam="bass" onClick={() => onKbdFocusChange?.("preview_bass")}>
             <div className="kaos-sel-header">
               {getChannelAnalyser && <SignalLed getAnalyser={() => getChannelAnalyser(1)} />}
               <span className="kaos-sel-label">BASS</span>
@@ -730,7 +774,14 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
               <KaosDropdown className="kaos-dropdown-sound" value={presetState?.activeBass ?? "0"} onChange={(v: string) => presetState?.onBassChange(v)} options={groupPresets(BASS_PRESETS).map(([g, items]) => ({ group: g || "Presets", items: items.map(([i, p]) => ({ label: p.name, value: String(i) })) }))} />
               <button className={`sound-lock-btn ${presetState?.soundLock.bass ? "locked" : ""}`} title={presetState?.soundLock.bass ? "Unlock bass for MIX" : "Lock bass from MIX"} onClick={() => presetState?.setSoundLock(prev => ({ ...prev, bass: !prev.bass }))}>{presetState?.soundLock.bass ? "\u{1F512}" : "\u{1F513}"}</button>
             </div>
-            <label className="ch-vol-inline"><span className="ch-vol-label">VOL</span><input type="range" className="kaos-ch-vol" min={0} max={1} step={0.01} value={channelVolumes[1] ?? 1} title={`Bass: ${Math.round((channelVolumes[1] ?? 1) * 100)}%`} onChange={(e) => onChannelVolumeChange(1, parseFloat(e.target.value))} /></label>
+            <div style={{ display: "flex", gap: 3, justifyContent: "center" }}>
+              <div style={{ position: "relative" }}>
+                <button className="ch-vol-inline" style={{ cursor: "pointer", background: "none", border: `1px solid ${volDropCh === 1 ? "var(--preview)" : "var(--border)"}`, borderRadius: 4, padding: "8px 12px", color: "var(--fg)", fontSize: 11, fontWeight: 600, fontFamily: "inherit", minHeight: 32 }} onClick={() => setVolDropCh(volDropCh === 1 ? null : 1)} title="Volume">VOL<span className="vol-pct">: {Math.round((channelVolumes[1] ?? 0.7) * 100)}%</span></button>
+                {volDropCh === 1 && <div className="kaos-vol-drop"><input type="range" min={0} max={1} step={0.01} value={channelVolumes[1] ?? 0.7} onChange={e => onChannelVolumeChange(1, parseFloat(e.target.value))} className="kaos-vol-slider" /></div>}
+              </div>
+              <button className="ch-vol-inline" style={{ cursor: "pointer", background: "none", border: "1px solid var(--border)", borderRadius: 4, padding: "6px 10px", color: "var(--fg)", fontSize: 10, fontWeight: 600, fontFamily: "inherit", minHeight: 28 }} onClick={() => openMixModal(1, "eq")} title="Equalizer">EQ</button>
+              <button className="ch-vol-inline" style={{ cursor: "pointer", background: "none", border: "1px solid var(--border)", borderRadius: 4, padding: "6px 10px", color: "var(--fg)", fontSize: 10, fontWeight: 600, fontFamily: "inherit", minHeight: 28 }} onClick={() => openMixModal(1, "gate")} title="Trance gate">GATE</button>
+            </div>
             <div className="kaos-sel-divider" />
             <div className="kaos-sel-row"><span className="kaos-sel-row-label">GENRE</span>
               <div className="kaos-sel-nav">
@@ -749,7 +800,7 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
               {presetState?.patternLock.bass && <button className={`sound-lock-btn ${presetState?.stepPatternLock.bass ? "locked" : ""}`} title={presetState?.stepPatternLock.bass ? "Unlock bass pattern from MIX" : "Lock bass pattern from MIX"} onClick={() => presetState?.setStepPatternLock(prev => ({ ...prev, bass: !prev.bass }))}>{presetState?.stepPatternLock.bass ? "\u{1F512}" : "\u{1F513}"}</button>}
             </div>
             <div className="kaos-sel-actions">
-              <button className={`kaos-action-btn ${bassDevice.drumsMuted ? "muted" : ""} ${pendingMutes?.[bassDevice.id]?.has("drums_mute") ? "pending" : ""}`} title={bassDevice.drumsMuted ? "Unmute bass" : "Mute bass"} onClick={() => { setSoloChannel(null); command({ type: "toggle_drums_mute", device: bassDevice.id }); }}>
+              <button className={`kaos-action-btn ${bassDevice.drumsMuted ? "muted" : ""} ${pendingMutes?.[bassDevice.id]?.has("drums_mute") ? "pending" : ""}`} title={bassDevice.drumsMuted ? "Unmute bass" : "Mute bass"} onClick={() => { onSoloChange?.(null); command({ type: "toggle_drums_mute", device: bassDevice.id }); }}>
                 {bassDevice.drumsMuted ? "MUTED" : "MUTE"}
               </button>
               <button className={`kaos-action-btn ${soloChannel === "bass" ? "solo-on" : ""}`} title={soloChannel === "bass" ? "Unsolo" : "Solo bass"} onClick={() => toggleSolo("bass")}>
@@ -759,7 +810,7 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
           </div>
         )}
         {synthDevice && (
-          <div className="kaos-selector" data-jam="synth">
+          <div className={`kaos-selector${kbdFocusDevice === "preview_synth" ? " kaos-focused" : ""}`} data-jam="synth" onClick={() => onKbdFocusChange?.("preview_synth")}>
             <div className="kaos-sel-header">
               {getChannelAnalyser && <SignalLed getAnalyser={() => getChannelAnalyser(0)} />}
               <span className="kaos-sel-label">SYNTH</span>
@@ -768,7 +819,14 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
               <KaosDropdown className="kaos-dropdown-sound" value={presetState?.activeSynth ?? "0"} onChange={(v: string) => presetState?.onSynthChange(v)} options={groupPresets(SYNTH_PRESETS).map(([g, items]) => ({ group: g || "Presets", items: items.map(([i, p]) => ({ label: p.name, value: String(i) })) }))} />
               <button className={`sound-lock-btn ${presetState?.soundLock.synth ? "locked" : ""}`} title={presetState?.soundLock.synth ? "Unlock synth for MIX" : "Lock synth from MIX"} onClick={() => presetState?.setSoundLock(prev => ({ ...prev, synth: !prev.synth }))}>{presetState?.soundLock.synth ? "\u{1F512}" : "\u{1F513}"}</button>
             </div>
-            <label className="ch-vol-inline"><span className="ch-vol-label">VOL</span><input type="range" className="kaos-ch-vol" min={0} max={1} step={0.01} value={channelVolumes[0] ?? 1} title={`Synth: ${Math.round((channelVolumes[0] ?? 1) * 100)}%`} onChange={(e) => onChannelVolumeChange(0, parseFloat(e.target.value))} /></label>
+            <div style={{ display: "flex", gap: 3, justifyContent: "center" }}>
+              <div style={{ position: "relative" }}>
+                <button className="ch-vol-inline" style={{ cursor: "pointer", background: "none", border: `1px solid ${volDropCh === 0 ? "var(--preview)" : "var(--border)"}`, borderRadius: 4, padding: "8px 12px", color: "var(--fg)", fontSize: 11, fontWeight: 600, fontFamily: "inherit", minHeight: 32 }} onClick={() => setVolDropCh(volDropCh === 0 ? null : 0)} title="Volume">VOL<span className="vol-pct">: {Math.round((channelVolumes[0] ?? 0.7) * 100)}%</span></button>
+                {volDropCh === 0 && <div className="kaos-vol-drop"><input type="range" min={0} max={1} step={0.01} value={channelVolumes[0] ?? 0.7} onChange={e => onChannelVolumeChange(0, parseFloat(e.target.value))} className="kaos-vol-slider" /></div>}
+              </div>
+              <button className="ch-vol-inline" style={{ cursor: "pointer", background: "none", border: "1px solid var(--border)", borderRadius: 4, padding: "6px 10px", color: "var(--fg)", fontSize: 10, fontWeight: 600, fontFamily: "inherit", minHeight: 28 }} onClick={() => openMixModal(0, "eq")} title="Equalizer">EQ</button>
+              <button className="ch-vol-inline" style={{ cursor: "pointer", background: "none", border: "1px solid var(--border)", borderRadius: 4, padding: "6px 10px", color: "var(--fg)", fontSize: 10, fontWeight: 600, fontFamily: "inherit", minHeight: 28 }} onClick={() => openMixModal(0, "gate")} title="Trance gate">GATE</button>
+            </div>
             <div className="kaos-sel-divider" />
             <div className="kaos-sel-row"><span className="kaos-sel-row-label">GENRE</span>
               <div className="kaos-sel-nav">
@@ -787,7 +845,7 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
               {presetState?.patternLock.synth && <button className={`sound-lock-btn ${presetState?.stepPatternLock.synth ? "locked" : ""}`} title={presetState?.stepPatternLock.synth ? "Unlock synth pattern from MIX" : "Lock synth pattern from MIX"} onClick={() => presetState?.setStepPatternLock(prev => ({ ...prev, synth: !prev.synth }))}>{presetState?.stepPatternLock.synth ? "\u{1F512}" : "\u{1F513}"}</button>}
             </div>
             <div className="kaos-sel-actions">
-              <button className={`kaos-action-btn ${synthDevice.drumsMuted ? "muted" : ""} ${pendingMutes?.[synthDevice.id]?.has("drums_mute") ? "pending" : ""}`} title={synthDevice.drumsMuted ? "Unmute synth" : "Mute synth"} onClick={() => { setSoloChannel(null); command({ type: "toggle_drums_mute", device: synthDevice.id }); }}>
+              <button className={`kaos-action-btn ${synthDevice.drumsMuted ? "muted" : ""} ${pendingMutes?.[synthDevice.id]?.has("drums_mute") ? "pending" : ""}`} title={synthDevice.drumsMuted ? "Unmute synth" : "Mute synth"} onClick={() => { onSoloChange?.(null); command({ type: "toggle_drums_mute", device: synthDevice.id }); }}>
                 {synthDevice.drumsMuted ? "MUTED" : "MUTE"}
               </button>
               <button className={`kaos-action-btn ${soloChannel === "synth" ? "solo-on" : ""}`} title={soloChannel === "synth" ? "Unsolo" : "Solo synth"} onClick={() => toggleSolo("synth")}>
@@ -1017,6 +1075,158 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
           onUpdate={(p) => updateFxParam(editingFx, p)}
           onClose={() => setEditingFx(null)}
         />
+      )}
+
+      {/* VOL modal */}
+      {mixModalCh !== null && mixModalTab === "vol" && (() => {
+        const ch = mixModalCh;
+        const vol = channelVolumes[ch] ?? 0.7;
+        const w = 200, h = 40, col = "#66ff99";
+        return (
+          <div className="fx-editor-overlay" onClick={(e) => { if (e.target === e.currentTarget) setMixModalCh(null); }}>
+            <div className="fx-editor">
+              <div className="fx-editor-header"><span className="fx-editor-title">{chLabels[ch]} VOL</span></div>
+              {window.innerWidth >= 700 && (
+                <svg className="fx-vis" viewBox={`0 0 ${w} ${h}`} style={{ marginBottom: 4 }}>
+                  <rect x={0} y={0} width={w} height={h} fill="rgba(0,0,0,0.3)" rx={3} />
+                  <rect x={4} y={4} width={(w - 8) * vol} height={h - 8} fill={col} opacity={0.3} rx={2} />
+                  <line x1={4 + (w - 8) * vol} y1={4} x2={4 + (w - 8) * vol} y2={h - 4} stroke={col} strokeWidth={2} />
+                </svg>
+              )}
+              <div className="fx-editor-row">
+                <span className="fx-editor-label">VOL</span>
+                <input type="range" className="fx-editor-slider" min={0} max={1} step={0.01} value={vol}
+                  onChange={(e) => onChannelVolumeChange(ch, parseFloat(e.target.value))} />
+                <span className="fx-editor-value">{Math.round(vol * 100)}%</span>
+              </div>
+              <span className="mx-modal-reset" onClick={() => onChannelVolumeChange(ch, ch === 9 ? 0.8 : 0.6)}>RST</span>
+              <button className="mx-modal-close" onClick={() => setMixModalCh(null)}>CLOSE</button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* EQ modal */}
+      {mixModalCh !== null && mixModalTab === "eq" && (() => {
+        const ch = mixModalCh;
+        const eq = getChEQ(ch);
+        const w = 200, h = 50, col = "#66ff99", dim = "rgba(102,255,153,0.15)";
+        return (
+          <div className="fx-editor-overlay" onClick={(e) => { if (e.target === e.currentTarget) setMixModalCh(null); }}>
+            <div className="fx-editor">
+              <div className="fx-editor-header"><span className="fx-editor-title">{chLabels[ch]} EQ</span></div>
+              {window.innerWidth >= 700 && (() => {
+                const pts = Array.from({ length: 80 }, (_, i) => {
+                  const f = 20 * Math.pow(1000, i / 79);
+                  let db = 0;
+                  db += eq.low / (1 + Math.pow(f / 200, 2));
+                  db += eq.mid * Math.exp(-(((f - 1000) / 700) ** 2));
+                  db += eq.high / (1 + Math.pow(5000 / f, 2));
+                  const y = h / 2 - (db / 24) * h * 0.8;
+                  return `${4 + (i / 79) * (w - 8)},${Math.max(2, Math.min(h - 2, y))}`;
+                }).join(" ");
+                return <svg className="fx-vis" viewBox={`0 0 ${w} ${h}`} style={{ marginBottom: 4 }}>
+                  <rect x={0} y={0} width={w} height={h} fill="rgba(0,0,0,0.3)" rx={3} />
+                  <line x1={4} y1={h / 2} x2={w - 4} y2={h / 2} stroke={dim} strokeWidth={0.5} />
+                  <polyline points={pts} fill="none" stroke={col} strokeWidth={1.5} />
+                </svg>;
+              })()}
+              {([["LOW", "low"], ["MID", "mid"], ["HIGH", "high"]] as const).map(([label, band]) => (
+                <div className="fx-editor-row" key={band}>
+                  <span className="fx-editor-label">{label}</span>
+                  <input type="range" className="fx-editor-slider" min={-12} max={12} step={1} value={eq[band]}
+                    onChange={(e) => updateChEQ(ch, band, parseFloat(e.target.value))} />
+                  <span className="fx-editor-value">{eq[band] > 0 ? "+" : ""}{eq[band]} dB</span>
+                </div>
+              ))}
+              <span className="mx-modal-reset" onClick={() => {
+                const defEQ = { low: ch === 9 ? 2 : 0, mid: 0, high: ch === 9 ? -1 : ch === 1 ? -1 : 0 };
+                setChEQ(prev => ({ ...prev, [ch]: defEQ }));
+                command({ type: "set_channel_eq", channel: ch, ...defEQ } as ClientMessage);
+              }}>RST</span>
+              <button className="mx-modal-close" onClick={() => setMixModalCh(null)}>CLOSE</button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* GATE modal (bass + synth only) — matches MixerPanel gate modal */}
+      {mixModalCh !== null && mixModalTab === "gate" && mixModalCh !== 9 && (() => {
+        const ch = mixModalCh;
+        const gate = getChGate(ch);
+        const size = 80, cx = size / 2, cy = size / 2;
+        const rMax = size / 2 - 4, rMin = rMax * 0.3;
+        const col = gate.on ? "#66ff99" : "rgba(102,255,153,0.3)";
+        const rateMap: Record<string, number> = { "1/2": 1, "1/4": 2, "1/8": 4, "1/8d": 3, "1/16": 8, "1/32": 16 };
+        const cycles = rateMap[gate.rate] ?? 4;
+        return (
+          <div className="fx-editor-overlay" onClick={(e) => { if (e.target === e.currentTarget) setMixModalCh(null); }}>
+            <div className="fx-editor">
+              <div className="fx-editor-header"><span className="fx-editor-title">{chLabels[ch]} GATE</span></div>
+              <div className="fx-editor-row" style={{ justifyContent: "center", marginBottom: 8 }}>
+                <button className={`synth-osc-btn ${gate.on ? "active" : ""}`}
+                  style={gate.on ? { background: "#66ff99", color: "#000" } : undefined}
+                  onClick={() => updateChGate(ch, { on: !gate.on })}
+                >{gate.on ? "ON" : "OFF"}</button>
+              </div>
+              {/* Stutter pattern mode hidden — coming in next release */}
+              {window.innerWidth >= 700 && (() => {
+                const steps = 128;
+                const pts = Array.from({ length: steps + 1 }, (_, i) => {
+                  const t = i / steps;
+                  const angle = t * Math.PI * 2 - Math.PI / 2;
+                  const phase = (t * cycles) % 1;
+                  let env;
+                  if (gate.shape === "square") { env = phase < 0.5 ? 1 : 1 - gate.depth; }
+                  else { const tri = phase < 0.5 ? phase * 2 : 2 - phase * 2; env = 1 - gate.depth * (1 - tri); }
+                  const r = rMin + (rMax - rMin) * env;
+                  return `${cx + Math.cos(angle) * r},${cy + Math.sin(angle) * r}`;
+                }).join(" ");
+                return <svg className="fx-vis" viewBox={`0 0 ${size} ${size}`} style={{ marginBottom: 4, width: 100, height: 100 }}>
+                  <circle cx={cx} cy={cy} r={rMax} fill="none" stroke="rgba(102,255,153,0.1)" strokeWidth={0.5} />
+                  <circle cx={cx} cy={cy} r={rMin} fill="none" stroke="rgba(102,255,153,0.1)" strokeWidth={0.5} />
+                  <polygon points={pts} fill="rgba(102,255,153,0.08)" stroke={col} strokeWidth={1.5} />
+                  <circle cx={cx} cy={cy - rMax + 2} r={2} fill={col} />
+                </svg>;
+              })()}
+              <div className="fx-editor-row" style={{ gap: 4, marginBottom: 4 }}>
+                {(["1/4", "1/8", "1/16", "1/32"] as const).map(r => (
+                  <button key={r} className={`synth-osc-btn ${gate.rate === r ? "active" : ""}`}
+                    style={gate.rate === r ? { background: "#66ff99", color: "#000" } : undefined}
+                    onClick={() => updateChGate(ch, { rate: r })}
+                  >{r}</button>
+                ))}
+              </div>
+              <div className="fx-editor-row" style={{ gap: 4, marginBottom: 6 }}>
+                {(["square", "triangle"] as const).map(s => (
+                  <button key={s} className={`synth-osc-btn ${gate.shape === s ? "active" : ""}`}
+                    style={gate.shape === s ? { background: "#66ff99", color: "#000" } : undefined}
+                    onClick={() => updateChGate(ch, { shape: s })}
+                  >{s === "square" ? "HARD" : "SOFT"}</button>
+                ))}
+              </div>
+              <div className="fx-editor-row">
+                <span className="fx-editor-label">DEPTH</span>
+                <input type="range" className="fx-editor-slider" min={0} max={1} step={0.05} value={gate.depth}
+                  onChange={(e) => updateChGate(ch, { depth: parseFloat(e.target.value) })} />
+                <span className="fx-editor-value">{Math.round(gate.depth * 100)}%</span>
+              </div>
+              <span className="mx-modal-reset" onClick={() => updateChGate(ch, { on: false, rate: "1/8", depth: 0.8, shape: "square", mode: "lfo" })}>RST</span>
+              <button className="mx-modal-close" onClick={() => setMixModalCh(null)}>CLOSE</button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Drum kit editor modal */}
+      {showDrumKit && (
+        <div className="fx-editor-overlay" onClick={(e) => { if (e.target === e.currentTarget) setShowDrumKit(false); }}>
+          <div className="fx-editor" style={{ maxHeight: "80vh", overflowY: "auto" }}>
+            <div className="fx-editor-header"><span className="fx-editor-title">DRUM KIT</span></div>
+            <DrumKitEditor accent="#66ff99" command={command} activeDrumKit={presetState?.activeDrumKit} defaultOpen />
+            <button className="mx-modal-close" onClick={() => setShowDrumKit(false)}>CLOSE</button>
+          </div>
+        </div>
       )}
 
     </div>

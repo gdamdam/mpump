@@ -59,9 +59,10 @@ interface Props {
   accent: string;
   command: (msg: ClientMessage) => void;
   activeDrumKit?: string;
+  defaultOpen?: boolean;
 }
 
-export function DrumKitEditor({ accent, command, activeDrumKit }: Props) {
+export function DrumKitEditor({ accent, command, activeDrumKit, defaultOpen = false }: Props) {
   const [voices, setVoices] = useState<Record<number, DrumVoiceParams>>(
     () => resolveVoices(activeDrumKit ?? "0")
   );
@@ -88,7 +89,7 @@ export function DrumKitEditor({ accent, command, activeDrumKit }: Props) {
     }
   };
 
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [expanded, setExpanded] = useState(false);
   const [muted, setMuted] = useState<Record<number, boolean>>({});
 
@@ -161,7 +162,7 @@ export function DrumKitEditor({ accent, command, activeDrumKit }: Props) {
           >{expanded ? "COMPACT" : "EXPAND"}</button>
         </div>
         {DRUM_VOICES.map(({ note, name }) => {
-          const v = voices[note];
+          const v = voices[note] ?? { ...DEFAULT_DRUM_VOICE };
           const isMuted = muted[note] ?? false;
           const tone = toneParam(note);
           const toneVal = (v[tone.key] as number | undefined) ?? tone.def;
@@ -183,8 +184,9 @@ export function DrumKitEditor({ accent, command, activeDrumKit }: Props) {
               <Knob label="PAN" value={v.pan ?? defaultPan(note)} min={-1} max={1} step={0.05} accent={accent} onChange={(val) => update(note, { pan: val })} />
               {expanded && <>
                 <Knob label="TUNE" value={v.tune} min={-12} max={12} step={1} accent={accent} onChange={(val) => update(note, { tune: val })} />
-                <Knob label="DECAY" value={v.decay} min={0.2} max={3} step={0.1} accent={accent} onChange={(val) => update(note, { decay: val })} />
+                <Knob label="DECAY" value={v.decay} min={0.1} max={2} step={0.1} accent={accent} onChange={(val) => update(note, { decay: val })} />
                 <Knob label={tone.label} value={toneVal} min={tone.min} max={tone.max} step={0.01} accent={accent} onChange={(val) => update(note, { [tone.key]: val })} />
+                {note === 36 && <Knob label="CLK TN" value={(v.clickTune as number | undefined) ?? 0} min={-1} max={1} step={0.1} accent={accent} onChange={(val) => update(note, { clickTune: val })} />}
               </>}
             </div>
           );

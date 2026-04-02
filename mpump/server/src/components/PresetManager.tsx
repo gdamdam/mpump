@@ -33,6 +33,11 @@ const BUILT_IN: SavedPreset[] = [
   { name: "Chill Vibes", ts: 0, state: { bpm: 95, genres: { preview_drums: g(14, 2), preview_bass: g(11, 3), preview_synth: g(3, 1) }}},
   { name: "Broken Beats", ts: 0, state: { bpm: 155, genres: { preview_drums: g(8, 3), preview_bass: g(6, 4), preview_synth: g(4, 2) }}},
   { name: "Midnight Acid", ts: 0, state: { bpm: 136, genres: { preview_drums: g(0, 2), preview_bass: g(1, 5), preview_synth: g(1, 7) }}},
+  { name: "Dubstep", ts: 0, state: { bpm: 140, genres: { preview_drums: g(15, 0), preview_bass: g(15, 1), preview_synth: g(15, 0) }}},
+  { name: "Lo-Fi Chill", ts: 0, state: { bpm: 80, genres: { preview_drums: g(16, 0), preview_bass: g(16, 0), preview_synth: g(16, 0) }}},
+  { name: "Synthwave", ts: 0, state: { bpm: 118, genres: { preview_drums: g(17, 0), preview_bass: g(17, 0), preview_synth: g(17, 0) }}},
+  { name: "Deep House", ts: 0, state: { bpm: 122, genres: { preview_drums: g(18, 0), preview_bass: g(18, 0), preview_synth: g(18, 0) }}},
+  { name: "Psytrance", ts: 0, state: { bpm: 145, genres: { preview_drums: g(19, 0), preview_bass: g(19, 0), preview_synth: g(19, 0) }}},
 ];
 
 function loadPresets(): SavedPreset[] {
@@ -47,14 +52,18 @@ interface Props {
   state: EngineState;
   onLoad: (preset: SavedPreset) => void;
   accent?: string;
+  mixCount?: number;
 }
 
-export function PresetManager({ state, onLoad, accent }: Props) {
+export function PresetManager({ state, onLoad, accent, mixCount }: Props) {
   const [userPresets, setUserPresets] = useState<SavedPreset[]>(loadPresets);
   const [heartLit, setHeartLit] = useState(false);
   const [open, setOpen] = useState(false);
-  const [activeLabel, setActiveLabel] = useState("Pins");
+  const [activeLabel, setActiveLabel] = useState("");
   const dropRef = useRef<HTMLDivElement>(null);
+
+  // Reset label on MIX
+  useEffect(() => { if (mixCount) setActiveLabel(""); }, [mixCount]);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -99,7 +108,7 @@ export function PresetManager({ state, onLoad, accent }: Props) {
     const updated = userPresets.filter((_, i) => i !== idx);
     setUserPresets(updated);
     savePresets(updated);
-    setActiveLabel("Pins");
+    setActiveLabel("");
   };
 
   const handleRename = (idx: number, e: React.MouseEvent) => {

@@ -170,9 +170,9 @@ describe("AudioPort", () => {
     expect(() => port.setEffect("reverb", { on: true })).not.toThrow();
   });
 
-  it("getEffects returns all 9 effects", () => {
+  it("getEffects returns all 11 effects", () => {
     const fx = port.getEffects();
-    expect(Object.keys(fx).length).toBe(9);
+    expect(Object.keys(fx).length).toBe(11);
   });
 
   it("close does not throw", () => {

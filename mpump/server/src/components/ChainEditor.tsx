@@ -11,6 +11,8 @@ const LABELS: Record<EffectName, string> = {
   delay: "DELAY",
   reverb: "REVERB",
   duck: "DUCK",
+  flanger: "FLANG",
+  tremolo: "TREM",
 };
 
 interface Props {

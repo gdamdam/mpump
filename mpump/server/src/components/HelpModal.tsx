@@ -58,9 +58,9 @@ const SECTIONS = [
   {
     title: "Sound Design (SYNTH mode)",
     items: [
-      "**19 synth presets** — Default, Classic Saw, Warm Pad, Acid Squelch, Screamer, Supersaw, Neuro, Dub Chord, House Stab, Trance Arp, EDM Pluck, and more",
-      "**14 bass presets** — Deep Sub, Acid Bass, Wobble, Reese, House Pump, Garage Bass, Trance Sub, Foghorn, Zapper, and more",
-      "**Oscillator** — SAW, SQR, SIN, TRI waveforms",
+      "**33 synth presets** — Default, Classic Saw, Warm Pad, Acid Squelch, Screamer, Supersaw, Neuro, Dub Chord, House Stab, Trance Arp, EDM Pluck, and more",
+      "**22 bass presets** — Deep Sub, Acid Bass, Wobble, Reese, House Pump, Garage Bass, Trance Sub, Foghorn, Zapper, and more",
+      "**Oscillator** — SAW, SQR, SIN, TRI, PWM, SYNC, FM, WTB waveforms",
       "**ADSR** — Attack, Decay, Sustain, Release envelope with visual curve",
       "**Filter** — LPF, HPF, BPF, Notch with cutoff and resonance",
       "**Sub Bass** — adds a sine wave one octave below",
@@ -84,6 +84,7 @@ const SECTIONS = [
       "**DRV** — master drive/saturation (-6 to +12 dB) with waveform preview",
       "**Anti-clip limiter** — on by default, prevents digital clipping. Hybrid mode (beta) in Settings",
       "**LIMIT button** — toggle limiter on/off from the VU panel",
+      "**Mix Scenes (SCN)** — 10 built-in profiles (Neutral, Punchy, Warm, Airy, Tight, Heavy, Mellow, Spacious, Crisp, Loud) + save/load user scenes",
     ],
   },
   {
@@ -106,9 +107,17 @@ const SECTIONS = [
     items: [
       "**Space** — Play/stop",
       "**R** — Randomize all",
-      "**← →** — Previous/next pattern",
-      "**↑ ↓** — Previous/next genre",
-      "**1 / 2 / 3 / 4** — Switch to KAOS / SYNTH / MIXER / SIMPLE",
+      "**← →** — Switch focused instrument (drums/bass/synth)",
+      "**↑ ↓** — Cycle sound preset",
+      "**Shift + ← →** — Previous/next pattern",
+      "**Shift + ↑ ↓** — Previous/next genre",
+      "**M** — Mute/unmute focused instrument",
+      "**S** — Solo/unsolo focused instrument",
+      "**L** — Lock/unlock sound (protects from MIX)",
+      "**Shift + M** — MIX (randomize all)",
+      "**B** — Set BPM (opens input modal)",
+      "**Tab / Shift+Tab** — Cycle views (KAOS → SYNTH → MIXER)",
+      "**1 / 2 / 3** — Switch to KAOS / SYNTH / MIXER",
       "**?** — Open help",
       "**Cmd+Z / Ctrl+Z** — Undo pattern edit",
       "**Escape** — Close any open modal",
@@ -128,6 +137,7 @@ const SECTIONS = [
   },
   {
     title: "Settings (Experimental)",
+    beta: true,
     items: [
       "**Anti-Clip** — Limiter (default), Hybrid (beta), or Off",
       "**Metronome** — click track on quarter notes",
@@ -136,7 +146,6 @@ const SECTIONS = [
       "**CV Output** — 1V/oct pitch + gate for DC-coupled audio interfaces",
       "**MIDI Clock In** — sync to external MIDI clock (24 PPQN) with Start/Stop/Continue transport control. Steps are tick-driven for tight sync. Use IAC Driver (Mac) or loopMIDI (Windows) to sync with Ableton Live or any DAW",
       "**Song Mode** — arrange pattern sequences",
-      "**Visual Effects** — beat pulse and mode transitions",
       "**KAOS Viz** — 4 pad visualizers: Mirrored Bars, Waveform Glow, Circular, Spectrum",
       "**MIX Effect** — visual feedback on MIX: Shake, Flash, Both, or Off",
     ],
@@ -201,6 +210,8 @@ const SECTIONS = [
   },
 ];
 
+const isBeta = new URLSearchParams(window.location.search).has("beta");
+
 export function HelpModal({ onClose, onShowTutorial, onShowCredits }: Props) {
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -221,7 +232,7 @@ export function HelpModal({ onClose, onShowTutorial, onShowCredits }: Props) {
           ▶ Show tutorial
         </button>
         <div className="help-list">
-          {SECTIONS.map((s, i) => (
+          {SECTIONS.filter(s => !("beta" in s) || isBeta).map((s, i) => (
             <div key={i} className="help-section">
               <button
                 className={`help-section-header ${expanded === i ? "expanded" : ""}`}

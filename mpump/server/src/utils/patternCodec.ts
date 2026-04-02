@@ -48,6 +48,12 @@ export interface SharePayload {
   cv?: string; // channel volumes: "drums,bass,synth" (0-100)
   spp?: Record<string, unknown>; // synth params (preview_synth)
   bpp?: Record<string, unknown>; // bass synth params (preview_bass)
+  meq?: string; // master EQ: "low,mid,high" (dB)
+  drv?: number; // master drive (dB)
+  wid?: number; // stereo width (0-100)
+  lc?: number;  // low cut frequency (Hz)
+  mb?: number;  // multiband: 0=off
+  mba?: number; // multiband amount (0-100)
 }
 
 /** Parse and validate a share URL hash. Returns null if invalid. */

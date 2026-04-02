@@ -212,6 +212,24 @@ export function useEngine() {
         engine.setMasterBoost((msg as Record<string, unknown>).gain as number);
         break;
       }
+      case "set_multiband":
+        engine.setMultibandEnabled(msg.on);
+        break;
+      case "set_multiband_amount":
+        engine.setMultibandAmount(msg.amount);
+        break;
+      case "set_width":
+        engine.setWidth(msg.width);
+        break;
+      case "set_low_cut":
+        engine.setLowCut(msg.freq);
+        break;
+      case "set_channel_eq":
+        engine.setChannelEQ(msg.channel, msg.low, msg.mid, msg.high);
+        break;
+      case "set_channel_gate":
+        engine.setChannelGate(msg.channel, msg.on, msg.rate, msg.depth, msg.shape, msg.mode, msg.pattern);
+        break;
       case "set_channel_pan":
         engine.setChannelPan(msg.channel, msg.pan);
         break;
@@ -280,5 +298,21 @@ export function useEngine() {
     engineRef.current?.loadCustomSamples(samples);
   }, []);
 
-  return { state, catalog, command, midiState, connectMidi, startPreview, getAnalyser, getChannelAnalyser, loadCustomSamples };
+  const getMixerState = useCallback(() => {
+    return engineRef.current?.getMixerState() ?? { drive: 0, eq: { low: 1, mid: 0, high: 0 }, width: 0.5, lowCut: 0, mbOn: true };
+  }, []);
+
+  const getMutedDrumNotes = useCallback((): Set<number> => {
+    return engineRef.current?.getMutedDrumNotes() ?? new Set();
+  }, []);
+
+  const playNote = useCallback((ch: number, note: number, vel = 100) => {
+    engineRef.current?.playNote(ch, note, vel);
+  }, []);
+
+  const stopNote = useCallback((ch: number, note: number) => {
+    engineRef.current?.stopNote(ch, note);
+  }, []);
+
+  return { state, catalog, command, midiState, connectMidi, startPreview, getAnalyser, getChannelAnalyser, loadCustomSamples, getMutedDrumNotes, playNote, stopNote, getMixerState };
 }

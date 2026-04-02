@@ -257,6 +257,45 @@
   margin-bottom: 16px;
 }
 
+.settings-accordion {
+  margin-bottom: 4px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.settings-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 8px 12px;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.settings-section-header:hover {
+  background: color-mix(in srgb, var(--preview) 8%, transparent);
+}
+.settings-section-header.expanded {
+  border-bottom: 1px solid var(--border);
+}
+.settings-section-header .settings-exp-tag {
+  margin-right: 6px;
+}
+.settings-arrow {
+  font-size: 9px;
+  opacity: 0.5;
+}
+.settings-accordion-body {
+  padding: 10px 12px;
+}
+
 .settings-label {
   font-size: 11px;
   font-weight: 700;
@@ -492,3 +531,4 @@
 .lib-open-btn:hover {
   opacity: 1;
 }
+.lib-open-text { display: none; }

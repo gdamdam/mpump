@@ -188,6 +188,7 @@ export class Sequencer {
   }
 
   private schedule(): void {
+    if (!this.running) return;
     const horizon = performance.now() + LOOKAHEAD_MS;
     const stepDur = 60000 / (this.bpm * 4);
     const gateDur = stepDur * this.gateFraction;

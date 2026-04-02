@@ -66,7 +66,7 @@ describe("Tutorial – STEPS structure (source verification)", () => {
   it("defines exactly 6 STEPS entries", () => {
     const matches = src.match(/\{\s*title:\s*"/g);
     expect(matches).not.toBeNull();
-    expect(matches!.length).toBe(7);
+    expect(matches!.length).toBe(6);
   });
 
   it("last step has last: true", () => {

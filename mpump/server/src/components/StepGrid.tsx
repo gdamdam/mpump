@@ -28,8 +28,8 @@ function getCellColor(accent: string, semi: number, isActive: boolean): string {
   if (isActive) return "#fff";
   const degree = ((semi % 12) + 12) % 12;
   if (degree === 0) return accent; // root = full accent
-  if (degree === 7) return accent + "cc"; // perfect 5th = slight transparency
-  return accent + "b3"; // other notes = 70% opacity
+  if (degree === 7) return `color-mix(in srgb, ${accent} 80%, transparent)`; // perfect 5th
+  return `color-mix(in srgb, ${accent} 70%, transparent)`; // other notes
 }
 
 /** Build list of available notes for dropdown */
@@ -141,7 +141,7 @@ export function StepGrid({ steps, currentStep, accent, onTap, onLongPress, rootN
             );
           }
 
-          const height = 20 + ((step.semi - minSemi) / range) * 80;
+          const height = 25 + ((step.semi - minSemi) / range) * 65;
           const cellColor = getCellColor(accent, step.semi, active);
 
           return (

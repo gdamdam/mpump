@@ -56,9 +56,9 @@ describe("DRUM_VOICES", () => {
 });
 
 describe("DEFAULT_EFFECTS", () => {
-  it("has 9 effects all defaulting to off", () => {
+  it("has 11 effects all defaulting to off", () => {
     const names = Object.keys(DEFAULT_EFFECTS);
-    expect(names.length).toBe(9);
+    expect(names.length).toBe(11);
     for (const name of names) {
       expect((DEFAULT_EFFECTS as unknown as Record<string, { on: boolean }>)[name].on).toBe(false);
     }

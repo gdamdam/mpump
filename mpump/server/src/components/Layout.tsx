@@ -1,6 +1,7 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { enableLinkBridge, onLinkState, autoDetectLinkBridge, sendLinkTempo, sendLinkPlaying } from "../utils/linkBridge";
 import type { Catalog, ClientMessage, EngineState, PreviewMode, EffectName, EffectParams } from "../types";
+import { DEFAULT_EFFECTS } from "../types";
 import { Settings, getSongModeEnabled, getBottomTransportEnabled, PALETTES, applyPalette } from "./Settings";
 import { snapToScale } from "../data/keys";
 import { getItem, setItem, getBool, setBool, getJSON, setJSON } from "../utils/storage";
@@ -48,9 +49,11 @@ interface Props {
   onConnectMidi?: () => void;
   onStartPreview?: () => void;
   onLoadSamples?: (samples: Map<number, AudioBuffer>) => void;
+  getMutedDrumNotes?: () => Set<number>;
+  playNote?: (ch: number, note: number, vel?: number) => void;
+  stopNote?: (ch: number, note: number) => void;
+  getMixerState?: () => { drive: number; eq: { low: number; mid: number; high: number }; width: number; lowCut: number; mbOn: boolean };
 }
-
-/** Tiny visitor counter — fetches count from GoatCounter JSON API. */
 
 const MODE_LABELS: Record<PreviewMode, string> = {
   kaos: "KAOS",
@@ -62,13 +65,13 @@ const MODE_LABELS: Record<PreviewMode, string> = {
 /** Modes shown in the header switcher (SIMPLE is in Settings). */
 const HEADER_MODES: PreviewMode[] = ["kaos", "synth", "mixer"];
 
-const EFFECT_ORDER: EffectName[] = ["delay", "distortion", "reverb", "compressor", "highpass", "chorus", "phaser", "bitcrusher"];
+const EFFECT_ORDER: EffectName[] = ["delay", "distortion", "reverb", "compressor", "highpass", "chorus", "phaser", "bitcrusher", "flanger", "tremolo"];
 
 import { encodeSharePayload, decodeSharePayload, buildShareUrl } from "../utils/shareCodec";
 
 const toUrlSafeB64 = (obj: object) => encodeSharePayload(obj);
 
-export function Layout({ state, catalog, command: rawCommand, isPreview, getAnalyser, getChannelAnalyser, onConnectMidi, onStartPreview, onLoadSamples }: Props) {
+export function Layout({ state, catalog, command: rawCommand, isPreview, getAnalyser, getChannelAnalyser, onConnectMidi, onStartPreview, onLoadSamples, getMutedDrumNotes, playNote, stopNote, getMixerState }: Props) {
   // Ref to access current state inside Link callback (avoids stale closure)
   const stateRef = useRef(state);
   stateRef.current = state;
@@ -118,6 +121,36 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
 
   const [showSettings, setShowSettings] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [showScenePicker, setShowScenePicker] = useState(false);
+  useEffect(() => {
+    if (!showScenePicker) return;
+    const close = (e: MouseEvent) => { if (!(e.target as HTMLElement).closest(".scene-picker-wrap")) setShowScenePicker(false); };
+    setTimeout(() => document.addEventListener("click", close), 0);
+    return () => document.removeEventListener("click", close);
+  }, [showScenePicker]);
+  const [activeScene, setActiveScene] = useState<string | null>("Punchy");
+  const HEADER_SCENES = [
+    { name: "Neutral", desc: "flat, no coloring", eq: { low: 0, mid: 0, high: 0 }, drive: 0, width: 0.5, lowCut: 0, mbOn: true, mbAmount: 0.25 },
+    { name: "Airy", desc: "wide, bright, open", eq: { low: 1, mid: -1, high: 3 }, drive: 0, width: 0.7, lowCut: 25, mbOn: true, mbAmount: 0.35 },
+    { name: "Punchy", desc: "tight kick, clear mids", eq: { low: 2, mid: -2, high: 2 }, drive: 0, width: 0.6, lowCut: 35, mbOn: true, mbAmount: 0.3 },
+    { name: "Warm", desc: "smooth, round, groovy", eq: { low: 2, mid: -1, high: 1 }, drive: 0, width: 0.65, lowCut: 25, mbOn: true, mbAmount: 0.3 },
+    { name: "Tight", desc: "controlled, fast, clean", eq: { low: 1, mid: -2, high: 2 }, drive: 0, width: 0.55, lowCut: 35, mbOn: true, mbAmount: 0.35 },
+    { name: "Heavy", desc: "deep sub, weight", eq: { low: 3, mid: -1, high: 2 }, drive: 1, width: 0.5, lowCut: 20, mbOn: true, mbAmount: 0.35 },
+    { name: "Mellow", desc: "dark, soft, relaxed", eq: { low: 1, mid: -1, high: -1 }, drive: 0, width: 0.65, lowCut: 0, mbOn: true, mbAmount: 0.15 },
+    { name: "Spacious", desc: "very wide, minimal", eq: { low: 1, mid: -1, high: 2 }, drive: -1, width: 0.8, lowCut: 20, mbOn: true, mbAmount: 0.1 },
+    { name: "Crisp", desc: "bright, defined, present", eq: { low: 1, mid: -1, high: 3 }, drive: 1, width: 0.55, lowCut: 30, mbOn: true, mbAmount: 0.3 },
+    { name: "Loud", desc: "full, compressed, big", eq: { low: 2, mid: -1, high: 2 }, drive: 1, width: 0.65, lowCut: 25, mbOn: true, mbAmount: 0.4 },
+  ];
+  const loadHeaderScene = (s: typeof HEADER_SCENES[0]) => {
+    setActiveScene(s.name);
+    command({ type: "set_eq", ...s.eq } as ClientMessage);
+    command({ type: "set_drive", db: s.drive } as ClientMessage);
+    command({ type: "set_width", width: s.width } as ClientMessage);
+    command({ type: "set_low_cut", freq: s.lowCut } as ClientMessage);
+    command({ type: "set_multiband", on: s.mbOn } as ClientMessage);
+    command({ type: "set_multiband_amount", amount: s.mbAmount } as ClientMessage);
+    setShowScenePicker(false);
+  };
   useEffect(() => {
     if (!showMoreMenu) return;
     const close = (e: MouseEvent) => {
@@ -131,6 +164,8 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
   const support = useSupportPrompt();
   const [scaleLock, setScaleLock] = useState(() => getItem("mpump-scale-lock", "chromatic"));
   const [soloChannel, setSoloChannel] = useState<"drums" | "bass" | "synth" | null>(null);
+  const [kbdFocusDevice, setKbdFocusDevice] = useState<string | null>(null);
+  const [showBpmModal, setShowBpmModal] = useState(false);
   const [channelVolumes, setChannelVolumes] = useState<Record<number, number>>({ 9: 0.7, 0: 0.7, 1: 0.7 });
   const [antiClipMode, setAntiClipMode] = useState<"off" | "limiter" | "hybrid">("limiter");
 
@@ -607,6 +642,7 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
   }, [state.bpm, linkConnected]);
   const mixHistoryRef = useRef<Array<{ bpm: number; genres: Record<string, { gi: number; pi: number; bgi: number; bpi: number }>; dk: string; sp: string; bp: string }>>([]);
   const mixCountRef = useRef(1);
+  const [mixCount, setMixCount] = useState(0);
   const mixBpmCountRef = useRef(0);
   const GENRE_LIST = ["techno","acid-techno","trance","dub-techno","idm","edm","drum-and-bass","house","breakbeat","jungle","garage","ambient","glitch","electro","downtempo"];
   const [genreLock, setGenreLock] = useState<string | null>(null);
@@ -616,7 +652,7 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
 
   // Listen for logo pulse setting changes
   useEffect(() => {
-    const handler = () => setLogoPulseMode(getItem("mpump-logo-pulse", "audio"));
+    const handler = () => setLogoPulseMode(getItem("mpump-logo-pulse", "kick"));
     window.addEventListener("mpump-settings-changed", handler);
     return () => window.removeEventListener("mpump-settings-changed", handler);
   }, []);
@@ -629,8 +665,10 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
       return;
     }
     const buf = new Uint8Array(128);
+    let logoFrameSkip = 0;
     const tick = () => {
       logoRafRef.current = requestAnimationFrame(tick);
+      if (++logoFrameSkip % 4 !== 0) return; // ~15fps for logo pulse
       const analyser = getAnalyser();
       if (!analyser || !logoRef.current) return;
       analyser.getByteFrequencyData(buf);
@@ -701,7 +739,19 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
   // Keyboard shortcuts (preview mode only)
   const toggleAllPauseRef = useRef<() => void>(() => {});
   const isListener = jam.status === "connected" && jam.role === "listener";
-  useKeyboard(state, command, !!isPreview && !isListener, isListener ? undefined : () => toggleAllPauseRef.current());
+  const presetNav = useMemo(() => ({
+    cycleSynth: (dir: number) => { const n = Math.max(0, Math.min(SYNTH_PRESETS.length - 1, parseInt(activeSynth) + dir)); handleSynthChange(String(n)); },
+    cycleBass: (dir: number) => { const n = Math.max(0, Math.min(BASS_PRESETS.length - 1, parseInt(activeBass) + dir)); handleBassChange(String(n)); },
+    cycleDrumKit: (dir: number) => { const all = [...SAMPLE_PACKS.map(p => `pack:${p.id}`), ...DRUM_KIT_PRESETS.map((_, i) => String(i))]; const idx = all.indexOf(activeDrumKit); const next = (idx + dir + all.length) % all.length; handleDrumKitChange(all[next]); },
+  }), [activeSynth, activeBass, activeDrumKit]); // eslint-disable-line react-hooks/exhaustive-deps
+  const keyActionsRef = useRef<{ toggleLock: (deviceId: string) => void; doMix: () => void; toggleSolo: (ch: "drums" | "bass" | "synth") => void; openBpm: () => void }>({ toggleLock: () => {}, doMix: () => {}, toggleSolo: () => {}, openBpm: () => {} });
+  const keyActions = useMemo(() => ({
+    toggleLock: (deviceId: string) => keyActionsRef.current.toggleLock(deviceId),
+    doMix: () => keyActionsRef.current.doMix(),
+    toggleSolo: (ch: "drums" | "bass" | "synth") => keyActionsRef.current.toggleSolo(ch),
+    openBpm: () => keyActionsRef.current.openBpm(),
+  }), []);
+  useKeyboard(state, command, !!isPreview && !isListener, isListener ? undefined : () => toggleAllPauseRef.current(), kbdFocusDevice, presetNav, setKbdFocusDevice, keyActions);
 
   // Session timer — update every minute
   useEffect(() => {
@@ -719,11 +769,18 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
         saveToLibrary();
         return;
       }
+      if (e.key === "Tab") {
+        e.preventDefault();
+        setPreviewMode(prev => {
+          const modes: PreviewMode[] = ["kaos", "synth", "mixer"];
+          return modes[(modes.indexOf(prev) + (e.shiftKey ? -1 + modes.length : 1)) % modes.length];
+        });
+        return;
+      }
       switch (e.key) {
         case "1": setPreviewMode("kaos"); break;
         case "2": setPreviewMode("synth"); break;
         case "3": setPreviewMode("mixer"); break;
-        case "4": setPreviewMode("ease"); break;
         case "?": setShowHelp(true); break;
       }
     };
@@ -798,6 +855,16 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
           if (Number.isFinite(bv)) { command({ type: "set_channel_volume", channel: 1, volume: bv / 100 }); setChannelVolumes(prev => ({ ...prev, 1: bv / 100 })); }
           if (Number.isFinite(sv)) { command({ type: "set_channel_volume", channel: 0, volume: sv / 100 }); setChannelVolumes(prev => ({ ...prev, 0: sv / 100 })); }
         }
+        // Restore mixer settings (master EQ, drive, width, lowCut, multiband)
+        if (data.meq) {
+          const [l, m, h] = data.meq.split(",").map(Number);
+          if (Number.isFinite(l)) command({ type: "set_eq", low: l, mid: m ?? 0, high: h ?? 0 } as ClientMessage);
+        }
+        if (data.drv != null) command({ type: "set_drive", db: data.drv } as ClientMessage);
+        if (data.wid != null) command({ type: "set_width", width: data.wid / 100 } as ClientMessage);
+        if (data.lc != null) command({ type: "set_low_cut", freq: data.lc } as ClientMessage);
+        if (data.mb === 0) command({ type: "set_multiband", on: false } as ClientMessage);
+        if (data.mba != null) command({ type: "set_multiband_amount", amount: data.mba / 100 } as ClientMessage);
         // Restore mute states
         if (data.mu && data.mu.length === 3) {
           if (data.mu[0] === "1") command({ type: "set_drums_mute", device: "preview_drums", muted: true });
@@ -863,6 +930,12 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
     // Restore effect chain order
     const savedOrder = getJSON<import("../types").EffectName[] | null>("mpump-effect-order", null);
     if (savedOrder) command({ type: "set_effect_order", order: savedOrder });
+    // Apply default "Punchy" scene
+    const punchy = HEADER_SCENES.find(s => s.name === "Punchy");
+    if (punchy) {
+      command({ type: "set_low_cut", freq: punchy.lowCut } as ClientMessage);
+      command({ type: "set_multiband_amount", amount: punchy.mbAmount } as ClientMessage);
+    }
   }, [anyConnected]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Check for app updates every 5 minutes
@@ -1063,6 +1136,9 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
     );
     const name = getItem("mpump-track-name", "") || "Untitled";
     saveSession(`${name} · ${stateRef.current.bpm} BPM`, session);
+    // Also update autosave + last-session so Continue works immediately after save
+    setJSON("mpump-autosave", session);
+    saveLastSession(session, name);
     // Blink all save buttons
     document.querySelectorAll(".header-save-btn, .header-save-mobile").forEach(el => {
       el.classList.remove("blink");
@@ -1071,8 +1147,10 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
     });
   }, []);
 
-  // Auto-save: persist session to localStorage every 30s and on tab close
+  // Auto-save: persist session to localStorage every 3s and on tab close/hide
   const doAutoSave = useCallback(() => {
+    // Skip if no devices connected yet (prevents writing defaults before restore)
+    if (!stateRef.current || Object.values(stateRef.current.devices).filter(d => d.connected).length === 0) return;
     const session = exportSession(
       stateRef.current,
       volumeRef.current,
@@ -1086,11 +1164,17 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
   }, []);
 
   useEffect(() => {
-    window.addEventListener("beforeunload", doAutoSave);
-    const id = setInterval(doAutoSave, 10_000);
+    // Save frequently (3s) so autosave is always fresh — don't save on
+    // beforeunload as it can overwrite with teardown state on Cmd+R
+    const id = setInterval(doAutoSave, 3_000);
+    // Save when tab becomes hidden (switching tabs, closing)
+    const onHide = () => { if (document.visibilityState === "hidden") doAutoSave(); };
+    document.addEventListener("visibilitychange", onHide);
     return () => {
-      window.removeEventListener("beforeunload", doAutoSave);
       clearInterval(id);
+      document.removeEventListener("visibilitychange", onHide);
+      // Save on unmount (cleanup runs before React tears down state)
+      doAutoSave();
     };
   }, [doAutoSave]);
 
@@ -1178,6 +1262,7 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
       if (history.length > 3) history.shift();
     }
     mixCountRef.current++;
+    setMixCount(c => c + 1);
     const anyLock = !!genreLock || patternLock.drums || patternLock.synth || patternLock.bass || soundLock.drums || soundLock.synth || soundLock.bass;
     if (!anyLock) {
       setTrackName(generateTrackName(state.bpm));
@@ -1322,6 +1407,23 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
     }
   };
 
+  // Wire up keyboard action refs (doMix defined above, soundLock in scope)
+  keyActionsRef.current = {
+    toggleLock: (deviceId: string) => {
+      const ch = deviceId === "preview_drums" ? "drums" : deviceId === "preview_bass" ? "bass" : "synth";
+      setSoundLock(prev => ({ ...prev, [ch]: !prev[ch as keyof typeof prev] }));
+    },
+    doMix,
+    toggleSolo: (ch: "drums" | "bass" | "synth") => {
+      const unsolo = soloChannel === ch;
+      command({ type: "set_drums_mute", device: "preview_drums", muted: unsolo ? false : ch !== "drums" });
+      command({ type: "set_drums_mute", device: "preview_synth", muted: unsolo ? false : ch !== "synth" });
+      command({ type: "set_drums_mute", device: "preview_bass", muted: unsolo ? false : ch !== "bass" });
+      setSoloChannel(unsolo ? null : ch);
+    },
+    openBpm: () => setShowBpmModal(true),
+  };
+
   return (
     <div
       className={`layout ${isPreview ? `mode-${previewMode}` : ""} ${mixFx ? `mix-fx-${mixFx}` : ""} ${bottomTransport ? "bottom-transport-active" : ""}`}
@@ -1329,6 +1431,7 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
       <header className="header">
         <div className="title">
           <pre ref={logoRef} className={`title-art ${logoFlash ? "logo-flash" : ""} ${logoKick ? "logo-kick" : ""}`} key={logoFlash} title="1× pulse · 2× beat sync · 3× theme · 4× credits" onClick={handleLogoClick}>{"█▀▄▀█ █▀█ █ █ █▀▄▀█ █▀█\n█ ▀ █ █▀▀ ▀▄▀ █ ▀ █ █▀▀"}</pre>
+          <span className="beta-badge" title={"⚡ Sound engine tuning in progress\nThings may change 🚧"}>BETA</span>
           {linkConnected && <span style={{ color: "#66ff99", fontSize: 10, marginLeft: 2, verticalAlign: "top" }} title="Ableton Link connected">●</span>}
         </div>
         {/* Track title: between logo and VU */}
@@ -1377,29 +1480,33 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
                     presetState?.setPatternLock(prev => ({ ...prev, drums: false, bass: false, synth: false }));
                     setGenreLink(false);
                   } else {
-                    setShowGenrePicker(s => !s);
+                    setShowGenrePicker(s => { if (!s) setShowScenePicker(false); return !s; });
                   }
                 }}>
                   🔗
                 </button>
                 {showGenrePicker && (() => {
                   const genres = catalog?.s1?.genres ?? catalog?.t8?.drum_genres ?? [];
-                  const VIBE_ORDER: Record<string, number> = {
-                    ambient: 0, downtempo: 1, "dub-techno": 2, house: 3, garage: 4,
-                    electro: 5, breakbeat: 6, techno: 7, "acid-techno": 8, trance: 9,
-                    idm: 10, glitch: 11, edm: 12, "drum-and-bass": 13, jungle: 14,
-                  };
                   const GENRE_BPM: Record<string, [number, number]> = {
-                    ambient: [70, 90], downtempo: [85, 105], "dub-techno": [110, 122],
-                    house: [120, 128], garage: [128, 135], electro: [120, 135],
-                    breakbeat: [125, 140], techno: [128, 140], "acid-techno": [132, 145],
-                    trance: [136, 145], idm: [110, 150], glitch: [110, 150],
-                    edm: [126, 140], "drum-and-bass": [165, 178], jungle: [160, 175],
+                    "lo-fi": [70, 90], ambient: [70, 90], downtempo: [85, 105],
+                    "dub-techno": [110, 122], synthwave: [110, 125],
+                    house: [120, 128], "deep-house": [120, 125], garage: [128, 135],
+                    electro: [120, 135], edm: [126, 140],
+                    breakbeat: [125, 140], techno: [128, 140],
+                    "acid-techno": [132, 145], trance: [136, 145],
+                    dubstep: [135, 145], psytrance: [140, 150],
+                    idm: [110, 150], glitch: [110, 150],
+                    "drum-and-bass": [165, 178], jungle: [160, 175],
                   };
-                  const sorted = genres.map((g, i) => ({ g, i })).sort((a, b) => (VIBE_ORDER[a.g.name] ?? 99) - (VIBE_ORDER[b.g.name] ?? 99));
+                  // Sort alphabetically
+                  const tagged = genres.map((g: { name: string }, i: number) => {
+                    const bpm = GENRE_BPM[g.name];
+                    return { g, i, mid: 0, bpmLabel: bpm ? `${bpm[0]}–${bpm[1]}` : "" };
+                  }).sort((a, b) => a.g.name.localeCompare(b.g.name));
                   return (
                     <div className="genre-link-dropdown">
-                      {sorted.map(({ g, i }) => (
+                      <div style={{ fontSize: 8, opacity: 0.4, letterSpacing: 1, padding: "2px 8px", textTransform: "uppercase" }}>Set All Genres</div>
+                      {tagged.map(({ g, i, bpmLabel }) => (
                         <button key={i} className="genre-link-option" onClick={() => {
                           // Set genre on all 3 instruments
                           for (const d of Object.values(state.devices)) {
@@ -1427,11 +1534,34 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
                           presetState?.setPatternLock(prev => ({ ...prev, drums: true, bass: true, synth: true }));
                           setGenreLink(true);
                           setShowGenrePicker(false);
-                        }}>{g.name}</button>
+                        }}>{g.name} <span style={{ opacity: 0.8, fontSize: 8 }}>{bpmLabel}</span></button>
                       ))}
                     </div>
                   );
                 })()}
+              </div>
+            )}
+            {isPreview && (
+              <div className="genre-link-wrap scene-picker-wrap">
+                <button
+                  className={`sound-lock-btn ${activeScene ? "locked" : ""}`}
+                  title={activeScene ? `Scene: ${activeScene}` : "Mix scene"}
+                  onClick={() => setShowScenePicker(v => { if (!v) setShowGenrePicker(false); return !v; })}
+                  style={{ fontSize: 14, border: activeScene ? "1px solid var(--preview)" : undefined, borderRadius: activeScene ? 4 : undefined, padding: activeScene ? "1px 4px" : undefined }}
+                >🎛</button>
+                {showScenePicker && (
+                  <div className="genre-link-dropdown" style={{ minWidth: 120 }}>
+                    <div style={{ fontSize: 8, opacity: 0.4, letterSpacing: 1, padding: "2px 8px", textTransform: "uppercase" }}>Mix Scene</div>
+                    {HEADER_SCENES.map(s => (
+                      <button
+                        key={s.name}
+                        className={`genre-link-option ${activeScene === s.name ? "active" : ""}`}
+                        style={activeScene === s.name ? { background: "#66ff99", color: "#000" } : undefined}
+                        onClick={() => loadHeaderScene(s)}
+                      >{s.name} <span style={{ opacity: 0.8, fontSize: 8 }}>{s.desc}</span></button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
             {isPreview && (
@@ -1455,7 +1585,7 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
                 })}
               </div>
             )}
-            <span style={isListenerMode ? { opacity: 0.6, pointerEvents: "none" } : undefined}><BpmControl bpm={state.bpm} command={command} /></span>
+            <span style={isListenerMode ? { opacity: 0.6, pointerEvents: "none" } : undefined}><BpmControl bpm={state.bpm} command={command} showModal={showBpmModal} onModalClose={() => setShowBpmModal(false)} /></span>
           </div>
           {/* Row 2: transport, share, settings */}
           <div className="header-row header-row-tools">
@@ -1525,6 +1655,33 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
                   // Channel volumes (drums=ch9, bass=ch1, synth=ch0)
                   const cv = `${Math.round((channelVolumes[9] ?? 0.7) * 100)},${Math.round((channelVolumes[1] ?? 0.7) * 100)},${Math.round((channelVolumes[0] ?? 0.7) * 100)}`;
                   if (cv !== "70,70,70") base.cv = cv;
+                  // Mixer settings (master EQ, drive, width, lowCut, multiband)
+                  if (getMixerState) {
+                    const mx = getMixerState();
+                    const meq = `${mx.eq.low},${mx.eq.mid},${mx.eq.high}`;
+                    if (meq !== "1,0,0") base.meq = meq;
+                    if (mx.drive !== 0) base.drv = mx.drive;
+                    if (mx.width !== 0.5) base.wid = Math.round(mx.width * 100);
+                    if (mx.lowCut > 0) base.lc = mx.lowCut;
+                    if (!mx.mbOn) base.mb = 0;
+                  }
+                  // Effects (on/off bits + full params + chain order)
+                  const fx = getJSON<EffectParams>("mpump-effects", DEFAULT_EFFECTS);
+                  const fxBits = EFFECT_ORDER.map(n => (fx as unknown as Record<string, { on: boolean }>)[n]?.on ? "1" : "0").join("");
+                  if (fxBits !== "0000000000") base.fx = fxBits;
+                  // Full effect params (only for effects that are ON, strip 'on' key)
+                  const fxOn: Record<string, Record<string, unknown>> = {};
+                  for (const n of EFFECT_ORDER) {
+                    const ep = (fx as unknown as Record<string, Record<string, unknown>>)[n];
+                    if (ep?.on) {
+                      const { on: _, ...params } = ep;
+                      fxOn[n] = params;
+                    }
+                  }
+                  if (Object.keys(fxOn).length > 0) base.fp = fxOn;
+                  // Effect chain order (only if non-default)
+                  const eo = getJSON<EffectName[]>("mpump-effect-order", EFFECT_ORDER);
+                  if (JSON.stringify(eo) !== JSON.stringify(EFFECT_ORDER)) base.eo = eo;
                   // Pattern edits
                   for (const d of connectedDevices) {
                     if (!d.editing) continue;
@@ -1555,20 +1712,15 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
                     {jam.roomType === "liveset"
                       ? ` LIVE SET ${jam.peerCount}`
                       : ` JAM ${jam.peerCount}/4`}
-                  </>) : (<><span className="jam-label-full">Jam/Live Set</span><span className="jam-label-short">Jam</span></>)}
+                  </>) : (<><span className="jam-label-full">Jam/Set</span><span className="jam-label-short">Jam</span></>)}
                 </button>
               )}
             </div>
             {/* Right-aligned group: pins, heart, more, settings */}
             <div className="header-right-group">
-              {isPreview && <PresetManager state={state} onLoad={loadPreset} />}
+              {isPreview && <PresetManager state={state} onLoad={loadPreset} mixCount={mixCount} />}
               {isPreview && <button className="header-settings-btn header-save-btn" title="Save session (Cmd+S)" aria-label="Save session" onClick={saveToLibrary}>💾</button>}
               {isPreview && <button className="header-settings-btn header-sessions-btn" title="Sessions" aria-label="Sessions" onClick={() => setShowSessionLib(true)}>📂</button>}
-              {isPreview && (
-                <button className="header-settings-btn header-help-btn" onClick={() => setShowHelp(true)} title="Help" aria-label="Help">
-                  ?
-                </button>
-              )}
               {isPreview && (
                 <button className="header-settings-btn header-save-mobile" onClick={saveToLibrary} title="Save session" aria-label="Save session">
                   💾
@@ -1581,8 +1733,9 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
                   </button>
                   {showMoreMenu && (
                     <div className="header-more-menu" onClick={(e) => { if (!(e.target as HTMLElement).closest(".tap-tempo-btn") && !(e.target as HTMLElement).closest(".preset-mgr")) setShowMoreMenu(false); }}>
+                      <button onClick={() => { setShowMoreMenu(false); setShowHelp(true); }}>? Help</button>
                       <button className="more-menu-sessions" onClick={() => { setShowMoreMenu(false); setShowSessionLib(true); }}>📂 Sessions</button>
-                      <div className="more-menu-presets"><PresetManager state={state} onLoad={loadPreset} /></div>
+                      <div className="more-menu-presets"><PresetManager state={state} onLoad={loadPreset} mixCount={mixCount} /></div>
                       <button className="more-menu-fullscreen" onClick={() => {
                         if (document.fullscreenElement) document.exitFullscreen();
                         else document.documentElement.requestFullscreen().catch(() => {});
@@ -1609,10 +1762,12 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
 
       {/* Update banner */}
       {updateAvailable && (
-        <div className="update-banner" onClick={() => location.reload()}>
-          New version available — tap to update
+        <div className="update-banner">
+          <span onClick={() => location.reload()}>New version available — tap to update</span>
+          <button className="update-banner-close" onClick={(e) => { e.stopPropagation(); setUpdateAvailable(false); }}>✕</button>
         </div>
       )}
+
 
 
       {/* Song editor at top (preview only, drums device) */}
@@ -1677,6 +1832,10 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
             isListener={jam.status === "connected" && jam.role === "listener"}
             currentStep={drumsStep}
             pendingMutes={pendingMutes}
+            onKbdFocusChange={setKbdFocusDevice}
+            kbdFocusDevice={kbdFocusDevice}
+            soloChannel={soloChannel}
+            onSoloChange={setSoloChannel}
           />
           </>
         ) : isPreview && previewMode === "mixer" ? (
@@ -1720,6 +1879,11 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
                 soloChannel={soloChannel}
                 onSoloChange={setSoloChannel}
                 getChannelAnalyser={getChannelAnalyser}
+                getMutedDrumNotes={getMutedDrumNotes}
+                playNote={playNote}
+                stopNote={stopNote}
+                kbdFocusDevice={kbdFocusDevice}
+                onKbdFocusChange={setKbdFocusDevice}
               />
             )
           )

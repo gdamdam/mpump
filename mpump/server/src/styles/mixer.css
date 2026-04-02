@@ -374,24 +374,39 @@
   flex-shrink: 0;
 }
 
-/* ── Modal reset button ── */
+/* ── Modal reset + close ── */
 .mx-modal-reset {
   display: block;
-  margin: 10px auto 0;
+  margin: 6px 0 0 auto;
   font-size: 9px;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--preview);
-  opacity: 0.7;
+  opacity: 0.4;
   background: none;
-  border: 1px solid var(--preview);
-  border-radius: 4px;
-  padding: 3px 12px;
+  border: none;
+  padding: 2px 0;
   cursor: pointer;
+  text-align: right;
 }
 .mx-modal-reset:hover {
   opacity: 1;
-  background: var(--preview);
+}
+.mx-modal-close {
+  display: block;
+  width: 100%;
+  margin: 10px 0 0;
+  font-size: 11px;
+  font-weight: 700;
   color: #000;
+  background: var(--preview);
+  border: none;
+  border-radius: 4px;
+  padding: 6px 0;
+  cursor: pointer;
+  letter-spacing: 0.5px;
+}
+.mx-modal-close:hover {
+  opacity: 0.85;
 }
 
 /* ── Effects bar ── */

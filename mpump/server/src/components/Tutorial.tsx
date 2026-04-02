@@ -20,7 +20,6 @@ interface Step {
 const STEPS: Step[] = [
   { title: "Welcome to mpump", body: "An instant groovebox in your browser. Start fast, stay in flow." },
   { title: "Play and mix", body: "▶ starts playback. MIX gives you a new groove. The XY pad shapes the sound.", target: ".shuffle-btn" },
-  { title: "Keep it", body: "REC captures audio. ⋯ has export, share, and session tools.", target: ".rec-btn", highlight: "active" },
   { title: "Share it", body: "Made something cool? Share a playable link with your friends. They open it and hear your beat instantly. No app needed.", target: ".header-share-btn" },
   { title: "Jam together", body: "Click Jam to start a live session. Jam with up to 4 friends, or start a Live Set for up to 49 listeners. Share the link, they join instantly.", target: ".jam-header-btn" },
   { title: "Take it with you", body: "Works offline for solo play. Bookmark this page or install it as an app for instant access anytime." },

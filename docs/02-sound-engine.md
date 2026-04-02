@@ -60,17 +60,19 @@ All 9 drum voices are synthesized from scratch using oscillators, noise, and env
 
 ### Kick (BD, MIDI 36)
 
+Tuned to match Roland TR-808 frequency profile: 215 Hz → 105 Hz → 51 Hz sweep.
+
 ```
-┌─ Click ──┐   ┌─ Body ─────────────────────┐
-│ short    │ + │ sine oscillator              │
-│ noise    │   │ pitch sweep: 220→40 Hz       │
-│ burst    │   │ exponential decay             │
-└──────────┘   └──────────────────────────────┘
-                         +
-               ┌─ Sub ─────────────────────┐
-               │ sine at base freq (40 Hz) │
-               │ longer decay              │
-               └───────────────────────────┘
+┌─ Click ──────┐   ┌─ Body ──────────────────────┐
+│ 5kHz sine    │ + │ sine oscillator               │
+│ burst        │   │ pitch sweep: ~200→50 Hz       │
+│ <0.3ms decay │   │ exponential decay              │
+└──────────────┘   └───────────────────────────────┘
+                            +
+                  ┌─ Sub ─────────────────────┐
+                  │ sine at 50 Hz             │
+                  │ longer decay              │
+                  └───────────────────────────┘
 ```
 
 Parameters: **click** (attack transient level, 0–1), **sweepDepth** (pitch sweep amount), **sweepRate** (how fast pitch drops), **tune** (±24 semitones), **decay** (multiplier), **filterCutoff** (optional LP filter).
@@ -78,37 +80,38 @@ Parameters: **click** (attack transient level, 0–1), **sweepDepth** (pitch swe
 ### Snare (SD, MIDI 38)
 
 ```
-┌─ Tone ──────────┐   ┌─ Noise ──────────┐
-│ 185 Hz + 100 Hz │ + │ white noise       │
-│ sine oscillators │   │ bandpass filtered  │
-│ fast decay       │   │ longer tail        │
-└──────────────────┘   └───────────────────┘
+┌─ Tone ──────────────┐   ┌─ Noise ───────────────┐
+│ 185 Hz + 110 Hz     │ + │ white noise             │
+│ pitch envelope       │   │ bandpass @ 3.8kHz (808) │
+│ (280→185 Hz snap)    │   │ snare wire resonance    │
+└──────────────────────┘   └────────────────────────┘
 ```
 
-**noiseMix** (0–1) controls the balance between tonal body and noise. 0 = pure tone, 1 = pure noise.
+**noiseMix** (0–1) controls the balance between tonal body and noise. Wire resonance adds sizzle via a 2-pole bandpass filter at 3.8 kHz (matched to 808 spectral peak).
 
 ### Closed Hat (CH, MIDI 42) & Open Hat (OH, MIDI 46)
 
 ```
 ┌─ Ring Partials ──────────────────────┐
-│ 3 square oscillators at:             │
-│   3500 Hz, 5200 Hz, 7800 Hz         │
-│ bandpass filtered                    │
+│ 6 inharmonic partials at:            │
+│   3500, 4100, 5200, 6300, 7500,     │
+│   8800 Hz (7.5kHz dominant, 808)     │
+│ + sharp transient burst (<1ms)       │
 │ CH: short decay  /  OH: long decay   │
 └──────────────────────────────────────┘
 ```
 
-**color** (-1 to +1) shifts brightness. Negative values darken (lower partials emphasized), positive values brighten (higher partials).
+**color** (-1 to +1) shifts brightness. All voices level-matched to 808 reference samples.
 
 ### Other Voices
 
 | Voice | MIDI | Technique |
 |-------|------|-----------|
-| Rimshot (RS) | 37 | Short pitched click, high-frequency content |
-| Cowbell (CB) | 47 | Two detuned square oscillators, metallic ring |
-| Cymbal (CY) | 49 | Dense ring partials, long decay, bandpass filtered |
-| Clap (CP) | 50 | Multiple short noise bursts with slight delays (hand spread) |
-| Ride (RD) | 51 | Similar to cymbal, brighter, shorter body |
+| Rimshot (RS) | 37 | Two pitched components (920 + 1600 Hz, 808 match) + noise, very short (40ms) |
+| Cowbell (CB) | 47 | Two square oscillators (545 + 815 Hz, 808 values) with bandpass resonance at 800 Hz |
+| Cymbal (CY) | 49 | 5 inharmonic partials (3.2–11 kHz, 909 match) with per-partial decay rates |
+| Clap (CP) | 50 | 4 randomized micro-bursts + bandpass at 3.2 kHz (808 spectral peak) |
+| Ride (RD) | 51 | 4 bell partials centered at 8.5 kHz (909 match) with stick transient |
 
 All voices support: **tune** (±24 semitones), **decay** (0.2–3.0 multiplier), **level** (0–1), **pan** (-1 to +1), **filterCutoff** (0=dark, 1=bypass).
 
@@ -123,34 +126,36 @@ Both synth and bass use the same voice architecture with different default param
 ### Voice Architecture
 
 ```
-┌─ Main Oscillator ────────────┐
-│ SAW / SQR / SIN / TRI        │
-│ optional unison (1–7 voices)  │
-│ detune spread (0–50 cents)    │
-├───────────────────────────────┤
-│ + Sub Oscillator (optional)   │
-│   sine, -1 octave             │
-│   level 0–1                   │
-├───────────────────────────────┤
-│ → Filter (optional)           │
-│   LP / HP / BP / Notch        │
-│   cutoff 100–8000 Hz          │
-│   resonance 0.5–20 Q          │
-│   envelope depth 0–1          │
-├───────────────────────────────┤
-│ → ADSR Envelope               │
-│   attack  0.001–2s            │
-│   decay   0.01–2s             │
-│   sustain 0–1                 │
-│   release 0.01–3s             │
-├───────────────────────────────┤
-│ → LFO (optional)              │
-│   shape: sine/square/tri/saw  │
-│   target: cutoff/pitch/both   │
-│   free rate (0.1–20 Hz)       │
-│   or tempo-synced division    │
-│   depth 0–1                   │
-└───────────────────────────────┘
+┌─ Main Oscillator ─────────────────────────────────────┐
+│ SAW / SQR / SIN / TRI / PWM / SYNC / FM / WTB         │
+│ optional unison (1–7 voices), detune (0–50 cents)      │
+│ analog drift (~±3 cents, slow random per voice)        │
+│                                                        │
+│ PWM: two saws + delay for pulse width, auto-swept LFO  │
+│ SYNC: master resets slave phase (AudioWorklet)          │
+│ FM: 2-operator phase modulation (AudioWorklet)          │
+│ WTB: 5 wavetables with morph (AudioWorklet)             │
+├────────────────────────────────────────────────────────┤
+│ + Sub Oscillator (optional) — sine, -1 octave, 0–1     │
+├────────────────────────────────────────────────────────┤
+│ → Filter (optional)                                     │
+│   3 models: DIG (BiquadFilter), MOG (Moog ladder),     │
+│             303 (diode ladder) — via AudioWorklet       │
+│   4 types: LP / HP / BP / Notch                         │
+│   cutoff 100–8000 Hz, resonance 0.5–20 Q               │
+│   envelope depth 0–1, drive 0–1 (pre-filter gain)       │
+│   MOG/303 self-oscillate at high resonance              │
+├────────────────────────────────────────────────────────┤
+│ → ADSR Envelope                                         │
+│   attack 0.001–2s, decay 0.01–2s, sustain 0–1,         │
+│   release 0.01–3s                                       │
+├────────────────────────────────────────────────────────┤
+│ → LFO (optional)                                        │
+│   shape: sine/square/tri/saw                            │
+│   target: cutoff/pitch/both                             │
+│   free rate (0.1–20 Hz) or tempo-synced division        │
+│   depth 0–1                                             │
+└────────────────────────────────────────────────────────┘
 ```
 
 ### Voice Allocation
@@ -165,7 +170,7 @@ Synth voices are polyphonic — each note-on creates a new voice, tracked in a `
 
 ### Sound Presets
 
-19 synth presets (grouped: Leads, Keys, Pads, Plucks, Squelch, Aggressive) and 14 bass presets (grouped: Deep, Acid, Sustained, Plucks, Wobble). 15 drum kit presets with per-voice parameter overrides.
+33 synth presets (grouped: Leads, Keys, Pads, Plucks, Squelch, Aggressive, Worklet) and 22 bass presets (grouped: Deep, Acid, Sustained, Plucks, Wobble). Many use AudioWorklet features (MOG/303 filters, PWM, sync, FM, wavetable oscillators). 15 drum kit presets + 7 machine packs (CR-78, DMX, LinnDrum, TR-606, TR-707, TR-808, TR-909) with per-voice parameter overrides. 19 built-in mix scenes matched to genres.
 
 ## Audio Graph
 
@@ -197,7 +202,11 @@ ch 0 ──→ │ synthGain → synthPan─┘        ▼                  │
          └─────────────────────────────────────────────────┘
 ```
 
-Each channel has its own `GainNode` (volume), `StereoPannerNode`, and `AnalyserNode` for per-channel metering. The master analyser drives the VU meter in the header and MIXER mode.
+Each channel has its own `GainNode` (volume), 3-band EQ (low shelf/mid peak/high shelf), optional trance gate, `StereoPannerNode`, and `AnalyserNode` for per-channel metering.
+
+The master chain includes: 3-band EQ → 3-band multiband compressor (crossovers at 200 Hz / 3 kHz, adjustable amount) → stereo widening (Haas effect on high band) → drive → soft-clip → limiter → analyser → destination.
+
+The master analyser drives the VU meter in the header and MIXER mode.
 
 ## Effects Chain
 
@@ -207,12 +216,12 @@ The effects chain is a series of Web Audio nodes connected in sequence. Users ca
 |--------|---------------|------------|
 | Compressor | DynamicsCompressorNode | threshold, ratio |
 | Highpass | BiquadFilterNode (highpass) | cutoff, Q |
-| Distortion | WaveShaperNode | drive (with gain compensation) |
-| Bitcrusher | ScriptProcessor / AudioWorklet | bit depth |
-| Chorus | Stereo delay lines + quadrature LFOs | rate, depth, mix |
-| Phaser | 4-stage allpass filters with LFO sweep | rate, depth |
+| Distortion | WaveShaperNode (asymmetric soft-clip) | drive (with gain compensation) |
+| Bitcrusher | AudioWorklet (true sample-and-hold) | bits, crushRate (sample rate reduction) |
+| Chorus | 3-voice stereo delay + feedback + quadrature LFOs | rate, depth, mix |
+| Phaser | 6-stage allpass filters with LFO sweep (200–10kHz) | rate, depth |
 | Delay | Stereo ping-pong delay with tempo sync | time/division, feedback, mix |
-| Reverb | ConvolverNode with generated impulse | decay, mix |
+| Reverb | ConvolverNode with generated IR (4 types) | decay, mix, type (room/hall/plate/spring) |
 
 All effects use dry/wet mixing so you can blend the processed signal with the original.
 

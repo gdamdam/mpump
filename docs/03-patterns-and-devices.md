@@ -4,7 +4,7 @@ How mpump organizes its 910 patterns, maps them to 53 MIDI devices, and loads ev
 
 ## Genre System
 
-15 genres are shared across all instruments:
+20 genres are shared across all instruments (15 original + 5 added in v1.5):
 
 | # | Genre | Style |
 |---|-------|-------|
@@ -146,7 +146,7 @@ Not all devices use the same pattern pool. Helper functions route each device to
 | drums+bass | — | T-8 drum patterns | T-8 bass patterns |
 | bass | T-8 bass patterns | — | — |
 
-All 15 genres are available to every device regardless of mode — the genre list is universal.
+All 20 genres are available to every device regardless of mode — the genre list is universal.
 
 ## Device Registry
 

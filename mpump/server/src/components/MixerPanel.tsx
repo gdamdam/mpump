@@ -183,8 +183,10 @@ function NeedleMeter({ getAnalyser }: { getAnalyser: () => AnalyserNode | null }
     const ro = new ResizeObserver(resize);
     ro.observe(canvas);
 
+    let frameSkip = 0;
     const draw = () => {
       rafRef.current = requestAnimationFrame(draw);
+      if (++frameSkip % 3 !== 0) return; // ~20fps — enough for VU meters
       const analyser = getAnalyser();
       const rect = canvas.getBoundingClientRect();
       const w = rect.width;
@@ -277,8 +279,10 @@ function VuBar({ getAnalyser }: { getAnalyser: () => AnalyserNode | null }) {
     const ro = new ResizeObserver(resize);
     ro.observe(canvas);
 
+    let frameSkip2 = 0;
     const draw = () => {
       rafRef.current = requestAnimationFrame(draw);
+      if (++frameSkip2 % 3 !== 0) return; // ~20fps
       const analyser = getAnalyser();
       const rect = canvas.getBoundingClientRect();
       const w = rect.width;
@@ -361,9 +365,11 @@ const EFFECT_LABELS: Record<EffectName, string> = {
   phaser: "PHS",
   bitcrusher: "CRUSH",
   duck: "DUCK",
+  flanger: "FLNG",
+  tremolo: "TREM",
 };
 
-const DEFAULT_EFFECT_ORDER: EffectName[] = ["compressor", "highpass", "distortion", "bitcrusher", "chorus", "phaser", "delay", "reverb"];
+const DEFAULT_EFFECT_ORDER: EffectName[] = ["compressor", "highpass", "distortion", "bitcrusher", "chorus", "phaser", "flanger", "delay", "reverb", "tremolo"];
 
 // ── Master Modal (EQ / Drive) ────────────────────────────────────────────
 
@@ -378,17 +384,20 @@ function MasterModal({ title, onClose, getAnalyser, children }: {
   const rafRef = useRef(0);
   const smoothed = useRef(0);
   const clipTime = useRef(0);
+  const mmBuf = useRef<Uint8Array | null>(null);
 
   useEffect(() => {
+    let frameSkip3 = 0;
     const tick = () => {
       rafRef.current = requestAnimationFrame(tick);
+      if (++frameSkip3 % 3 !== 0) return; // ~20fps
       const analyser = getAnalyser();
       if (analyser) {
         const size = analyser.fftSize;
-        const buf = new Uint8Array(size);
-        analyser.getByteTimeDomainData(buf);
+        if (!mmBuf.current || mmBuf.current.length !== size) mmBuf.current = new Uint8Array(size);
+        analyser.getByteTimeDomainData(mmBuf.current);
         let sumSq = 0;
-        for (let i = 0; i < size; i++) { const s = (buf[i] - 128) / 128; sumSq += s * s; }
+        for (let i = 0; i < size; i++) { const s = (mmBuf.current[i] - 128) / 128; sumSq += s * s; }
         const rms = Math.sqrt(sumSq / size);
         smoothed.current = rms > smoothed.current ? 0.3 * smoothed.current + 0.7 * rms : 0.92 * smoothed.current + 0.08 * rms;
       } else {
@@ -422,10 +431,10 @@ function MasterModal({ title, onClose, getAnalyser, children }: {
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span ref={dbRef} style={{ fontSize: 10, fontFamily: "monospace", color: "var(--preview)", opacity: 0.7 }}>{"-\u221E dB"}</span>
             <span ref={clipRef} style={{ fontSize: 9, fontWeight: 700, opacity: 0.4, color: "var(--preview)", transition: "opacity 0.15s" }}>CLIP</span>
-            <button className="fx-editor-close" onClick={onClose}>✕</button>
           </div>
         </div>
         {children}
+        <button className="mx-modal-close" onClick={onClose}>CLOSE</button>
       </div>
     </div>
   );
@@ -471,11 +480,180 @@ export function MixerPanel({
 
   // Drive
   const [drive, setDrive] = useState(0);
-  const [eqLow, setEqLow] = useState(3); // match AudioPort default
-  const [eqMid, setEqMid] = useState(0);
-  const [eqHigh, setEqHigh] = useState(0);
+  const [eqLow, setEqLow] = useState(1); // match AudioPort default
+  const [eqMid, setEqMid] = useState(0); // flat — mud cut on bass channel only
+  const [eqHigh, setEqHigh] = useState(0); // neutral
+  const [mbOn, setMbOn] = useState(true);
+  const [mbAmount, setMbAmount] = useState(0.25);
+  const [showMbModal, setShowMbModal] = useState(false);
+  const [width, setWidth] = useState(0.5);
+  const [lowCut, setLowCut] = useState(0);
+
+  // Mixer undo — snapshot-based, Cmd+Z restores previous state
+  type MixerSnapshot = { drive: number; eqLow: number; eqMid: number; eqHigh: number; mbOn: boolean; mbAmount: number; width: number; lowCut: number; chEQ: typeof chEQ };
+  const mixerUndoStack = useRef<MixerSnapshot[]>([]);
+  const pushMixerUndo = () => {
+    mixerUndoStack.current.push({ drive, eqLow, eqMid, eqHigh, mbOn, mbAmount, width, lowCut, chEQ });
+    if (mixerUndoStack.current.length > 20) mixerUndoStack.current.shift(); // cap at 20
+  };
+  const popMixerUndo = () => {
+    const s = mixerUndoStack.current.pop();
+    if (!s) return;
+    setDrive(s.drive); command({ type: "set_drive", db: s.drive });
+    setEqLow(s.eqLow); setEqMid(s.eqMid); setEqHigh(s.eqHigh);
+    command({ type: "set_eq", low: s.eqLow, mid: s.eqMid, high: s.eqHigh } as ClientMessage);
+    setMbOn(s.mbOn); command({ type: "set_multiband", on: s.mbOn } as ClientMessage);
+    setMbAmount(s.mbAmount); command({ type: "set_multiband_amount", amount: s.mbAmount } as ClientMessage);
+    setWidth(s.width); command({ type: "set_width", width: s.width } as ClientMessage);
+    setLowCut(s.lowCut); command({ type: "set_low_cut", freq: s.lowCut } as ClientMessage);
+    setChEQ(s.chEQ);
+    for (const [ch, eq] of Object.entries(s.chEQ)) {
+      command({ type: "set_channel_eq", channel: Number(ch), ...eq } as ClientMessage);
+    }
+  };
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "z" && mixerUndoStack.current.length > 0) {
+        e.preventDefault();
+        popMixerUndo();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  });
+  // Per-channel EQ
+  const [chEQ, setChEQ] = useState<Record<number, { low: number; mid: number; high: number }>>({});
+  const [showChEQ, setShowChEQ] = useState<number | null>(null);
+  const getChEQ = (ch: number) => chEQ[ch] ?? { low: 0, mid: 0, high: 0 };
+  const updateChEQ = (ch: number, band: "low" | "mid" | "high", v: number) => {
+    pushMixerUndo();
+    const eq = { ...getChEQ(ch), [band]: v };
+    setChEQ(prev => ({ ...prev, [ch]: eq }));
+    command({ type: "set_channel_eq", channel: ch, low: eq.low, mid: eq.mid, high: eq.high } as ClientMessage);
+    setActiveScene(null);
+  };
   const [showEqModal, setShowEqModal] = useState(false);
   const [showDrvModal, setShowDrvModal] = useState(false);
+  // Per-channel gate
+  const [gateState, setGateState] = useState<Record<number, { on: boolean; rate: string; depth: number; shape: string; mode: string; pattern: number[] }>>({});
+  const [showGateModal, setShowGateModal] = useState<number | null>(null);
+  const defaultPattern = [1,0,0,0, 1,0,0,0, 1,0,1,0, 1,1,1,1]; // buildup
+  const getGate = (ch: number) => gateState[ch] ?? { on: false, rate: "1/8", depth: 0.8, shape: "square", mode: "lfo", pattern: defaultPattern };
+  const updateGate = (ch: number, params: Partial<{ on: boolean; rate: string; depth: number; shape: string; mode: string; pattern: number[] }>) => {
+    const g = { ...getGate(ch), ...params };
+    setGateState(prev => ({ ...prev, [ch]: g }));
+    command({ type: "set_channel_gate", channel: ch, ...g } as ClientMessage);
+  };
+  // Stutter pattern presets
+  const STUTTER_PRESETS: { name: string; pattern: number[] }[] = [
+    { name: "Buildup", pattern: [1,0,0,0, 1,0,0,0, 1,0,1,0, 1,1,1,1] },
+    { name: "Triplet", pattern: [1,1,0, 1,1,0, 1,1,0, 1,1,0, 1,0,0,0] },
+    { name: "Stutter", pattern: [1,1,1,0, 0,0,0,0, 1,1,1,1, 0,0,0,0] },
+    { name: "Breakbeat", pattern: [1,0,1,0, 0,0,1,0, 1,0,0,1, 0,1,0,0] },
+    { name: "Glitch", pattern: [1,0,1,1, 0,1,0,0, 1,1,0,1, 0,0,1,0] },
+  ];
+
+  // ── Mix profiles (save/load) ──────────────────────────────────────
+  interface MixProfile {
+    name: string;
+    volumes: Record<number, number>;
+    pans: Record<number, number>;
+    chMono: Record<number, boolean>;
+    chEQ: Record<number, { low: number; mid: number; high: number }>;
+    masterEQ: { low: number; mid: number; high: number };
+    drive: number;
+    width: number;
+    lowCut: number;
+    mbOn: boolean;
+    mbAmount: number;
+  }
+  // Built-in mixer scenes — same 10 as header, with per-channel defaults
+  const defaultVols = { 9: 0.7, 1: 0.7, 0: 0.7 };
+  const defaultPans = { 9: 0, 1: 0, 0: 0 };
+  const noMono = {};
+  const defaultChEQ = { 9: { low: 4, mid: 0, high: -1 }, 1: { low: 0, mid: -4, high: -1 }, 0: { low: 0, mid: -1.5, high: 0 } };
+  const BUILTIN_SCENES: MixProfile[] = [
+    { name: "Neutral", volumes: defaultVols, pans: defaultPans, chMono: noMono, chEQ: defaultChEQ,
+      masterEQ: { low: 0, mid: 0, high: 0 }, drive: 0, width: 0.5, lowCut: 0, mbOn: true, mbAmount: 0.25 },
+    { name: "Punchy", volumes: defaultVols, pans: defaultPans, chMono: noMono, chEQ: defaultChEQ,
+      masterEQ: { low: 2, mid: -2, high: 2 }, drive: 0, width: 0.6, lowCut: 35, mbOn: true, mbAmount: 0.3 },
+    { name: "Warm", volumes: defaultVols, pans: defaultPans, chMono: noMono, chEQ: defaultChEQ,
+      masterEQ: { low: 2, mid: -1, high: 1 }, drive: 0, width: 0.65, lowCut: 25, mbOn: true, mbAmount: 0.3 },
+    { name: "Airy", volumes: defaultVols, pans: defaultPans, chMono: noMono, chEQ: defaultChEQ,
+      masterEQ: { low: 1, mid: -1, high: 3 }, drive: 0, width: 0.7, lowCut: 25, mbOn: true, mbAmount: 0.35 },
+    { name: "Tight", volumes: defaultVols, pans: defaultPans, chMono: noMono, chEQ: defaultChEQ,
+      masterEQ: { low: 1, mid: -2, high: 2 }, drive: 0, width: 0.55, lowCut: 35, mbOn: true, mbAmount: 0.35 },
+    { name: "Heavy", volumes: defaultVols, pans: defaultPans, chMono: noMono, chEQ: defaultChEQ,
+      masterEQ: { low: 3, mid: -1, high: 2 }, drive: 1, width: 0.5, lowCut: 20, mbOn: true, mbAmount: 0.35 },
+    { name: "Mellow", volumes: defaultVols, pans: defaultPans, chMono: noMono, chEQ: defaultChEQ,
+      masterEQ: { low: 1, mid: -1, high: -1 }, drive: 0, width: 0.65, lowCut: 0, mbOn: true, mbAmount: 0.15 },
+    { name: "Spacious", volumes: defaultVols, pans: defaultPans, chMono: noMono, chEQ: defaultChEQ,
+      masterEQ: { low: 1, mid: -1, high: 2 }, drive: -1, width: 0.8, lowCut: 20, mbOn: true, mbAmount: 0.1 },
+    { name: "Crisp", volumes: defaultVols, pans: defaultPans, chMono: noMono, chEQ: defaultChEQ,
+      masterEQ: { low: 1, mid: -1, high: 3 }, drive: 1, width: 0.55, lowCut: 30, mbOn: true, mbAmount: 0.3 },
+    { name: "Loud", volumes: defaultVols, pans: defaultPans, chMono: noMono, chEQ: defaultChEQ,
+      masterEQ: { low: 2, mid: -1, high: 2 }, drive: 1, width: 0.65, lowCut: 25, mbOn: true, mbAmount: 0.4 },
+  ];
+
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [profileName, setProfileName] = useState("");
+  const [activeScene, setActiveScene] = useState<string | null>(null);
+  const [savedProfiles, setSavedProfiles] = useState<MixProfile[]>(() => getJSON("mpump-mix-profiles", []));
+
+  const getCurrentProfile = (): Omit<MixProfile, "name"> => ({
+    volumes: channelVolumes,
+    pans,
+    chMono,
+    chEQ,
+    masterEQ: { low: eqLow, mid: eqMid, high: eqHigh },
+    drive, width, lowCut, mbOn, mbAmount,
+  });
+
+  const saveProfile = () => {
+    const name = profileName.trim();
+    if (!name) return;
+    const profile: MixProfile = { name, ...getCurrentProfile() };
+    const updated = [...savedProfiles.filter(p => p.name !== name), profile];
+    setSavedProfiles(updated);
+    setJSON("mpump-mix-profiles", updated);
+    setProfileName("");
+  };
+
+  const loadProfile = (p: MixProfile) => {
+    setActiveScene(p.name);
+    // Apply volumes
+    for (const [ch, v] of Object.entries(p.volumes)) onChannelVolumeChange(Number(ch), v);
+    // Pans
+    for (const [ch, v] of Object.entries(p.pans)) setPan(Number(ch), v);
+    // Mono
+    for (const [ch, v] of Object.entries(p.chMono)) {
+      const n = Number(ch);
+      if ((chMono[n] ?? false) !== v) toggleChMono(n);
+    }
+    // Channel EQ
+    setChEQ(p.chEQ);
+    for (const [ch, eq] of Object.entries(p.chEQ)) {
+      command({ type: "set_channel_eq", channel: Number(ch), ...eq } as ClientMessage);
+    }
+    // Master EQ
+    setEqLow(p.masterEQ.low); setEqMid(p.masterEQ.mid); setEqHigh(p.masterEQ.high);
+    command({ type: "set_eq", ...p.masterEQ } as ClientMessage);
+    // Drive
+    setDrive(p.drive); command({ type: "set_drive", db: p.drive });
+    // Width
+    setWidth(p.width); command({ type: "set_width", width: p.width } as ClientMessage);
+    // Low cut
+    setLowCut(p.lowCut); command({ type: "set_low_cut", freq: p.lowCut } as ClientMessage);
+    // MB
+    setMbOn(p.mbOn); command({ type: "set_multiband", on: p.mbOn } as ClientMessage);
+    setMbAmount(p.mbAmount); command({ type: "set_multiband_amount", amount: p.mbAmount } as ClientMessage);
+  };
+
+  const deleteProfile = (name: string) => {
+    const updated = savedProfiles.filter(p => p.name !== name);
+    setSavedProfiles(updated);
+    setJSON("mpump-mix-profiles", updated);
+  };
 
   // Anti-clip
   const toggleAntiClip = () => {
@@ -546,7 +724,6 @@ export function MixerPanel({
           return (
             <div key={def.label} className={`mx-strip ${muted ? "mx-muted" : ""} ${dimmed ? "mx-dimmed" : ""} ${soloed ? "mx-soloed" : ""}`}>
               <div className="mx-strip-label">{def.label}</div>
-              <VuBar getAnalyser={() => getChannelAnalyser?.(def.ch) ?? null} />
               <input
                 type="range" min={0} max={1} step={0.01}
                 value={vol}
@@ -581,13 +758,27 @@ export function MixerPanel({
                   <span className="mx-pan-lr">R</span>
                 </div>
               </div>
-              {def.ch !== 1 && (
+              <div className="mx-btn-row" style={{ marginTop: 2 }}>
+                {def.ch !== 1 && (
+                  <button
+                    className={`mx-btn mx-btn-mono ${mono ? "active" : ""}`}
+                    title={`Mono ${def.label.toLowerCase()}`}
+                    onClick={() => { tapVibrate(); toggleChMono(def.ch); }}
+                  >Mo</button>
+                )}
                 <button
-                  className={`mx-btn mx-btn-mono ${mono ? "active" : ""}`}
-                  title={`Mono ${def.label.toLowerCase()}`}
-                  onClick={() => { tapVibrate(); toggleChMono(def.ch); }}
-                >Mo</button>
-              )}
+                  className={`mx-btn ${(getChEQ(def.ch).low !== 0 || getChEQ(def.ch).mid !== 0 || getChEQ(def.ch).high !== 0) ? "active" : ""}`}
+                  title={`EQ ${def.label.toLowerCase()}`}
+                  onClick={() => setShowChEQ(def.ch)}
+                >EQ</button>
+                {def.ch !== 9 && (
+                  <button
+                    className={`mx-btn ${getGate(def.ch).on ? "active" : ""}`}
+                    title={`Trance gate ${def.label.toLowerCase()}`}
+                    onClick={() => setShowGateModal(def.ch)}
+                  >GATE</button>
+                )}
+              </div>
             </div>
           );
         })}
@@ -617,7 +808,12 @@ export function MixerPanel({
               className={`mx-btn mx-btn-limit ${antiClipMode !== "off" ? "active" : ""}`}
               onClick={toggleAntiClip}
               title={`Anti-clip: ${antiClipMode}`}
-            >{antiClipMode === "off" ? "LIMIT" : "LIMIT"}</button>
+            >LIMIT</button>
+            <button
+              className={`mx-btn ${mbOn ? "active" : ""}`}
+              onClick={() => setShowMbModal(true)}
+              title={`Multiband compression: ${mbOn ? "on" : "off"}`}
+            >MB</button>
           </div>
           <div className="mx-btn-row" style={{ marginTop: 4 }}>
             <button
@@ -626,10 +822,16 @@ export function MixerPanel({
               title={`Drive: ${drive > 0 ? "+" : ""}${drive.toFixed(1)} dB`}
             >DRV</button>
             <button
-              className={`mx-btn ${(eqLow !== 3 || eqMid !== 0 || eqHigh !== 0) ? "active" : ""}`}
+              className={`mx-btn ${(eqLow !== 1 || eqMid !== 0 || eqHigh !== 0) ? "active" : ""}`}
               onClick={() => setShowEqModal(true)}
               title={`EQ: L${eqLow > 0 ? "+" : ""}${eqLow} M${eqMid > 0 ? "+" : ""}${eqMid} H${eqHigh > 0 ? "+" : ""}${eqHigh}`}
             >EQ</button>
+            <button
+              className={`mx-btn ${activeScene ? "active" : ""}`}
+              onClick={() => setShowProfileModal(true)}
+              title={activeScene ? `Scene: ${activeScene}` : "Mix scenes"}
+              style={{ fontSize: 9, maxWidth: 44, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+            >{activeScene ? activeScene.slice(0, 4).toUpperCase() : "SCN"}</button>
           </div>
         </div>
       </div>
@@ -642,6 +844,35 @@ export function MixerPanel({
           onClose={() => setShowEqModal(false)}
           getAnalyser={() => getAnalyser?.() ?? null}
         >
+          {window.innerWidth >= 700 && (() => {
+            const w = 200, h = 50, col = "#66ff99", dim = "rgba(102,255,153,0.15)";
+            // 3-band EQ + low cut frequency response visualization
+            const pts = Array.from({ length: 80 }, (_, i) => {
+              const f = 20 * Math.pow(1000, i / 79); // 20 Hz to 20 kHz log scale
+              let db = 0;
+              // Low shelf at 150 Hz
+              const lowN = f / 150;
+              db += eqLow / (1 + Math.pow(lowN, 2));
+              // Mid peak at 1 kHz
+              const midN = (f - 1000) / 700;
+              db += eqMid * Math.exp(-midN * midN);
+              // High shelf at 5 kHz
+              const highN = 5000 / f;
+              db += eqHigh / (1 + Math.pow(highN, 2));
+              // Low cut
+              if (lowCut > 20) {
+                const hpN = lowCut / f;
+                db -= 24 * Math.log10(1 + hpN * hpN) / 2;
+              }
+              const y = h / 2 - (db / 24) * h * 0.8;
+              return `${4 + (i / 79) * (w - 8)},${Math.max(2, Math.min(h - 2, y))}`;
+            }).join(" ");
+            return <svg className="fx-vis" viewBox={`0 0 ${w} ${h}`} style={{ marginBottom: 4 }}>
+              <rect x={0} y={0} width={w} height={h} fill="rgba(0,0,0,0.3)" rx={3} />
+              <line x1={4} y1={h/2} x2={w-4} y2={h/2} stroke={dim} strokeWidth={0.5} />
+              <polyline points={pts} fill="none" stroke={col} strokeWidth={1.5} />
+            </svg>;
+          })()}
           {[
             { label: "LOW", value: eqLow, onChange: (v: number) => { setEqLow(v); command({ type: "set_eq", low: v, mid: eqMid, high: eqHigh } as ClientMessage); }, min: -12, max: 12, step: 1 },
             { label: "MID", value: eqMid, onChange: (v: number) => { setEqMid(v); command({ type: "set_eq", low: eqLow, mid: v, high: eqHigh } as ClientMessage); }, min: -12, max: 12, step: 1 },
@@ -654,12 +885,154 @@ export function MixerPanel({
               <span className="fx-editor-value">{value > 0 ? "+" : ""}{value} dB</span>
             </div>
           ))}
-          <button className="mx-modal-reset" onClick={() => {
-            setEqLow(3); setEqMid(0); setEqHigh(0);
-            command({ type: "set_eq", low: 3, mid: 0, high: 0 } as ClientMessage);
-          }}>RST</button>
+          <div className="fx-editor-row">
+            <span className="fx-editor-label">WIDTH</span>
+            <input type="range" min={0} max={1} step={0.05} value={width} className="fx-editor-slider"
+              onChange={(e) => { const v = parseFloat(e.target.value); setWidth(v); command({ type: "set_width", width: v } as ClientMessage); }} />
+            <span className="fx-editor-value">{Math.round(width * 100)}%</span>
+          </div>
+          <div className="fx-editor-row">
+            <span className="fx-editor-label">LO CUT</span>
+            <input type="range" min={0} max={200} step={5} value={lowCut} className="fx-editor-slider"
+              onChange={(e) => { const v = parseFloat(e.target.value); setLowCut(v); command({ type: "set_low_cut", freq: v } as ClientMessage); }} />
+            <span className="fx-editor-value">{lowCut === 0 ? "OFF" : `${lowCut} Hz`}</span>
+          </div>
+          <span className="mx-modal-reset" onClick={() => {
+            setEqLow(1); setEqMid(0); setEqHigh(0); setWidth(0.5); setLowCut(0);
+            command({ type: "set_eq", low: 1, mid: 0, high: 0 } as ClientMessage);
+            command({ type: "set_width", width: 0.5 } as ClientMessage);
+            command({ type: "set_low_cut", freq: 0 } as ClientMessage);
+          }}>RST</span>
         </MasterModal>
       )}
+
+      {/* Channel EQ modal */}
+      {showChEQ !== null && (() => {
+        const ch = showChEQ;
+        const eq = getChEQ(ch);
+        const chLabel = INSTRUMENT_CHANNELS.find(d => d.ch === ch)?.label ?? "CH";
+        return (
+          <MasterModal
+            title={`${chLabel} EQ`}
+            onClose={() => setShowChEQ(null)}
+            getAnalyser={() => getChannelAnalyser?.(ch) ?? null}
+          >
+            {window.innerWidth >= 700 && (() => {
+              const w = 200, h = 50, col = "#66ff99", dim = "rgba(102,255,153,0.15)";
+              const pts = Array.from({ length: 80 }, (_, i) => {
+                const f = 20 * Math.pow(1000, i / 79);
+                let db = 0;
+                const lowN = f / 200;
+                db += eq.low / (1 + Math.pow(lowN, 2));
+                const midN = (f - 1000) / 700;
+                db += eq.mid * Math.exp(-midN * midN);
+                const highN = 5000 / f;
+                db += eq.high / (1 + Math.pow(highN, 2));
+                const y = h / 2 - (db / 24) * h * 0.8;
+                return `${4 + (i / 79) * (w - 8)},${Math.max(2, Math.min(h - 2, y))}`;
+              }).join(" ");
+              return <svg className="fx-vis" viewBox={`0 0 ${w} ${h}`} style={{ marginBottom: 4 }}>
+                <rect x={0} y={0} width={w} height={h} fill="rgba(0,0,0,0.3)" rx={3} />
+                <line x1={4} y1={h/2} x2={w-4} y2={h/2} stroke={dim} strokeWidth={0.5} />
+                <polyline points={pts} fill="none" stroke={col} strokeWidth={1.5} />
+              </svg>;
+            })()}
+            {[
+              { label: "LOW", value: eq.low, band: "low" as const },
+              { label: "MID", value: eq.mid, band: "mid" as const },
+              { label: "HIGH", value: eq.high, band: "high" as const },
+            ].map(({ label, value, band }) => (
+              <div className="fx-editor-row" key={label}>
+                <span className="fx-editor-label">{label}</span>
+                <input type="range" min={-12} max={12} step={1} value={value} className="fx-editor-slider"
+                  onChange={(e) => updateChEQ(ch, band, parseFloat(e.target.value))} />
+                <span className="fx-editor-value">{value > 0 ? "+" : ""}{value} dB</span>
+              </div>
+            ))}
+            <span className="mx-modal-reset" onClick={() => {
+              setChEQ(prev => ({ ...prev, [ch]: { low: 0, mid: 0, high: 0 } }));
+              command({ type: "set_channel_eq", channel: ch, low: 0, mid: 0, high: 0 } as ClientMessage);
+            }}>RST</span>
+          </MasterModal>
+        );
+      })()}
+
+      {/* Gate modal */}
+      {showGateModal !== null && (() => {
+        const ch = showGateModal;
+        const g = getGate(ch);
+        const chLabel = INSTRUMENT_CHANNELS.find(d => d.ch === ch)?.label ?? "CH";
+        return (
+          <MasterModal
+            title={`${chLabel} GATE`}
+            onClose={() => setShowGateModal(null)}
+            getAnalyser={() => getChannelAnalyser?.(ch) ?? null}
+          >
+            <div className="fx-editor-row" style={{ justifyContent: "center", marginBottom: 8 }}>
+              <button
+                className={`synth-osc-btn ${g.on ? "active" : ""}`}
+                onClick={() => updateGate(ch, { on: !g.on })}
+              >{g.on ? "ON" : "OFF"}</button>
+            </div>
+            {/* Stutter pattern mode hidden for now — coming in next release */}
+            {window.innerWidth >= 700 && (() => {
+              const size = 80, cx = size / 2, cy = size / 2;
+              const rMax = size / 2 - 4, rMin = rMax * 0.3;
+              const col = g.on ? "#66ff99" : "rgba(102,255,153,0.3)";
+              const dim = "rgba(102,255,153,0.1)";
+              const rateMap: Record<string, number> = { "1/2": 1, "1/4": 2, "1/8": 4, "1/8d": 3, "1/16": 8, "1/32": 16 };
+              const cycles = rateMap[g.rate] ?? 4;
+              const steps = 128;
+              const pts = Array.from({ length: steps + 1 }, (_, i) => {
+                const t = i / steps;
+                const angle = t * Math.PI * 2 - Math.PI / 2; // start at top
+                const phase = (t * cycles) % 1;
+                let env;
+                if (g.shape === "square") {
+                  env = phase < 0.5 ? 1 : 1 - g.depth;
+                } else {
+                  const tri = phase < 0.5 ? phase * 2 : 2 - phase * 2;
+                  env = 1 - g.depth * (1 - tri);
+                }
+                const r = rMin + (rMax - rMin) * env;
+                return `${cx + Math.cos(angle) * r},${cy + Math.sin(angle) * r}`;
+              }).join(" ");
+              return <svg className="fx-vis" viewBox={`0 0 ${size} ${size}`} style={{ marginBottom: 4, width: 100, height: 100 }}>
+                <circle cx={cx} cy={cy} r={rMax} fill="none" stroke={dim} strokeWidth={0.5} />
+                <circle cx={cx} cy={cy} r={rMin} fill="none" stroke={dim} strokeWidth={0.5} />
+                <polygon points={pts} fill="rgba(102,255,153,0.08)" stroke={col} strokeWidth={1.5} />
+                <circle cx={cx} cy={cy - rMax + 2} r={2} fill={col} />
+              </svg>;
+            })()}
+            <div className="fx-editor-row" style={{ gap: 4, marginBottom: 8 }}>
+              {(["1/2", "1/4", "1/8", "1/8d", "1/16", "1/32"] as const).map(r => (
+                <button
+                  key={r}
+                  className={`synth-osc-btn ${g.rate === r ? "active" : ""}`}
+                  style={g.rate === r ? { background: "#66ff99", color: "#000" } : undefined}
+                  onClick={() => updateGate(ch, { rate: r })}
+                >{r === "1/8d" ? "1/8." : r}</button>
+              ))}
+            </div>
+            <div className="fx-editor-row" style={{ gap: 4, marginBottom: 8 }}>
+              {(["square", "triangle"] as const).map(s => (
+                <button
+                  key={s}
+                  className={`synth-osc-btn ${g.shape === s ? "active" : ""}`}
+                  style={g.shape === s ? { background: "#66ff99", color: "#000" } : undefined}
+                  onClick={() => updateGate(ch, { shape: s })}
+                >{s === "square" ? "HARD" : "SOFT"}</button>
+              ))}
+            </div>
+            <div className="fx-editor-row">
+              <span className="fx-editor-label">DEPTH</span>
+              <input type="range" min={0} max={1} step={0.05} value={g.depth} className="fx-editor-slider"
+                onChange={(e) => updateGate(ch, { depth: parseFloat(e.target.value) })} />
+              <span className="fx-editor-value">{Math.round(g.depth * 100)}%</span>
+            </div>
+          </MasterModal>
+        );
+      })()}
 
       {/* Drive modal */}
       {showDrvModal && (
@@ -700,9 +1073,120 @@ export function MixerPanel({
               onChange={(e) => { const v = parseFloat(e.target.value); setDrive(v); command({ type: "set_drive", db: v }); }} />
             <span className="fx-editor-value">{drive > 0 ? "+" : ""}{drive.toFixed(1)} dB</span>
           </div>
-          <button className="mx-modal-reset" onClick={() => {
+          <span className="mx-modal-reset" onClick={() => {
             setDrive(0); command({ type: "set_drive", db: 0 });
-          }}>RST</button>
+          }}>RST</span>
+        </MasterModal>
+      )}
+
+      {/* Multiband modal */}
+      {showMbModal && (
+        <MasterModal
+          title="MULTIBAND"
+          onClose={() => setShowMbModal(false)}
+          getAnalyser={() => getAnalyser?.() ?? null}
+        >
+          <div className="fx-editor-row" style={{ justifyContent: "center", marginBottom: 8 }}>
+            <button
+              className={`synth-osc-btn ${mbOn ? "active" : ""}`}
+              onClick={() => { const next = !mbOn; setMbOn(next); command({ type: "set_multiband", on: next } as ClientMessage); }}
+            >{mbOn ? "ON" : "OFF"}</button>
+          </div>
+          {window.innerWidth >= 700 && (() => {
+            const w = 200, h = 50, col = "#66ff99", dim = "rgba(102,255,153,0.15)";
+            const a = mbAmount;
+            // Visualize 3-band compression: threshold lines + gain reduction curves
+            // Band boundaries: 200 Hz, 3000 Hz (log positions)
+            const x200 = 4 + (Math.log10(200/20) / Math.log10(1000)) * (w - 8);
+            const x3k = 4 + (Math.log10(3000/20) / Math.log10(1000)) * (w - 8);
+            // Threshold lines (higher = less compression)
+            const tLow = h * 0.5 - (-6 - a * 12) / 48 * h * 0.8;
+            const tMid = h * 0.5 - (-12 - a * 12) / 48 * h * 0.8;
+            const tHigh = h * 0.5 - (-12 - a * 12) / 48 * h * 0.8;
+            return <svg className="fx-vis" viewBox={`0 0 ${w} ${h}`} style={{ marginBottom: 4 }}>
+              <rect x={0} y={0} width={w} height={h} fill="rgba(0,0,0,0.3)" rx={3} />
+              {/* Band separators */}
+              <line x1={x200} y1={2} x2={x200} y2={h-2} stroke={dim} strokeWidth={0.5} strokeDasharray="2,2" />
+              <line x1={x3k} y1={2} x2={x3k} y2={h-2} stroke={dim} strokeWidth={0.5} strokeDasharray="2,2" />
+              {/* Threshold lines per band */}
+              <line x1={4} y1={tLow} x2={x200} y2={tLow} stroke={mbOn ? col : dim} strokeWidth={1.5} />
+              <line x1={x200} y1={tMid} x2={x3k} y2={tMid} stroke={mbOn ? col : dim} strokeWidth={1.5} />
+              <line x1={x3k} y1={tHigh} x2={w-4} y2={tHigh} stroke={mbOn ? col : dim} strokeWidth={1.5} />
+              {/* Band labels */}
+              <text x={(4+x200)/2} y={h-3} fill={dim} fontSize={6} textAnchor="middle">LOW</text>
+              <text x={(x200+x3k)/2} y={h-3} fill={dim} fontSize={6} textAnchor="middle">MID</text>
+              <text x={(x3k+w-4)/2} y={h-3} fill={dim} fontSize={6} textAnchor="middle">HIGH</text>
+            </svg>;
+          })()}
+          <div className="fx-editor-row">
+            <span className="fx-editor-label">AMOUNT</span>
+            <input type="range" min={0} max={1} step={0.05} value={mbAmount} className="fx-editor-slider"
+              onChange={(e) => { const v = parseFloat(e.target.value); setMbAmount(v); command({ type: "set_multiband_amount", amount: v } as ClientMessage); }} />
+            <span className="fx-editor-value">{Math.round(mbAmount * 100)}%</span>
+          </div>
+          <span className="mx-modal-reset" onClick={() => {
+            setMbOn(true); setMbAmount(0.25);
+            command({ type: "set_multiband", on: true } as ClientMessage);
+            command({ type: "set_multiband_amount", amount: 0.25 } as ClientMessage);
+          }}>RST</span>
+        </MasterModal>
+      )}
+
+      {/* Mix profile modal */}
+      {showProfileModal && (
+        <MasterModal
+          title="SCENES"
+          onClose={() => setShowProfileModal(false)}
+          getAnalyser={() => getAnalyser?.() ?? null}
+        >
+          {/* Built-in genre scenes */}
+          <div style={{ marginBottom: 6, opacity: 0.5, fontSize: 9, letterSpacing: 1 }}>GENRE PROFILES</div>
+          <div style={{ maxHeight: 140, overflowY: "auto", marginBottom: 8 }}>
+            {BUILTIN_SCENES.map((p) => (
+              <button
+                key={p.name}
+                className={`mx-btn ${activeScene === p.name ? "active" : ""}`}
+                style={{ display: "block", width: "100%", textAlign: "left", fontSize: 11, marginBottom: 2,
+                  ...(activeScene === p.name ? { background: "#66ff99", color: "#000" } : {}) }}
+                onClick={() => { loadProfile(p); setShowProfileModal(false); }}
+              >{activeScene === p.name ? "▸ " + p.name : p.name}</button>
+            ))}
+          </div>
+          {/* User scenes */}
+          <div style={{ borderTop: "1px solid var(--border)", paddingTop: 8, marginBottom: 6 }}>
+            <div style={{ opacity: 0.5, fontSize: 9, letterSpacing: 1, marginBottom: 6 }}>MY SCENES</div>
+            <div className="fx-editor-row" style={{ gap: 4 }}>
+              <input
+                type="text"
+                value={profileName}
+                onChange={(e) => setProfileName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") saveProfile(); }}
+                placeholder="Scene name..."
+                style={{ flex: 1, background: "var(--bg)", color: "var(--fg)", border: "1px solid var(--border)", borderRadius: 4, padding: "4px 8px", fontSize: 12, fontFamily: "monospace" }}
+              />
+              <button className="mx-btn" onClick={saveProfile} style={{ minWidth: 40 }}>SAVE</button>
+            </div>
+            {savedProfiles.length > 0 && (
+              <div style={{ marginTop: 6, maxHeight: 120, overflowY: "auto" }}>
+                {savedProfiles.map((p) => (
+                  <div key={p.name} className="fx-editor-row" style={{ gap: 4, marginBottom: 2 }}>
+                    <button
+                      className={`mx-btn ${activeScene === p.name ? "active" : ""}`}
+                      style={{ flex: 1, textAlign: "left", fontSize: 11,
+                        ...(activeScene === p.name ? { background: "#66ff99", color: "#000" } : {}) }}
+                      onClick={() => { loadProfile(p); setShowProfileModal(false); }}
+                    >{activeScene === p.name ? "▸ " + p.name : p.name}</button>
+                    <button
+                      className="mx-btn"
+                      style={{ minWidth: 24, fontSize: 10, opacity: 0.6 }}
+                      onClick={() => deleteProfile(p.name)}
+                      title="Delete"
+                    >✕</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </MasterModal>
       )}
 

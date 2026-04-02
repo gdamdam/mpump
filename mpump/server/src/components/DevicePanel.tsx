@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { SignalLed } from "./SignalLed";
 import type { Catalog, ClientMessage, DrumHit, DeviceState, StepData, PresetState } from "../types";
 import { tapVibrate } from "../utils/haptic";
@@ -44,10 +44,25 @@ interface Props {
   channelVolumes?: Record<number, number>;
   onChannelVolumeChange?: (ch: number, v: number) => void;
   getChannelAnalyser?: (ch: number) => AnalyserNode | null;
+  getMutedDrumNotes?: () => Set<number>;
+  playNote?: (ch: number, note: number, vel?: number) => void;
+  stopNote?: (ch: number, note: number) => void;
+  kbdFocusDevice?: string | null;
+  onKbdFocusChange?: (device: string | null) => void;
 }
 
+// QWERTY → semitone offset from C (standard piano roll mapping)
+const QWERTY_MAP: Record<string, number> = {
+  // Lower row: C3-B3
+  KeyZ: 0, KeyS: 1, KeyX: 2, KeyD: 3, KeyC: 4, KeyV: 5,
+  KeyG: 6, KeyB: 7, KeyH: 8, KeyN: 9, KeyJ: 10, KeyM: 11,
+  // Upper row: C4-B4
+  KeyQ: 12, Digit2: 13, KeyW: 14, Digit3: 15, KeyE: 16, KeyR: 17,
+  Digit5: 18, KeyT: 19, Digit6: 20, KeyY: 21, Digit7: 22, KeyU: 23,
+  KeyI: 24,
+};
 
-export function DevicePanel({ state, catalog, command, onLoadSamples, bpm, presetState, allDevices, scaleLock: scaleLockProp, onScaleLockChange, soloChannel: soloProp, onSoloChange, channelVolumes, onChannelVolumeChange, getChannelAnalyser }: Props) {
+export function DevicePanel({ state, catalog, command, onLoadSamples, bpm, presetState, allDevices, scaleLock: scaleLockProp, onScaleLockChange, soloChannel: soloProp, onSoloChange, channelVolumes, onChannelVolumeChange, getChannelAnalyser, getMutedDrumNotes, playNote, stopNote, kbdFocusDevice, onKbdFocusChange }: Props) {
   const { id: device, label, accent, mode, editing } = state;
   const isPreview = device.startsWith("preview_");
 
@@ -56,7 +71,115 @@ export function DevicePanel({ state, catalog, command, onLoadSamples, bpm, prese
   const [localScaleLock, setLocalScaleLock] = useState(() => getItem("mpump-scale-lock", "chromatic"));
   const scaleLock = scaleLockProp ?? localScaleLock;
   const setScaleLock = (v: string) => { setLocalScaleLock(v); setItem("mpump-scale-lock", v); onScaleLockChange?.(v); };
-  const [mutedDrumNotes, setMutedDrumNotes] = useState<Set<number>>(new Set());
+  // Initialize mute state from engine (persists across view switches)
+  const [mutedDrumNotes, setMutedDrumNotes] = useState<Set<number>>(() => getMutedDrumNotes?.() ?? new Set());
+
+  // QWERTY keyboard → note playing / step recording
+  // Use shared focus: only one device can have kbd/rec active at a time
+  const kbdActive = kbdFocusDevice === `${device}:play`;
+  const stepRecMode = kbdFocusDevice === `${device}:rec`;
+  const setKbdActive = (v: boolean | ((prev: boolean) => boolean)) => {
+    const next = typeof v === "function" ? v(kbdActive) : v;
+    onKbdFocusChange?.(next ? `${device}:play` : null);
+  };
+  const setStepRecMode = (v: boolean | ((prev: boolean) => boolean)) => {
+    const next = typeof v === "function" ? v(stepRecMode) : v;
+    onKbdFocusChange?.(next ? `${device}:rec` : null);
+  };
+  const [stepRecCursor, setStepRecCursor] = useState(0);
+  const kbdOctaveShiftRef = useRef(0);
+  const [kbdOctaveShift, setKbdOctaveShift] = useState(0);
+  kbdOctaveShiftRef.current = kbdOctaveShift;
+  const kbdChannel = mode === "drums" || mode === "drums+bass" ? 9 : mode === "bass" ? 1 : 0;
+  const kbdBaseOctave = (state.octave ?? 2);
+  const activeKeysRef = useRef<Set<string>>(new Set());
+  // Sequencer root = 36 (C2) + key_idx + (octave - 2) * 12
+  const kbdKeyIdx = state.key_idx ?? 9; // default A
+  const kbdRoot = 36 + kbdKeyIdx + (kbdBaseOctave - 2) * 12;
+  const getNoteForCode = useCallback((code: string): number | null => {
+    const semi = QWERTY_MAP[code];
+    if (semi === undefined) return null;
+    if (mode === "drums") return [36, 38, 42, 46, 50, 37, 47, 49, 51][semi % 9] ?? 36;
+    return kbdRoot + kbdOctaveShiftRef.current * 12 + semi;
+  }, [mode, kbdRoot]);
+
+  useEffect(() => {
+    if (!kbdActive || !playNote || !stopNote) return;
+    const down = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      // Octave shift: [ = down, ] = up
+      if (e.code === "BracketLeft") { e.preventDefault(); setKbdOctaveShift(v => { const n = Math.max(v - 1, -3); kbdOctaveShiftRef.current = n; return n; }); return; }
+      if (e.code === "BracketRight") { e.preventDefault(); setKbdOctaveShift(v => { const n = Math.min(v + 1, 3); kbdOctaveShiftRef.current = n; return n; }); return; }
+      const note = getNoteForCode(e.code);
+      if (note === null || activeKeysRef.current.has(e.code)) return;
+      e.preventDefault();
+      activeKeysRef.current.add(e.code);
+      playNote(kbdChannel, note, 100);
+    };
+    const up = (e: KeyboardEvent) => {
+      const note = getNoteForCode(e.code);
+      if (note === null || !activeKeysRef.current.has(e.code)) return;
+      activeKeysRef.current.delete(e.code);
+      stopNote(kbdChannel, note);
+    };
+    window.addEventListener("keydown", down);
+    window.addEventListener("keyup", up);
+    return () => {
+      window.removeEventListener("keydown", down);
+      window.removeEventListener("keyup", up);
+      for (const code of activeKeysRef.current) {
+        const note = getNoteForCode(code);
+        if (note !== null) stopNote(kbdChannel, note);
+      }
+      activeKeysRef.current.clear();
+    };
+  }, [kbdActive, kbdChannel, mode, playNote, stopNote, getNoteForCode]);
+
+  // Step-record mode: QWERTY keys write notes into the pattern
+  const stepRecCursorRef = useRef(0);
+  stepRecCursorRef.current = stepRecCursor;
+  useEffect(() => {
+    if (!stepRecMode || mode === "drums" || mode === "drums+bass") return;
+    const patLen = state.patternLength || 16;
+    const down = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      // Octave shift
+      if (e.code === "BracketLeft") { e.preventDefault(); setKbdOctaveShift(v => { const n = Math.max(v - 1, -3); kbdOctaveShiftRef.current = n; return n; }); return; }
+      if (e.code === "BracketRight") { e.preventDefault(); setKbdOctaveShift(v => { const n = Math.min(v + 1, 3); kbdOctaveShiftRef.current = n; return n; }); return; }
+      // Backspace = clear step & go back
+      if (e.code === "Backspace") {
+        e.preventDefault();
+        const prev = (stepRecCursorRef.current - 1 + patLen) % patLen;
+        command({ type: "edit_step", device, step: prev, data: null });
+        setStepRecCursor(prev);
+        return;
+      }
+      // Space = rest (skip step)
+      if (e.code === "Space") {
+        e.preventDefault();
+        command({ type: "edit_step", device, step: stepRecCursorRef.current, data: null });
+        setStepRecCursor(v => (v + 1) % patLen);
+        return;
+      }
+      const semi = QWERTY_MAP[e.code];
+      if (semi === undefined) return;
+      e.preventDefault();
+      // Write note as semitone offset from root
+      const data = { semi: semi + kbdOctaveShiftRef.current * 12, vel: 1, slide: false };
+      command({ type: "edit_step", device, step: stepRecCursorRef.current, data });
+      // Play the note for auditory feedback (match sequencer: root + semi)
+      if (playNote) {
+        const note = kbdRoot + data.semi;
+        playNote(kbdChannel, note, 100);
+        if (stopNote) setTimeout(() => stopNote(kbdChannel, note), 200);
+      }
+      setStepRecCursor(v => (v + 1) % patLen);
+    };
+    window.addEventListener("keydown", down);
+    return () => window.removeEventListener("keydown", down);
+  }, [stepRecMode, mode, device, state.patternLength, command, playNote, stopNote, kbdChannel, kbdBaseOctave]);
 
   const toggleDrumVoiceMute = (note: number) => {
     setMutedDrumNotes(prev => {
@@ -280,8 +403,9 @@ export function DevicePanel({ state, catalog, command, onLoadSamples, bpm, prese
 
   return (
     <div
-      className="device-panel"
+      className={`device-panel${kbdFocusDevice?.split(":")[0] === device ? " device-focused" : ""}`}
       style={{ "--device-accent": accent } as React.CSSProperties}
+      onClick={() => { if (isPreview && onKbdFocusChange && kbdFocusDevice?.split(":")[0] !== device) onKbdFocusChange(`${device}:focus`); }}
       onTouchStart={onTouchStart}
       onTouchEnd={onTouchEnd}
     >
@@ -324,13 +448,22 @@ export function DevicePanel({ state, catalog, command, onLoadSamples, bpm, prese
               <button className="device-midi-btn" title="Paste pattern" onClick={() => { tapVibrate(); command({ type: "paste_pattern", device }); }}>&#x2399;</button>
             </>
           )}
-          <button
-            className="device-shuffle-btn"
-            title="Randomize genre &amp; pattern"
-            onClick={() => command({ type: "randomize_device", device })}
-          >
-            &#x2684;
-          </button>
+          {isPreview && playNote && (
+            <button
+              className={`device-shuffle-btn ${kbdActive ? "active" : ""}`}
+              title={kbdActive ? "Keyboard playing: ON — Z-M lower octave, Q-U upper, [/] shift octave" : "Play with computer keyboard (QWERTY piano roll)"}
+              style={kbdActive ? { background: accent, color: "#000" } : undefined}
+              onClick={() => { setKbdActive(v => !v); }}
+            >⌨</button>
+          )}
+          {isPreview && mode !== "drums" && mode !== "drums+bass" && (
+            <button
+              className={`device-shuffle-btn ${stepRecMode ? "active" : ""}`}
+              title={stepRecMode ? `Step record: ON (step ${stepRecCursor + 1}) — keys=note, Space=rest, Backspace=undo, [/]=octave` : "Step record: write notes into pattern with keyboard"}
+              style={stepRecMode ? { background: accent, color: "#000" } : undefined}
+              onClick={() => { setStepRecMode(v => !v); setStepRecCursor(0); }}
+            >✎</button>
+          )}
           <Transport device={device} paused={state.paused} command={command} />
         </div>
       </div>

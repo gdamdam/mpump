@@ -55,10 +55,21 @@ const EFFECT_SLIDERS: Record<EffectName, SliderDef[]> = {
   ],
   bitcrusher: [
     { key: "bits", label: "Bits", min: 2, max: 16, step: 1 },
+    { key: "crushRate", label: "Rate", min: 100, max: 44100, step: 100, unit: "Hz" },
   ],
   duck: [
     { key: "depth", label: "Depth", min: 0.1, max: 1, step: 0.05 },
     { key: "release", label: "Release", min: 0.01, max: 0.3, step: 0.01, unit: "s" },
+  ],
+  flanger: [
+    { key: "rate", label: "Rate", min: 0.1, max: 5, step: 0.1, unit: "Hz" },
+    { key: "depth", label: "Depth", min: 0, max: 1, step: 0.05 },
+    { key: "feedback", label: "Feedback", min: 0, max: 0.95, step: 0.05 },
+    { key: "mix", label: "Mix", min: 0, max: 1, step: 0.05 },
+  ],
+  tremolo: [
+    { key: "rate", label: "Rate", min: 0.5, max: 15, step: 0.5, unit: "Hz" },
+    { key: "depth", label: "Depth", min: 0, max: 1, step: 0.05 },
   ],
 };
 
@@ -72,6 +83,8 @@ const EFFECT_NAMES: Record<EffectName, string> = {
   phaser: "Phaser",
   bitcrusher: "Bitcrusher",
   duck: "Sidechain Duck",
+  flanger: "Flanger",
+  tremolo: "Tremolo",
 };
 
 function EffectVis({ name, params }: { name: EffectName; params: Record<string, number | boolean | string> }) {
@@ -195,6 +208,41 @@ function EffectVis({ name, params }: { name: EffectName; params: Record<string, 
         <polyline points={pts} fill="none" stroke={col} strokeWidth={2} />
       </svg>;
     }
+    case "flanger": {
+      // Flanger: sine wave with comb-filter notches (feedback creates resonance)
+      const rate = params.rate as number, depth = params.depth as number, fb = params.feedback as number;
+      const pts = Array.from({ length: 60 }, (_, i) => {
+        const t = i / 59;
+        const lfo = Math.sin(t * Math.PI * 2 * (1 + rate)) * depth;
+        const comb = 1 - fb * 0.5 * Math.sin(t * Math.PI * 20); // comb notch pattern
+        const y = (lfo * 0.4 + comb * 0.6);
+        return `${10 + t * (w - 20)},${h / 2 - y * h * 0.35}`;
+      }).join(" ");
+      return <svg className="fx-vis" viewBox={`0 0 ${w} ${h}`}>{bg}
+        <line x1={10} y1={h / 2} x2={w - 10} y2={h / 2} stroke={dim} strokeWidth={1} />
+        <polyline points={pts} fill="none" stroke={col} strokeWidth={2} />
+        <text x={w / 2} y={h - 2} fill="rgba(102,255,153,0.4)" fontSize={7} textAnchor="middle">sweep</text>
+      </svg>;
+    }
+    case "tremolo": {
+      // Tremolo: amplitude modulation wave
+      const rate = params.rate as number, depth = params.depth as number;
+      const shape = params.shape as string;
+      const cycles = Math.max(1, rate / 2);
+      const pts = Array.from({ length: 60 }, (_, i) => {
+        const t = i / 59;
+        const phase = (t * cycles) % 1;
+        let mod;
+        if (shape === "square") { mod = phase < 0.5 ? 1 : 1 - depth; }
+        else { mod = 1 - depth * 0.5 + Math.sin(t * cycles * Math.PI * 2) * depth * 0.5; }
+        return `${10 + t * (w - 20)},${h * 0.9 - mod * h * 0.75}`;
+      }).join(" ");
+      return <svg className="fx-vis" viewBox={`0 0 ${w} ${h}`}>{bg}
+        <line x1={10} y1={h * 0.9} x2={w - 10} y2={h * 0.15} stroke={dim} strokeWidth={1} strokeDasharray="3,3" />
+        <polyline points={pts} fill="none" stroke={col} strokeWidth={2} />
+        <text x={w / 2} y={h - 2} fill="rgba(102,255,153,0.4)" fontSize={7} textAnchor="middle">amplitude</text>
+      </svg>;
+    }
     default:
       return null;
   }
@@ -242,6 +290,30 @@ export function EffectEditor({ name, params, onUpdate, onClose }: Props) {
                 ))}
               </select>
             )}
+          </div>
+        )}
+        {/* Reverb: type selector */}
+        {name === "reverb" && (
+          <div className="fx-editor-row" style={{ gap: 6 }}>
+            {(["room", "hall", "plate", "spring"] as const).map(t => (
+              <button
+                key={t}
+                className={`synth-osc-btn ${(p.type || "room") === t ? "active" : ""}`}
+                onClick={() => onUpdate({ type: t })}
+              >{t.toUpperCase()}</button>
+            ))}
+          </div>
+        )}
+        {/* Tremolo: shape selector */}
+        {name === "tremolo" && (
+          <div className="fx-editor-row" style={{ gap: 6 }}>
+            {(["sine", "square"] as const).map(s => (
+              <button
+                key={s}
+                className={`synth-osc-btn ${(p.shape || "sine") === s ? "active" : ""}`}
+                onClick={() => onUpdate({ shape: s })}
+              >{s === "sine" ? "SMOOTH" : "HARD"}</button>
+            ))}
           </div>
         )}
         {/* Effect visualization */}

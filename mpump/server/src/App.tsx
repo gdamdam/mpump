@@ -10,7 +10,7 @@ import { getLastSession, type SessionData } from "./utils/session";
 import { extractPayloadFromUrl } from "./utils/shareCodec";
 
 export function App() {
-  const { state, catalog, command, midiState, connectMidi, startPreview, getAnalyser, getChannelAnalyser, loadCustomSamples } = useEngine();
+  const { state, catalog, command, midiState, connectMidi, startPreview, getAnalyser, getChannelAnalyser, loadCustomSamples, getMutedDrumNotes, playNote, stopNote, getMixerState } = useEngine();
   const autoStarted = useRef(false);
   const [loadTimeout, setLoadTimeout] = useState(false);
   const [showContinueModal, setShowContinueModal] = useState(false);
@@ -59,9 +59,10 @@ export function App() {
     setLoadTimeout(false);
   }, [midiState, catalog]);
 
+  // ?play: skip splash, auto-start preview (for testing)
   // ?jam=new: auto-start preview (skip splash, go straight to app with modal)
   useEffect(() => {
-    if (initParams.get("jam") === "new" && !autoStarted.current) {
+    if ((initParams.has("play") || initParams.get("jam") === "new") && !autoStarted.current) {
       autoStarted.current = true;
       setItem("mpump-tutorial-done", "1");
       startPreview();
@@ -269,6 +270,10 @@ export function App() {
         onConnectMidi={isSupported() ? connectMidi : undefined}
         onStartPreview={midiState === "granted" ? startPreview : undefined}
         onLoadSamples={loadCustomSamples}
+        getMutedDrumNotes={getMutedDrumNotes}
+        playNote={playNote}
+        stopNote={stopNote}
+        getMixerState={getMixerState}
       />
       {shareCardOverlay && (
         <ShareModal
