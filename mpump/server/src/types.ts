@@ -177,6 +177,7 @@ export interface DeviceState {
   deviceVolume: number; // 0–1
   chainEnabled: boolean;
   chainPatternIdx: number;
+  chainCycle: number;
 }
 
 export type XYTarget = "cutoff" | "resonance" | "distortion" | "highpass" | "delay" | "reverb" | "bpm" | "swing" | "volume";

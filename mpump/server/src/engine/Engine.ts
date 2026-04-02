@@ -962,23 +962,27 @@ export class Engine {
     if (!seq) return;
 
     if (ds.config.mode === "synth" || ds.config.mode === "bass") {
-      const genres = this.getDeviceGenres(id);
-      const genre = genres[ds.genreIdx]?.name ?? "";
-      const pattern = getMelodicPattern(getMelodicSource(id), genre, targetIdx);
+      const pattern = ds.drumsMuted
+        ? Array.from({ length: ds.patternLength }, (): null => null)
+        : getMelodicPattern(getMelodicSource(id), (this.getDeviceGenres(id)[ds.genreIdx]?.name ?? ""), targetIdx);
       (seq as Sequencer).setPattern(pattern);
     } else {
-      const genres = this.getDeviceGenres(id);
-      const genre = genres[ds.genreIdx]?.name ?? "";
-      const drumPattern = getDrumPattern(genre, targetIdx);
+      const genre = this.getDeviceGenres(id)[ds.genreIdx]?.name ?? "";
+      const drumPattern = ds.drumsMuted
+        ? Array.from({ length: ds.patternLength }, (): DrumHit[] => [])
+        : getDrumPattern(genre, targetIdx);
       (seq as T8Sequencer).setDrumPattern(drumPattern);
 
       if (ds.config.mode === "drums+bass") {
-        const bassGenres = this.getDeviceBassGenres();
-        const bassGenre = bassGenres[ds.bassGenreIdx]?.name ?? "";
-        const bassPattern = getBassPattern(bassGenre, targetIdx);
+        const bassGenre = this.getDeviceBassGenres()[ds.bassGenreIdx]?.name ?? "";
+        const bassPattern = ds.bassMuted
+          ? Array.from({ length: ds.patternLength }, (): null => null)
+          : getBassPattern(bassGenre, targetIdx);
         (seq as T8Sequencer).setBassPattern(bassPattern);
       }
     }
+    // Notify UI so grid shows the active pattern
+    this.cb.onStateChange(this.getState());
   }
 
   toggleChain(device: string, chainIdx: number): void {
@@ -1268,18 +1272,30 @@ export class Engine {
       let drumData: DrumHit[][] = [];
       let bassData: (StepData | null)[] = [];
 
+      // When chain is playing B, show the B pattern (unless user is editing)
+      const showingChainB = ds.chainEnabled && ds.chainCycle === 1 && !editing;
+
       if (config.mode === "synth" || config.mode === "bass") {
-        patternData = ds.melodicEdit ?? this.getDeviceMelodicPattern(id);
+        patternData = ds.melodicEdit
+          ?? (showingChainB
+            ? getMelodicPattern(getMelodicSource(id), (this.getDeviceGenres(id)[ds.genreIdx]?.name ?? ""), ds.chainPatternIdx)
+            : this.getDeviceMelodicPattern(id));
         if (ds.patternLength === 32 && patternData.length === 16) {
           patternData = [...patternData, ...patternData];
         }
       } else {
-        drumData = ds.drumEdit ?? this.getDeviceDrumPattern(id);
+        drumData = ds.drumEdit
+          ?? (showingChainB
+            ? getDrumPattern((this.getDeviceGenres(id)[ds.genreIdx]?.name ?? ""), ds.chainPatternIdx)
+            : this.getDeviceDrumPattern(id));
         if (ds.patternLength === 32 && drumData.length === 16) {
           drumData = [...drumData, ...drumData];
         }
         if (config.mode === "drums+bass") {
-          bassData = ds.bassEdit ?? this.getDeviceBassPattern(id);
+          bassData = ds.bassEdit
+            ?? (showingChainB
+              ? getBassPattern((this.getDeviceBassGenres()[ds.bassGenreIdx]?.name ?? ""), ds.chainPatternIdx)
+              : this.getDeviceBassPattern(id));
           if (ds.patternLength === 32 && bassData.length === 16) {
             bassData = [...bassData, ...bassData];
           }
@@ -1312,6 +1328,7 @@ export class Engine {
         deviceVolume: ds.deviceVolume,
         chainEnabled: ds.chainEnabled,
         chainPatternIdx: ds.chainPatternIdx,
+        chainCycle: ds.chainCycle,
         synthParams: id.startsWith("preview_") ? ds.synthParams : null,
         bassSynthParams: id.startsWith("preview_") ? ds.bassSynthParams : null,
       };

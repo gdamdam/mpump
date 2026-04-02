@@ -191,12 +191,13 @@ export function Settings({ volume, onVolumeChange, onClose, swing, onSwingChange
                   <option value="lite">Performance: Lite</option>
                   <option value="eco">Performance: Eco</option>
                 </select>
-                <select className="synth-preset-select" value={getItem("mpump-voice-limit", "16")} title="Max simultaneous synth voices — lower saves CPU"
-                  onChange={(e) => { setItem("mpump-voice-limit", e.target.value); window.dispatchEvent(new Event("mpump-settings-changed")); }} style={{ fontSize: 11 }}>
-                  <option value="8">Voices: 8</option>
-                  <option value="12">Voices: 12</option>
-                  <option value="16">Voices: 16</option>
-                  <option value="24">Voices: 24</option>
+                <select className="synth-preset-select" value={getItem("mpump-unison", "auto")} title="Oscillators per note — more = fatter sound, heavier CPU"
+                  onChange={(e) => { setItem("mpump-unison", e.target.value); window.dispatchEvent(new Event("mpump-settings-changed")); }} style={{ fontSize: 11 }}>
+                  <option value="auto">Unison: Auto</option>
+                  <option value="1">Unison: 1 (thin)</option>
+                  <option value="3">Unison: 3</option>
+                  <option value="5">Unison: 5</option>
+                  <option value="7">Unison: 7 (fat)</option>
                 </select>
                 {onAntiClipChange && (
                   <select className="synth-preset-select" value={antiClipMode ?? "limiter"} title="Anti-clip prevents digital clipping"

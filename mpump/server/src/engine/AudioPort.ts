@@ -826,7 +826,7 @@ export class AudioPort {
       eqMid.type = "peaking";
       eqMid.frequency.value = (isBass || isSynth) ? 300 : 1000; // bass+synth: target mud zone
       eqMid.Q.value = (isBass || isSynth) ? 1.2 : 0.7;
-      eqMid.gain.value = isBass ? -4 : isSynth ? -1.5 : 0; // gentle synth mud cut (preserve lead body)
+      eqMid.gain.value = isBass ? -4 : isSynth ? -0.5 : 0; // minimal synth mud cut (preserve lead body + harmonics)
       const eqHigh = this.ctx.createBiquadFilter();
       eqHigh.type = "highshelf"; eqHigh.frequency.value = 5000;
       eqHigh.gain.value = isDrums ? -1 : isBass ? -1 : 0; // gentle — hat/cymbal levels already reduced via FM gain
@@ -1565,8 +1565,9 @@ export class AudioPort {
     const oscs: OscillatorNode[] = [];
     const panNodes: StereoPannerNode[] = [];
     const workletOscs: AudioWorkletNode[] = [];
-    const unisonCount = p.unison ?? 1;
-    const unisonSpread = p.unisonSpread ?? 0;
+    const unisonOverride = localStorage.getItem("mpump-unison") ?? "auto";
+    const unisonCount = unisonOverride === "auto" ? (p.unison ?? 1) : parseInt(unisonOverride) || 1;
+    const unisonSpread = unisonCount > 1 ? (p.unisonSpread ?? 25) : 0;
     const filterInput = filterDriveNode ?? filter ?? gain; // connect oscs through drive if present
     const isPWM = p.oscType === "pwm";
     const isWorkletOsc = this.workletsLoaded && (p.oscType === "sync" || p.oscType === "fm" || p.oscType === "wavetable");
@@ -1691,7 +1692,7 @@ export class AudioPort {
 
     if (unisonCount > 1 && unisonSpread > 0) {
       // Unison: N voices spread across stereo field
-      const voiceGain = 1 / Math.pow(unisonCount, 0.3);
+      const voiceGain = 1 / Math.pow(unisonCount, 0.15);
       for (let v = 0; v < unisonCount; v++) {
         const t = unisonCount === 1 ? 0 : (v / (unisonCount - 1)) * 2 - 1; // -1 to +1
         const detuneCents = t * unisonSpread + (p.detune ?? 0);
