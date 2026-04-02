@@ -72,7 +72,7 @@ export class AudioPort {
   /** Current BPM for tempo-synced LFO. */
   private bpm = 120;
   /** Sidechain duck: duck non-drum channels on kick hits. */
-  private sidechainDuck = true;  // on by default for clean kick/bass separation
+  private sidechainDuck = false;  // off by default — user enables via DUCK effect button
   private duckDepth = 0.5;  // moderate duck (0.5 = duck to 50%, subtle pump)
   private duckRelease = 0.04; // seconds, recovery time constant
   /** Metronome: click on every beat. */
@@ -408,15 +408,10 @@ export class AudioPort {
     const prev = this.fx[name];
     const onChanged = "on" in params && (params as { on?: boolean }).on !== (prev as { on?: boolean }).on;
     this.fx[name] = { ...prev, ...params } as EffectParams[K];
-    if (onChanged) {
-      // Toggle on/off: rebuild immediately
-      clearTimeout(this.fxRebuildTimer);
-      this.rebuildFxChain();
-    } else {
-      // Parameter-only: debounce rebuild
-      clearTimeout(this.fxRebuildTimer);
-      this.fxRebuildTimer = window.setTimeout(() => this.rebuildFxChain(), 200);
-    }
+    // Debounce ALL rebuilds — multiple rapid toggles collapse into one.
+    // 100ms delay is imperceptible; old chain plays through until rebuild.
+    clearTimeout(this.fxRebuildTimer);
+    this.fxRebuildTimer = window.setTimeout(() => this.rebuildFxChain(), onChanged ? 100 : 200);
   }
 
   /** Get current effects state. */
@@ -427,36 +422,39 @@ export class AudioPort {
   /** Set the effect chain order and rebuild. */
   setEffectOrder(order: EffectName[]): void {
     this.effectOrder = order;
-    this.rebuildFxChain();
+    clearTimeout(this.fxRebuildTimer);
+    this.fxRebuildTimer = window.setTimeout(() => this.rebuildFxChain(), 100);
   }
 
   getEffectOrder(): EffectName[] {
     return this.effectOrder;
   }
 
-  /** Rebuild the audio effects chain based on current fx state and effectOrder. */
+  /** Rebuild the audio effects chain based on current fx state and effectOrder.
+   *  Disconnects old nodes first, then builds new chain. Master stays connected
+   *  to fxOutput as fallback during the brief rebuild window. */
   private rebuildFxChain(): void {
-    // Disconnect old chain
-    this.master.disconnect();
-    for (const n of this.fxNodes) {
-      try { n.disconnect(); } catch { /* already disconnected */ }
-    }
-    for (const lfo of this.fxLFOs) {
-      try { lfo.stop(); lfo.disconnect(); } catch { /* already stopped */ }
-    }
+    // Ensure master → fxOutput direct path exists as fallback
+    try { this.master.connect(this.fxOutput); } catch { /* already connected */ }
+
+    // Disconnect old effect nodes (master → fxOutput stays as fallback)
+    for (const n of this.fxNodes) { try { n.disconnect(); } catch { /* */ } }
+    for (const lfo of this.fxLFOs) { try { lfo.stop(); lfo.disconnect(); } catch { /* */ } }
     this.fxNodes = [];
     this.fxLFOs = [];
 
-    // Build chain: master → [active effects in configurable order] → fxOutput
+    // Build new chain: master → [active effects] → fxOutput
     let prev: AudioNode = this.master;
-
     for (const name of this.effectOrder) {
       if (!this.fx[name].on) continue;
       prev = this.buildEffect(name, prev);
     }
-
-    // Connect final node to fxOutput
     prev.connect(this.fxOutput);
+
+    // Remove direct master → fxOutput if effects are active (avoid double signal)
+    if (this.fxNodes.length > 0) {
+      try { this.master.disconnect(this.fxOutput); } catch { /* */ }
+    }
   }
 
   /** Build a single effect and connect it to the chain. Returns the new tail node. */

@@ -18,10 +18,6 @@ const DEFAULT_EFFECT_ORDER: EffectName[] = ["compressor", "highpass", "distortio
 const XY_OPTIONS: { value: XYTarget; label: string }[] = [
   { value: "cutoff", label: "Cutoff" },
   { value: "resonance", label: "Resonance" },
-  { value: "distortion", label: "Distortion" },
-  { value: "highpass", label: "Highpass" },
-  { value: "delay", label: "Delay" },
-  { value: "reverb", label: "Reverb" },
   { value: "bpm", label: "BPM" },
   { value: "swing", label: "Swing" },
   { value: "volume", label: "Volume" },
@@ -109,7 +105,7 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
   allPausedRef.current = allPaused;
 
   const soloChannel = soloProp ?? null;
-  const [duckOn, setDuckOn] = useState(() => getBool("mpump-sidechain", true));
+  const [duckOn, setDuckOn] = useState(() => getBool("mpump-sidechain", false));
   const [duckDepth, setDuckDepth] = useState(() => parseFloat(getItem("mpump-duck-depth", "0.5")));
   const [duckRelease, setDuckRelease] = useState(() => parseFloat(getItem("mpump-duck-release", "0.04")));
   const toggleSolo = (channel: "drums" | "bass" | "synth") => {

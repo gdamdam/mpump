@@ -321,6 +321,7 @@ export class Engine {
         curated = Engine.CURATED_STARTS[Math.floor(Math.random() * Engine.CURATED_STARTS.length)];
       }
       this.bpm = curated.bpm;
+      // Set state for all devices first, then stagger restarts to avoid concurrent teardown
       for (const id of Engine.PREVIEW_IDS) {
         const ds = this.deviceStates.get(id);
         if (!ds) continue;
@@ -330,8 +331,11 @@ export class Engine {
           ds.genreIdx = gi;
           ds.patternIdx = Math.floor(Math.random() * genres[gi].patterns.length);
         }
-        this.restartDevice(id);
       }
+      Engine.PREVIEW_IDS.forEach((id, i) => {
+        if (i === 0) this.restartDevice(id);
+        else setTimeout(() => this.restartDevice(id), i * 80);
+      });
 
       // Use curated presets if in curated mode, otherwise fully random
       const findPreset = <T extends { name: string }>(list: T[], name?: string): T =>
@@ -496,13 +500,26 @@ export class Engine {
   }
 
   /** Stop then re-start a device (used after pattern/key/BPM changes).
-   *  Throttled: ignores calls within 50ms for the same device to prevent cascading restarts. */
+   *  Throttled: collapses calls within 50ms per-device — queues the last one
+   *  instead of dropping it, so final state is always applied. */
   private restartTimers: Map<string, number> = new Map();
+  private restartPending: Map<string, ReturnType<typeof setTimeout>> = new Map();
   private restartDevice(id: string): void {
     const now = performance.now();
     const last = this.restartTimers.get(id) ?? 0;
-    if (now - last < 50) return; // throttle rapid restarts
+    if (now - last < 50) {
+      // Queue-last: replace any pending restart, fire after cooldown
+      const existing = this.restartPending.get(id);
+      if (existing) clearTimeout(existing);
+      this.restartPending.set(id, setTimeout(() => {
+        this.restartPending.delete(id);
+        this.restartDevice(id);
+      }, 50 - (now - last)));
+      return;
+    }
     this.restartTimers.set(id, now);
+    const pending = this.restartPending.get(id);
+    if (pending) { clearTimeout(pending); this.restartPending.delete(id); }
     this.stopDevice(id);
     const ds = this.deviceStates.get(id);
     if (ds && this.ports[id] && !this.stopped.has(id)) {
@@ -726,7 +743,7 @@ export class Engine {
     this.cb.onStateChange(this.getState());
   }
 
-  private randomizeDevice(id: string, forceGenreIdx?: number): void {
+  private randomizeDevice(id: string, forceGenreIdx?: number, skipRestart = false): void {
     const ds = this.deviceStates.get(id);
     if (!ds || !ds.connected) return;
 
@@ -758,7 +775,7 @@ export class Engine {
     }
 
     // Full restart to ensure clean state (hot-swap left scheduled notes in the look-ahead buffer)
-    this.restartDevice(id);
+    if (!skipRestart) this.restartDevice(id);
     /* ---- hot-swap removed: caused overlapping patterns due to look-ahead ----
     const seq = this.sequencers.get(id);
     const port = this.ports[id];
@@ -797,10 +814,17 @@ export class Engine {
         }
       }
     }
+    // Set state for all devices, then stagger restarts to avoid concurrent teardown
+    const toRestart: string[] = [];
     for (const [id, ds] of this.deviceStates) {
       if (!ds.connected) continue;
-      this.randomizeDevice(id, sharedGenreIdx);
+      this.randomizeDevice(id, sharedGenreIdx, true);
+      toRestart.push(id);
     }
+    toRestart.forEach((id, i) => {
+      if (i === 0) this.restartDevice(id);
+      else setTimeout(() => this.restartDevice(id), i * 80);
+    });
     this.cb.onStateChange(this.getState());
   }
 
