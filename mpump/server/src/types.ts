@@ -306,6 +306,7 @@ export type ClientMessage =
   | { type: "set_master_boost"; gain: number }
   | { type: "set_channel_eq"; channel: number; low: number; mid: number; high: number }
   | { type: "set_channel_hpf"; channel: number; freq: number }
+  | { type: "set_mid_side_eq"; on: boolean }
   | { type: "set_channel_gate"; channel: number; on: boolean; rate: string; depth: number; shape: string; mode?: string; pattern?: number[] }
   | { type: "set_multiband"; on: boolean }
   | { type: "set_multiband_amount"; amount: number }

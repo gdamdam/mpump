@@ -536,6 +536,7 @@ export function MixerPanel({
   };
   const [showEqModal, setShowEqModal] = useState(false);
   const [showDrvModal, setShowDrvModal] = useState(false);
+  const [msEqOn, setMsEqOn] = useState(false);
   // Per-channel gate
   const [gateState, setGateState] = useState<Record<number, { on: boolean; rate: string; depth: number; shape: string; mode: string; pattern: number[] }>>({});
   const [showGateModal, setShowGateModal] = useState<number | null>(null);
@@ -842,6 +843,11 @@ export function MixerPanel({
               title={activeScene ? `Scene: ${activeScene}` : "Mix scenes"}
               style={{ fontSize: 9, maxWidth: 44, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
             >{activeScene ? activeScene.slice(0, 4).toUpperCase() : "SCN"}</button>
+            <button
+              className={`mx-btn ${msEqOn ? "active" : ""}`}
+              onClick={() => { const next = !msEqOn; setMsEqOn(next); command({ type: "set_mid_side_eq", on: next } as ClientMessage); }}
+              title={msEqOn ? "Mid-Side EQ: ON — cuts low-mids on side channel" : "Mid-Side EQ: OFF"}
+            >MS</button>
           </div>
         </div>
       </div>
