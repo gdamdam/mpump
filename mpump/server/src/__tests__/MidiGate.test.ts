@@ -35,7 +35,7 @@ describe("MidiGate – tagline pills", () => {
       path.resolve(__dirname, "../components/MidiGate.tsx"),
       "utf-8",
     );
-    expect(src).toContain("Working Grooves");
+    expect(src).toContain("Instant grooves");
   });
 });
 
