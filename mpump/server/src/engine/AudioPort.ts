@@ -111,6 +111,8 @@ export class AudioPort {
   private widthGain: GainNode | null = null;
   /** Low cut filter on master output. */
   private lowCutFilter: BiquadFilterNode | null = null;
+  /** Performance mode: "normal" | "lite" (no viz) | "eco" (lite + reduced audio). */
+  readonly perfMode: "normal" | "lite" | "eco";
   /** Multiband compressor: splits into low/mid/high bands with per-band compression. */
   private mbEnabled = true;
   private mbLowLP: BiquadFilterNode | null = null;
@@ -125,6 +127,9 @@ export class AudioPort {
     // Safari uses webkitAudioContext
     const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     this.ctx = new AC();
+    // Performance mode from App-level detection
+    const params = new URLSearchParams(window.location.search);
+    this.perfMode = params.get("eco") === "true" ? "eco" : params.get("lite") === "true" ? "lite" : (localStorage.getItem("mpump-perf-mode") as "normal" | "lite" | "eco") ?? "normal";
     (window as unknown as Record<string, unknown>).__audioCtx = this.ctx;
     (window as unknown as Record<string, unknown>).__audioPort = this;
     this.kit = buildKit(this.ctx);
@@ -175,8 +180,9 @@ export class AudioPort {
     this.driveGain = this.ctx.createGain();
     this.driveGain.gain.value = Math.pow(10, 1 / 20); // +1.0 dB default drive
 
-    // Multiband compressor: 3-band split → per-band compression → merge
-    this.initMultiband();
+    // Multiband compressor: skip in eco mode (expensive)
+    if (this.perfMode !== "eco") this.initMultiband();
+    if (this.perfMode === "eco") this.mbEnabled = false;
 
     this.analyser = this.ctx.createAnalyser();
     this.analyser.fftSize = 256;
@@ -189,8 +195,8 @@ export class AudioPort {
     // Initial chain: master → fxOutput (no effects)
     this.master.connect(this.fxOutput);
 
-    // Load AudioWorklet modules (non-blocking, fallback to standard nodes if unavailable)
-    this.loadWorklets();
+    // Load AudioWorklet modules (skip in eco mode — fallback to standard biquad filters)
+    if (this.perfMode !== "eco") this.loadWorklets();
 
     // CV output
     this.cv = new CVOutput(this.ctx);
@@ -1559,7 +1565,7 @@ export class AudioPort {
     // Skip on retrigger to avoid beating between old and new drift phases
     const driftAmount = freq < 200 ? 0.0006 : 0.0017;
     const addDrift = (osc: OscillatorNode, extras: AudioNode[]) => {
-      if (isRetrigger) return null; // no drift on fast retrigger
+      if (isRetrigger || this.perfMode === "eco") return null; // no drift on retrigger or eco mode
       const driftLfo = this.ctx.createOscillator();
       driftLfo.type = "sine";
       driftLfo.frequency.value = 0.15 + Math.random() * 0.2;
@@ -1769,7 +1775,8 @@ export class AudioPort {
     this.voices.set(key, { oscs, panNodes, subOsc, subGain, gain, filter, lfo, lfoGains, driftLFOs, pwmExtras, workletOscs, env: { amp, atk, dec, sus: p.sustain, startTime: when } });
 
     // Voice limit: kill oldest voices if over 16 to prevent audio thread overload
-    if (this.voices.size > 16) {
+    const voiceLimit = this.perfMode === "eco" ? 8 : 16;
+    if (this.voices.size > voiceLimit) {
       const oldest = this.voices.keys().next().value;
       if (oldest) {
         const v = this.voices.get(oldest);

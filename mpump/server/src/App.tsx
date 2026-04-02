@@ -9,6 +9,28 @@ import { trackEvent } from "./utils/metrics";
 import { getLastSession, type SessionData } from "./utils/session";
 import { extractPayloadFromUrl } from "./utils/shareCodec";
 
+// Performance mode: "normal" | "lite" (no animations) | "eco" (lite + reduced audio)
+export type PerfMode = "normal" | "lite" | "eco";
+
+export function getPerfMode(): PerfMode {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("eco") === "true") return "eco";
+  if (params.get("lite") === "true") return "lite";
+  const stored = localStorage.getItem("mpump-perf-mode");
+  if (stored === "lite" || stored === "eco") return stored;
+  // Auto-detect on first visit
+  if (!localStorage.getItem("mpump-perf-checked")) {
+    localStorage.setItem("mpump-perf-checked", "1");
+    const cores = navigator.hardwareConcurrency ?? 4;
+    const mem = (navigator as unknown as { deviceMemory?: number }).deviceMemory ?? 8;
+    if (cores <= 2 || mem <= 2) { localStorage.setItem("mpump-perf-mode", "eco"); return "eco"; }
+    if (cores <= 4) { localStorage.setItem("mpump-perf-mode", "lite"); return "lite"; }
+  }
+  return "normal";
+}
+
+export const PERF_MODE = getPerfMode();
+
 export function App() {
   const { state, catalog, command, midiState, connectMidi, startPreview, getAnalyser, getChannelAnalyser, loadCustomSamples, getMutedDrumNotes, playNote, stopNote, getMixerState, getCpuLoad } = useEngine();
   const autoStarted = useRef(false);

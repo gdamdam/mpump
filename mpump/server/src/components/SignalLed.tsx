@@ -1,6 +1,6 @@
 import { useRef, useEffect } from "react";
 
-const IS_MOBILE = window.innerWidth < 700;
+const IS_LITE = window.innerWidth < 700 || new URLSearchParams(window.location.search).get("lite") === "true" || new URLSearchParams(window.location.search).get("eco") === "true" || localStorage.getItem("mpump-perf-mode") === "lite" || localStorage.getItem("mpump-perf-mode") === "eco";
 
 export function SignalLed({ getAnalyser }: { getAnalyser: () => AnalyserNode | null }) {
   const dotRef = useRef<HTMLSpanElement>(null);
@@ -10,7 +10,7 @@ export function SignalLed({ getAnalyser }: { getAnalyser: () => AnalyserNode | n
   getAnalyserRef.current = getAnalyser;
 
   useEffect(() => {
-    if (IS_MOBILE) return; // no analyser polling on mobile
+    if (IS_LITE) return; // no analyser polling in lite/eco/mobile
     const buf = new Uint8Array(256);
     let skip = 0;
     const tick = () => {

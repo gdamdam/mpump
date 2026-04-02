@@ -798,7 +798,7 @@ export function MixerPanel({
         {/* Master strip */}
         <div className="mx-strip mx-strip-master">
           <div className="mx-strip-label mx-label-master">MASTER</div>
-          {window.innerWidth >= 700 && <>
+          {window.innerWidth >= 700 && !(new URLSearchParams(window.location.search).get("lite") === "true" || new URLSearchParams(window.location.search).get("eco") === "true" || localStorage.getItem("mpump-perf-mode") === "lite" || localStorage.getItem("mpump-perf-mode") === "eco") && <>
             <div className="mx-master-vu">
               <NeedleMeter getAnalyser={() => getAnalyser?.() ?? null} />
             </div>

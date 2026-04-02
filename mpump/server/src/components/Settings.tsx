@@ -185,6 +185,12 @@ export function Settings({ volume, onVolumeChange, onClose, swing, onSwingChange
                 </div>
               </>)}
               <div className="settings-toggles">
+                <select className="synth-preset-select" value={getItem("mpump-perf-mode", "normal")} title="Performance mode — Lite disables animations, Eco also reduces audio processing"
+                  onChange={(e) => { setItem("mpump-perf-mode", e.target.value); window.location.reload(); }} style={{ fontSize: 11 }}>
+                  <option value="normal">Performance: Normal</option>
+                  <option value="lite">Performance: Lite</option>
+                  <option value="eco">Performance: Eco</option>
+                </select>
                 {onAntiClipChange && (
                   <select className="synth-preset-select" value={antiClipMode ?? "limiter"} title="Anti-clip prevents digital clipping"
                     onChange={(e) => onAntiClipChange(e.target.value as "off" | "limiter" | "hybrid")} style={{ fontSize: 11 }}>

@@ -52,12 +52,13 @@ export function Waveform({ getAnalyser, command }: Props) {
     const ro = new ResizeObserver(resize);
     ro.observe(canvas);
 
-    const isMobile = window.innerWidth < 700;
+    const p = new URLSearchParams(window.location.search);
+    const isLite = window.innerWidth < 700 || p.get("lite") === "true" || p.get("eco") === "true" || localStorage.getItem("mpump-perf-mode") === "lite" || localStorage.getItem("mpump-perf-mode") === "eco";
     let dataBuf: Uint8Array | null = null;
     let skip = 0;
     const draw = () => {
       rafRef.current = requestAnimationFrame(draw);
-      if (isMobile) return; // no waveform rendering on mobile
+      if (isLite) return; // no waveform in lite/eco/mobile
       if (++skip % 3 !== 0) return; // ~20fps
       const analyser = getAnalyser();
       if (!analyser) return;
