@@ -1243,9 +1243,22 @@ export class AudioPort {
 
   /** Get current CPU load indicator (0-1). 0=healthy, >0.5=struggling, 1=critical. */
   getCpuLoad(): number {
+    // Dead AudioContext = critical
+    if (this.ctx.state !== "running") return 1;
+    // Check if audio time stopped advancing (audio thread frozen)
+    const now = this.ctx.currentTime;
+    if (this._lastCtxTime !== undefined && now === this._lastCtxTime && now > 0) {
+      this._frozenCount = (this._frozenCount ?? 0) + 1;
+      if (this._frozenCount > 2) return 1; // frozen for >4s
+    } else {
+      this._frozenCount = 0;
+    }
+    this._lastCtxTime = now;
     // Map drift: 0-2ms=green, 2-10ms=yellow, >10ms=red
     return Math.min(1, this._maxDrift / 10);
   }
+  private _lastCtxTime?: number;
+  private _frozenCount?: number;
 
   /** Enable/disable mid-side EQ (cuts low-mids on side channel). */
   setMidSideEQ(on: boolean, freq = 300, gain = -4): void {
