@@ -110,31 +110,22 @@ All machines default to tight kick decays (0.2-0.3). Users can adjust decay via 
 
 All drum voices were tuned against Roland TR-808 and TR-909 reference samples. See [Chapter 7: Drum Voice Tuning](07-drum-tuning.md) for the full methodology, Fletcher-Munson compensation, and frequency separation.
 
-## Mix Scenes (19)
+## Mix Scenes (10)
 
-Each genre has a mixer scene that optimizes EQ, multiband compression, stereo width, and drive for that genre's frequency character:
+Character-based (not genre-named) so users don't feel locked to a specific genre:
 
 | Scene | Low | Mid | High | Drive | Width | Low Cut | MB Amt | Character |
 |-------|-----|-----|------|-------|-------|---------|--------|-----------|
-| Default | 0 | 0 | 0 | 0 | 50% | 0 | 0.25 | Flat neutral |
-| Techno | +2 | -2 | +1 | +1 | 50% | 40 | 0.30 | Punchy, clear |
-| House | +2 | -1 | +1 | +1 | 50% | 30 | 0.30 | Warm, groovy |
-| Acid | +1 | -1 | +2 | +3 | 40% | 60 | 0.25 | Gritty, resonant |
-| Trance | +1 | -1 | +3 | 0 | 70% | 25 | 0.35 | Wide, airy |
-| DnB | +1 | -2 | +1 | +1 | 45% | 40 | 0.35 | Tight |
-| Dubstep | +4 | -1 | +1 | +2 | 35% | 25 | 0.35 | Heavy, narrow |
-| Deep House | +3 | -1 | 0 | 0 | 55% | 20 | 0.25 | Smooth |
-| Dub Techno | +3 | -3 | -1 | 0 | 70% | 20 | 0.20 | Deep, filtered |
-| EDM | +2 | -1 | +2 | +2 | 60% | 30 | 0.40 | Loud, compressed |
-| Psytrance | +2 | 0 | +2 | +2 | 35% | 25 | 0.35 | Driving, hypnotic |
-| Lo-Fi | +1 | 0 | -3 | -1 | 50% | 0 | 0.05 | Muted, mellow |
-| Synthwave | +2 | +1 | +2 | +1 | 60% | 30 | 0.30 | Bright, retro |
-| Ambient | +1 | -1 | +2 | -2 | 80% | 0 | 0.05 | Spacious |
-| Downtempo | +2 | -2 | 0 | -1 | 65% | 0 | 0.15 | Deep, relaxed |
-| Electro | +2 | 0 | +2 | +2 | 45% | 30 | 0.30 | Crisp, robotic |
-| Garage | +2 | -1 | +1 | 0 | 50% | 30 | 0.20 | Bouncy |
-| Jungle | +2 | -1 | +2 | +1 | 45% | 35 | 0.30 | Raw |
-| IDM | 0 | 0 | +2 | 0 | 50% | 30 | 0.15 | Clean, detailed |
+| Neutral | 0 | 0 | 0 | 0 | 50% | 0 | 0.25 | Flat, no coloring |
+| Punchy | +2 | -2 | +2 | 0 | 60% | 35 | 0.30 | Tight kick, clear mids |
+| Warm | +2 | -1 | +1 | 0 | 65% | 25 | 0.30 | Smooth, round |
+| Airy | +1 | -1 | +3 | 0 | 70% | 25 | 0.35 | Wide, bright, open |
+| Tight | +1 | -2 | +2 | 0 | 55% | 35 | 0.35 | Controlled, clean |
+| Heavy | +3 | -1 | +2 | +1 | 50% | 20 | 0.35 | Deep sub, weight |
+| Mellow | +1 | -1 | -1 | 0 | 65% | 0 | 0.15 | Dark, soft, relaxed |
+| Spacious | +1 | -1 | +2 | -1 | 80% | 20 | 0.10 | Very wide, minimal |
+| Crisp | +1 | -1 | +3 | +1 | 55% | 30 | 0.30 | Bright, defined |
+| Loud | +2 | -1 | +2 | +1 | 65% | 25 | 0.40 | Full, compressed |
 
 See [Genre Mix Profiles](genre-mix-profiles.md) for the research behind these values.
 

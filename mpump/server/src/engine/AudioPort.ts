@@ -158,13 +158,15 @@ export class AudioPort {
     this.softClip = this.ctx.createWaveShaper();
     this.softClip.oversample = "none";
 
-    // Limiter: catches peaks before they clip
+    // Limiter: catches peaks before they clip the output.
+    // Intentionally gentle (4:1, soft knee) rather than brick-wall (20:1+)
+    // to avoid pumping artifacts on transient-heavy drum patterns.
     this.limiter = this.ctx.createDynamicsCompressor();
-    this.limiter.threshold.value = -1;
-    this.limiter.ratio.value = 4;
-    this.limiter.attack.value = 0.001;
-    this.limiter.release.value = 0.25;
-    this.limiter.knee.value = 10;
+    this.limiter.threshold.value = -1;  // dBFS — catches only the loudest peaks
+    this.limiter.ratio.value = 4;       // gentle compression, not hard limiting
+    this.limiter.attack.value = 0.001;  // 1ms — fast enough for drum transients
+    this.limiter.release.value = 0.25;  // 250ms — smooth recovery
+    this.limiter.knee.value = 10;       // soft knee — gradual onset, less audible
 
     // Bypass gain (unused, kept for compatibility)
     this.limiterBypass = this.ctx.createGain();
@@ -1369,8 +1371,22 @@ export class AudioPort {
     const src = this.ctx.createBufferSource();
     src.buffer = buffer;
 
-    // Fletcher-Munson compensation: boost lows, cut highs for perceived balance
-    const fmGain: Record<number, number> = { 36: 1.8, 38: 1.1, 42: 0.9, 46: 0.8, 47: 1.5, 49: 0.7, 50: 0.9, 51: 0.8, 37: 1.0, 56: 0.8 };
+    // Fletcher-Munson compensation: human hearing is most sensitive at 2-5kHz.
+    // Low drums (kick=36) need more gain to sound as loud as high drums (hats=42,46).
+    // Values tuned empirically against 808 reference samples.
+    // Fallback 1.5 for unmapped notes (mid-range default).
+    const fmGain: Record<number, number> = {
+      36: 1.8,  // kick — low freq needs most boost
+      38: 1.1,  // snare — mid body but high wire sizzle
+      42: 0.9,  // closed hat — ear-sensitive range
+      46: 0.8,  // open hat
+      47: 1.5,  // tom — mid-range
+      49: 0.7,  // crash — brightest
+      50: 0.9,  // clap — noise, 1-5kHz
+      51: 0.8,  // ride — high partials
+      37: 1.0,  // rimshot — mid-high
+      56: 0.8,  // cowbell — mid-high
+    };
     const targetGain = (vel / 127) * level * (fmGain[note] ?? 1.5);
     const gain = this.ctx.createGain();
     const drumWhen = perfToCtx(this.ctx, time);
@@ -1400,7 +1416,11 @@ export class AudioPort {
       }
     }
 
-    // Sidechain duck: dip non-drum channel gains on kick
+    // Sidechain duck: on every kick hit, temporarily reduce bass/synth volume.
+    // Uses direct .value assignment (not AudioParam automation) because
+    // setChannelVolume also writes to bus.gain.value — mixing .value with
+    // scheduled automation causes undefined behavior in the Web Audio spec.
+    // Recovery uses setTimeout instead of setTargetAtTime for the same reason.
     if (this.sidechainDuck && note === 36) {
       const duckTo = 1 - this.duckDepth;
       const relMs = this.duckRelease * 1000;
@@ -1408,13 +1428,11 @@ export class AudioPort {
         if (ch === DRUM_CH) continue;
         const vol = this.channelVolumes.get(ch) ?? 1;
         if (vol <= 0) continue;
-        // Instant duck via .value — no automation timeline conflict with setChannelVolume
         bus.gain.value = vol * duckTo;
-        // Recovery via setTimeout — lightweight, no AudioParam scheduling
         clearTimeout((bus as unknown as Record<string, number>).__duckTimer);
         (bus as unknown as Record<string, number>).__duckTimer = window.setTimeout(() => {
           bus.gain.value = vol;
-        }, relMs + 20) as unknown as number;
+        }, relMs + 20) as unknown as number; // +20ms padding for audio thread scheduling jitter
       }
     }
   }

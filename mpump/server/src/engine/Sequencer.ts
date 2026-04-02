@@ -1,7 +1,10 @@
 import type { MidiPort } from "./MidiPort";
 import type { StepData, ArpMode, ArpRate } from "../types";
 
+// How far ahead to schedule notes (ms). Must be > 4× SCHEDULE_INTERVAL
+// to guarantee no gaps. Higher = more latency, lower = more CPU.
 const LOOKAHEAD_MS = 100;
+// How often the scheduler runs (ms). 25ms = ~40 checks/sec.
 const SCHEDULE_INTERVAL_MS = 25;
 
 /** Arp chord intervals from root: root, major 3rd, 5th, octave. */

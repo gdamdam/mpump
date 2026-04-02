@@ -1,5 +1,5 @@
 <h1 align="center">mpump</h1>
-<p align="center"><strong>A groove you can share.</strong><br><br>Browser instrument for electronic music. Make something, send it as a link. Open it, change it, send it back different.<br>No install. No account. Free.</p>
+<p align="center"><strong>A groove you can share.</strong><br><br>Browser instrument for electronic music. Make something, send it as a link.<br>Open it, change it, send it back different.<br>No install. No account. Free.</p>
 
 <p align="center">
   <a href="https://github.com/gdamdam/mpump"><img src="https://img.shields.io/badge/version-1.5.1-blue" alt="Version"></a>
@@ -146,7 +146,7 @@ All sounds are synthesized in real-time via the Web Audio API. No sample files n
 
 **Interface**
 - 6 color themes (Forest, Amber, Neon, Minimal, Cream, Rosé)
-- Keyboard shortcuts (Space, R, arrows for navigation, M/S/L for mute/solo/lock, Tab to cycle views, 1-3 for view mode, ? for help)
+- Keyboard shortcuts (Space, R, arrows for navigation, M/S/L for mute/solo/lock, B for BPM, Tab to cycle views, 1-3 for view mode, ? for help)
 - QWERTY keyboard playing (⌨ button per instrument, `[`/`]` octave shift)
 - PWA with offline support and auto-update detection
 - MIDI device connect button (no permission prompt on load)
@@ -217,7 +217,7 @@ mpump/
   frontend/             # Lightweight React client (dev)
 worker/                 # Cloudflare Worker for share link previews
 link-bridge/            # Ableton Link companion app
-docs/                   # Documentation (6 chapters)
+docs/                   # Documentation (11 chapters)
 ```
 
 ## Architecture
