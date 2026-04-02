@@ -79,12 +79,44 @@
   width: 28px;
   height: 120px;
   cursor: pointer;
-  accent-color: var(--preview);
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
   opacity: 0.85;
   margin: 4px 0;
 }
 .mx-fader:hover {
   opacity: 1;
+}
+.mx-fader::-webkit-slider-runnable-track {
+  width: 4px;
+  height: 100%;
+  background: var(--border);
+  border-radius: 2px;
+}
+.mx-fader::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--preview);
+  margin-left: -6px;
+  cursor: pointer;
+}
+.mx-fader::-moz-range-track {
+  width: 4px;
+  height: 100%;
+  background: var(--border);
+  border-radius: 2px;
+  border: none;
+}
+.mx-fader::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--preview);
+  border: none;
+  cursor: pointer;
 }
 
 /* ── dB label ── */
