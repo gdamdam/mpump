@@ -786,9 +786,6 @@
   .device-panel {
     min-width: 300px;
   }
-  .vu-meter {
-    height: 18px;
-  }
   .sub-header {
     gap: 4px;
     padding: 2px 4px;
@@ -1047,10 +1044,6 @@
 
   .bottom-transport-active .panels {
     padding-bottom: 72px;
-  }
-
-  .vu-meter {
-    min-height: 16px;
   }
 
   .panels {

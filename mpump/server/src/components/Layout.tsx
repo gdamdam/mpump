@@ -1513,7 +1513,7 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
             </div>
           </div>
         )}
-        {isPreview && getAnalyser && !(new URLSearchParams(window.location.search).get("lite") === "true" || new URLSearchParams(window.location.search).get("eco") === "true" || localStorage.getItem("mpump-perf-mode") === "lite" || localStorage.getItem("mpump-perf-mode") === "eco") && <VuMeter getAnalyser={getAnalyser} />}
+        {isPreview && getAnalyser && !(localStorage.getItem("mpump-perf-mode") === "lite" || localStorage.getItem("mpump-perf-mode") === "eco") && <VuMeter getAnalyser={getAnalyser} />}
         <div className="header-controls">
           {/* Row 1: BPM, mode switcher, MIX, undo, play, rec */}
           <div className="header-row header-row-transport">

@@ -426,7 +426,6 @@
   border-radius: 4px;
   background: var(--bg-cell);
   border: 1px solid var(--border);
-  cursor: pointer;
   display: block;
 }
 
@@ -456,6 +455,26 @@
 .vu-tooltip-hint {
   color: var(--text-dim);
   font-style: italic;
+}
+
+.clip-led {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  padding: 2px 10px;
+  border-radius: 4px;
+  background: var(--bg-cell);
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  user-select: none;
+  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+}
+
+.clip-led.clip-active {
+  background: #e53935;
+  color: #fff;
+  border-color: #e53935;
+  box-shadow: 0 0 8px rgba(229, 57, 53, 0.6);
 }
 
 /* ── Bass mute button ─────────────────────────────────────────────────── */

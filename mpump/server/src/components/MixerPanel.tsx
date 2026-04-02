@@ -4,6 +4,7 @@ import { DEFAULT_EFFECTS } from "../types";
 import { tapVibrate } from "../utils/haptic";
 import { getJSON, setJSON } from "../utils/storage";
 import { EffectEditor } from "./EffectEditor";
+import { ClipIndicator } from "./VuMeter";
 
 type AntiClipMode = "off" | "limiter" | "hybrid";
 
@@ -62,195 +63,6 @@ function panLabel(v: number): string {
   if (Math.abs(v) < 0.03) return "C";
   const pct = Math.round(Math.abs(v) * 50);
   return v < 0 ? `L${pct}` : `R${pct}`;
-}
-
-// ── Needle VU Meter (master) ─────────────────────────────────────────────
-
-const ARC_START = (220 * Math.PI) / 180;
-const ARC_END = (320 * Math.PI) / 180;
-const ARC_SPAN = ARC_END - ARC_START;
-
-const DB_TICKS = [
-  { db: -40, label: "-40" },
-  { db: -20, label: "-20" },
-  { db: -10, label: "-10" },
-  { db: -5, label: "-5" },
-  { db: 0, label: "0" },
-  { db: 3, label: "+3" },
-];
-
-function dbToAngle(db: number): number {
-  const t = (db - DB_FLOOR) / DB_RANGE;
-  return ARC_START + t * ARC_SPAN;
-}
-
-function renderNeedle(
-  ctx: CanvasRenderingContext2D,
-  w: number, h: number,
-  needleAngle: number,
-  accent: string,
-) {
-  const cx = w / 2;
-  const cy = h - 12;
-  const radius = Math.min(w / 2 - 16, h - 24);
-  if (radius <= 0 || w <= 0 || h <= 0) return;
-  const zeroAngle = dbToAngle(0);
-  const minus5Angle = dbToAngle(-5);
-
-  ctx.lineWidth = 4;
-  ctx.beginPath(); ctx.arc(cx, cy, radius, ARC_START, minus5Angle);
-  ctx.strokeStyle = accent; ctx.globalAlpha = 0.25; ctx.stroke();
-  ctx.beginPath(); ctx.arc(cx, cy, radius, minus5Angle, zeroAngle);
-  ctx.strokeStyle = "#ffaa00"; ctx.globalAlpha = 0.3; ctx.stroke();
-  ctx.beginPath(); ctx.arc(cx, cy, radius, zeroAngle, ARC_END);
-  ctx.strokeStyle = "#ff4444"; ctx.globalAlpha = 0.4; ctx.stroke();
-  ctx.globalAlpha = 1;
-
-  ctx.textAlign = "center"; ctx.textBaseline = "middle";
-  ctx.font = `${Math.max(9, w * 0.045)}px monospace`;
-  for (const tick of DB_TICKS) {
-    const angle = dbToAngle(tick.db);
-    const cos = Math.cos(angle), sin = Math.sin(angle);
-    ctx.beginPath();
-    ctx.moveTo(cx + cos * (radius - 8), cy + sin * (radius - 8));
-    ctx.lineTo(cx + cos * (radius + 2), cy + sin * (radius + 2));
-    ctx.strokeStyle = tick.db >= 0 ? "#ff4444" : "#7d8590";
-    ctx.globalAlpha = tick.db >= 0 ? 0.8 : 0.5; ctx.lineWidth = 1.5; ctx.stroke();
-    ctx.fillStyle = ctx.strokeStyle; ctx.globalAlpha = tick.db >= 0 ? 0.9 : 0.6;
-    ctx.fillText(tick.label, cx + cos * (radius + 14), cy + sin * (radius + 14));
-  }
-  ctx.globalAlpha = 0.25; ctx.lineWidth = 1;
-  for (const db of [-30, -15, -7, -3]) {
-    const a = dbToAngle(db), c = Math.cos(a), s = Math.sin(a);
-    ctx.beginPath(); ctx.moveTo(cx + c * (radius - 5), cy + s * (radius - 5));
-    ctx.lineTo(cx + c * (radius + 1), cy + s * (radius + 1));
-    ctx.strokeStyle = "#7d8590"; ctx.stroke();
-  }
-  ctx.globalAlpha = 1;
-
-  const cos = Math.cos(needleAngle), sin = Math.sin(needleAngle);
-  ctx.beginPath(); ctx.moveTo(cx, cy);
-  ctx.lineTo(cx + cos * (radius - 4), cy + sin * (radius - 4));
-  ctx.strokeStyle = "rgba(0,0,0,0.3)"; ctx.lineWidth = 3; ctx.stroke();
-
-  ctx.beginPath(); ctx.moveTo(cx, cy);
-  ctx.lineTo(cx + cos * (radius - 4), cy + sin * (radius - 4));
-  const t = (needleAngle - ARC_START) / ARC_SPAN;
-  ctx.strokeStyle = t > 0.93 ? "#ff4444" : t > 0.81 ? "#ffaa00" : accent;
-  ctx.lineWidth = 2; ctx.lineCap = "round"; ctx.stroke();
-
-  ctx.beginPath(); ctx.arc(cx + cos * (radius - 6), cy + sin * (radius - 6), 3, 0, Math.PI * 2);
-  ctx.fillStyle = ctx.strokeStyle; ctx.globalAlpha = 0.6; ctx.fill();
-
-  ctx.globalAlpha = 1;
-  ctx.beginPath(); ctx.arc(cx, cy, 4, 0, Math.PI * 2); ctx.fillStyle = "#555"; ctx.fill();
-  ctx.beginPath(); ctx.arc(cx, cy, 2, 0, Math.PI * 2); ctx.fillStyle = "#888"; ctx.fill();
-
-  ctx.font = `bold ${Math.max(10, w * 0.055)}px monospace`;
-  ctx.fillStyle = accent; ctx.globalAlpha = 0.4; ctx.textAlign = "center";
-  ctx.fillText("VU", cx, cy - radius * 0.6 * 0.35); ctx.globalAlpha = 1;
-}
-
-function NeedleMeter({ getAnalyser }: { getAnalyser: () => AnalyserNode | null }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const rafRef = useRef(0);
-  const dbRef = useRef<HTMLSpanElement>(null);
-  const clipRef = useRef<HTMLDivElement>(null);
-  const ms = useRef({
-    smoothedRms: 0,
-    needleAngle: ARC_START,
-    buf: null as Uint8Array | null,
-    accent: "#b388ff",
-    accentFrame: 0,
-    clipTime: 0,
-  });
-
-  const resetClip = useCallback(() => { ms.current.clipTime = 0; }, []);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    const resize = () => {
-      const rect = canvas.getBoundingClientRect();
-      const dpr = window.devicePixelRatio || 1;
-      canvas.width = rect.width * dpr;
-      canvas.height = rect.height * dpr;
-      ctx.scale(dpr, dpr);
-    };
-    resize();
-    const ro = new ResizeObserver(resize);
-    ro.observe(canvas);
-
-    let frameSkip = 0;
-    const draw = () => {
-      rafRef.current = requestAnimationFrame(draw);
-      if (++frameSkip % 3 !== 0) return; // ~20fps — enough for VU meters
-      const analyser = getAnalyser();
-      const rect = canvas.getBoundingClientRect();
-      const w = rect.width;
-      const h = rect.height;
-      ctx.clearRect(0, 0, w, h);
-      const s = ms.current;
-
-      if (analyser) {
-        const size = analyser.fftSize;
-        if (!s.buf || s.buf.length !== size) s.buf = new Uint8Array(size);
-        analyser.getByteTimeDomainData(s.buf);
-        let sumSq = 0;
-        for (let i = 0; i < size; i++) {
-          const sample = (s.buf[i] - 128) / 128;
-          sumSq += sample * sample;
-        }
-        const rms = Math.sqrt(sumSq / size);
-        if (rms > s.smoothedRms) {
-          s.smoothedRms = ATTACK_COEFF * s.smoothedRms + (1 - ATTACK_COEFF) * rms;
-        } else {
-          s.smoothedRms = RELEASE_COEFF * s.smoothedRms + (1 - RELEASE_COEFF) * rms;
-        }
-      } else {
-        s.smoothedRms *= 0.95;
-      }
-
-      s.accentFrame++;
-      if (s.accentFrame > 60) {
-        s.accentFrame = 0;
-        s.accent = getComputedStyle(document.documentElement).getPropertyValue("--preview").trim() || "#b388ff";
-      }
-
-      const db = toDB(s.smoothedRms);
-      const targetAngle = dbToAngle(db);
-      s.needleAngle += (targetAngle - s.needleAngle) * 0.18;
-
-      const now = performance.now();
-      if (db >= -0.5) s.clipTime = now;
-      const clipping = now - s.clipTime < CLIP_HOLD_MS && s.clipTime > 0;
-
-      if (dbRef.current) {
-        dbRef.current.textContent = db > DB_FLOOR ? `${db.toFixed(1)} dB` : "-\u221E dB";
-      }
-      if (clipRef.current) {
-        clipRef.current.classList.toggle("active", clipping);
-      }
-
-      renderNeedle(ctx, w, h, s.needleAngle, s.accent);
-    };
-
-    draw();
-    return () => { cancelAnimationFrame(rafRef.current); ro.disconnect(); };
-  }, [getAnalyser]);
-
-  return (
-    <div className="mx-needle-wrap">
-      <canvas ref={canvasRef} className="mx-needle-canvas" />
-      <div className="mx-needle-footer">
-        <span ref={dbRef} className="mx-db-readout">{"-\u221E dB"}</span>
-        <div ref={clipRef} className="mx-clip" title="Click to reset" onClick={resetClip}>CLIP</div>
-      </div>
-    </div>
-  );
 }
 
 // ── Channel VU Bar ──────────────────────────────────────────────────────
@@ -798,14 +610,7 @@ export function MixerPanel({
         {/* Master strip */}
         <div className="mx-strip mx-strip-master">
           <div className="mx-strip-label mx-label-master">MASTER</div>
-          {window.innerWidth >= 700 && !(new URLSearchParams(window.location.search).get("lite") === "true" || new URLSearchParams(window.location.search).get("eco") === "true" || localStorage.getItem("mpump-perf-mode") === "lite" || localStorage.getItem("mpump-perf-mode") === "eco") && <>
-            <div className="mx-master-vu">
-              <NeedleMeter getAnalyser={() => getAnalyser?.() ?? null} />
-            </div>
-            <div className="mx-master-led">
-              <VuBar getAnalyser={() => getAnalyser?.() ?? null} />
-            </div>
-          </>}
+          <ClipIndicator getAnalyser={() => getAnalyser?.() ?? null} />
           <input
             type="range" min={0} max={1} step={0.01}
             value={volume}

@@ -49,9 +49,11 @@ export function VuMeter({ getAnalyser }: Props) {
 
     let freqBuf: Uint8Array | null = null;
     let frameSkip = 0;
+    const BARS = 24;
+    const smoothed = new Float32Array(BARS); // smoothed bar values for decay
     const draw = () => {
       rafRef.current = requestAnimationFrame(draw);
-      if (++frameSkip % 3 !== 0) return; // ~20fps
+      if (++frameSkip % 2 !== 0) return; // ~30fps
       const analyser = getAnalyser();
       if (!analyser) return;
 
@@ -78,7 +80,6 @@ export function VuMeter({ getAnalyser }: Props) {
       const accent = getComputedStyle(document.documentElement).getPropertyValue("--preview").trim() || "#b388ff";
 
       if (style === "spectrum") {
-        // Full FFT spectrum — smooth curve
         ctx.strokeStyle = accent;
         ctx.lineWidth = 1.5;
         ctx.beginPath();
@@ -90,7 +91,6 @@ export function VuMeter({ getAnalyser }: Props) {
           else ctx.lineTo(i * sliceW, y);
         }
         ctx.stroke();
-        // Fill under curve
         ctx.lineTo(w, h);
         ctx.lineTo(0, h);
         ctx.closePath();
@@ -99,15 +99,16 @@ export function VuMeter({ getAnalyser }: Props) {
         ctx.fill();
         ctx.globalAlpha = 1;
       } else {
-        // Bar mode
-        const BARS = 24;
         const barW = Math.floor(w / BARS) - 1;
         const step = Math.floor(freqData.length / BARS);
 
         for (let i = 0; i < BARS; i++) {
           let sum = 0;
           for (let j = 0; j < step; j++) sum += freqData[i * step + j];
-          const val = sum / step / 255;
+          const raw = sum / step / 255;
+          // Smooth: rise instant, fall fast — snappy and responsive
+          smoothed[i] = raw > smoothed[i] ? raw : raw * 0.4 + smoothed[i] * 0.6;
+          const val = smoothed[i];
           const barH = val * h;
 
           if (style === "classic") {
@@ -131,8 +132,8 @@ export function VuMeter({ getAnalyser }: Props) {
     return () => { cancelAnimationFrame(rafRef.current); ro.disconnect(); };
   }, [getAnalyser, style]);
 
-  const peakDb = peakRef.current > 0 ? (20 * Math.log10(peakRef.current)).toFixed(1) : "-∞";
-  const rmsDb = rmsRef.current > 0 ? (20 * Math.log10(rmsRef.current)).toFixed(1) : "-∞";
+  const peakDb = peakRef.current > 0 ? (20 * Math.log10(peakRef.current)).toFixed(1) : "-\u221E";
+  const rmsDb = rmsRef.current > 0 ? (20 * Math.log10(rmsRef.current)).toFixed(1) : "-\u221E";
   const freqLabel = peakFreqRef.current >= 1000
     ? `${(peakFreqRef.current / 1000).toFixed(1)}kHz`
     : `${Math.round(peakFreqRef.current)}Hz`;
@@ -159,6 +160,51 @@ export function VuMeter({ getAnalyser }: Props) {
           <span className="vu-tooltip-hint">{STYLE_LABELS[style]} · click to cycle</span>
         </div>
       )}
+    </div>
+  );
+}
+
+/** CLIP LED — lights red when output is clipping, holds for 1s. */
+export function ClipIndicator({ getAnalyser }: Props) {
+  const [clipping, setClipping] = useState(false);
+  const rafRef = useRef<number>(0);
+  const bufRef = useRef<Uint8Array | null>(null);
+  const frameSkip = useRef(0);
+  const lastClipTime = useRef(0);
+
+  useEffect(() => {
+    const HOLD_MS = 1000;
+    const check = () => {
+      rafRef.current = requestAnimationFrame(check);
+      if (++frameSkip.current % 6 !== 0) return; // ~10fps
+      const analyser = getAnalyser();
+      if (!analyser) { setClipping(false); return; }
+
+      // Use time-domain data to detect actual waveform clipping (samples at digital rail)
+      const size = analyser.fftSize;
+      if (!bufRef.current || bufRef.current.length !== size)
+        bufRef.current = new Uint8Array(size);
+      analyser.getByteTimeDomainData(bufRef.current);
+      let hasSignal = false;
+      let clipCount = 0;
+      for (let i = 0; i < size; i++) {
+        const s = bufRef.current[i];
+        if (s < 100 || s > 156) hasSignal = true;
+        if (s === 0 || s === 255) clipCount++;
+      }
+
+      const now = performance.now();
+      if (hasSignal && clipCount >= 3) lastClipTime.current = now;
+      // LED on while within hold window, off otherwise
+      setClipping(now - lastClipTime.current < HOLD_MS && lastClipTime.current > 0);
+    };
+    check();
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [getAnalyser]);
+
+  return (
+    <div className={`clip-led ${clipping ? "clip-active" : ""}`} title="Clipping indicator">
+      CLIP
     </div>
   );
 }
