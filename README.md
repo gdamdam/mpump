@@ -18,7 +18,7 @@
 ---
 
 <p align="center">
-  <img src="mpump-demo.gif" width="600" alt="mpump demo">
+  <img src="mpump-demo.gif?v=1.5.0" width="600" alt="mpump demo">
 </p>
 
 Curated patterns across 15 genres. Built-in drums, bass, synth, real-time effects, and an analog needle VU meter. All synthesized in the browser via Web Audio. No install. No account. No personal data.
