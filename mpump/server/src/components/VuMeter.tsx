@@ -47,12 +47,16 @@ export function VuMeter({ getAnalyser }: Props) {
     const ro = new ResizeObserver(resize);
     ro.observe(canvas);
 
+    let freqBuf: Uint8Array | null = null;
+    let frameSkip = 0;
     const draw = () => {
       rafRef.current = requestAnimationFrame(draw);
+      if (++frameSkip % 3 !== 0) return; // ~20fps
       const analyser = getAnalyser();
       if (!analyser) return;
 
-      const freqData = new Uint8Array(analyser.frequencyBinCount);
+      if (!freqBuf || freqBuf.length !== analyser.frequencyBinCount) freqBuf = new Uint8Array(analyser.frequencyBinCount);
+      const freqData = freqBuf;
       analyser.getByteFrequencyData(freqData);
 
       let peak = 0, sumSq = 0, peakBin = 0, peakBinVal = 0;

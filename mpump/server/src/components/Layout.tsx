@@ -681,7 +681,9 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
   // Logo audio pulse — bass glow + transient flash
   const logoRef = useRef<HTMLPreElement>(null);
   useEffect(() => {
-    if (logoPulseMode !== "audio" || !getAnalyser) {
+    const lp = new URLSearchParams(window.location.search);
+    const perfOff = lp.get("lite") === "true" || lp.get("eco") === "true" || localStorage.getItem("mpump-perf-mode") === "lite" || localStorage.getItem("mpump-perf-mode") === "eco";
+    if (logoPulseMode !== "audio" || !getAnalyser || perfOff) {
       if (logoRef.current) logoRef.current.style.cssText = "";
       return;
     }
@@ -1487,7 +1489,7 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
             </div>
           </div>
         )}
-        {isPreview && getAnalyser && <VuMeter getAnalyser={getAnalyser} />}
+        {isPreview && getAnalyser && !(new URLSearchParams(window.location.search).get("lite") === "true" || new URLSearchParams(window.location.search).get("eco") === "true" || localStorage.getItem("mpump-perf-mode") === "lite" || localStorage.getItem("mpump-perf-mode") === "eco") && <VuMeter getAnalyser={getAnalyser} />}
         <div className="header-controls">
           {/* Row 1: BPM, mode switcher, MIX, undo, play, rec */}
           <div className="header-row header-row-transport">
