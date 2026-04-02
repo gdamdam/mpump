@@ -523,7 +523,7 @@ export function DevicePanel({ state, catalog, command, onLoadSamples, bpm, prese
             {patInfo?.desc && <div className="info-desc">{patInfo.desc}</div>}
             {isPreview && patternList.length > 1 && (
               <div className="chain-row">
-                <span className="chain-label">Chain:</span>
+                <span className="chain-label" title={state.chainEnabled ? `Alternating: ${patternList[state.pattern_idx]?.name ?? "A"} ↔ ${patternList[state.chainPatternIdx]?.name ?? "B"} every bar` : "Chain two patterns to alternate every bar"}>Chain:</span>
                 <KaosDropdown className="kaos-dropdown-pat" value={state.chainEnabled ? String(state.chainPatternIdx) : ""} onChange={(v: string) => {
                     if (v === "") {
                       if (state.chainEnabled) command({ type: "toggle_chain", device, chainIdx: state.chainPatternIdx });
@@ -532,7 +532,7 @@ export function DevicePanel({ state, catalog, command, onLoadSamples, bpm, prese
                       if (!isNaN(idx)) command({ type: "toggle_chain", device, chainIdx: idx });
                     }
                   }} options={[{ label: "Off", value: "" }, ...patternList.filter((_, i) => i !== state.pattern_idx).map((p, _i) => { const oi = patternList.indexOf(p); return { label: p.name, value: String(oi) }; })]} />
-                {state.chainEnabled && <span className="chain-badge" style={{ color: accent }}>A/B</span>}
+                {state.chainEnabled && <span className="chain-badge" style={{ color: accent }} title={`${patternList[state.pattern_idx]?.name ?? "A"} ↔ ${patternList[state.chainPatternIdx]?.name ?? "B"}`}>A/B</span>}
               </div>
             )}
             <BeatIndicator step={state.step} accent={accent} numSteps={state.patternLength} />
