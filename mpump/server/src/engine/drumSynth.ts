@@ -440,6 +440,7 @@ export interface SynthVoice {
   pwmExtras: AudioNode[];      // PWM delay/inverter/sum nodes
   // Envelope tracking for click-free release at any point
   env: { amp: number; atk: number; dec: number; sus: number; startTime: number };
+  wallClock?: number; // performance.now() at creation — for stale voice cleanup when ctx is suspended
 }
 
 /** Stereo pan positions for drum voices. */

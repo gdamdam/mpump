@@ -568,13 +568,17 @@ export class Engine {
 
   private pauseAll(): void {
     for (const [id] of this.sequencers) {
+      const ds = this.deviceStates.get(id);
+      if (ds) ds.paused = true;
       this.stopDevice(id);
     }
   }
 
   private resumeAll(): void {
+    this.t0 = performance.now(); // re-sync grid origin after suspend
     for (const [id, ds] of this.deviceStates) {
       if (ds.connected && this.ports[id] && !this.stopped.has(id)) {
+        ds.paused = false;
         this.startDevice(id);
       }
     }

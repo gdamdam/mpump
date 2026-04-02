@@ -222,9 +222,10 @@ export class AudioPort {
         this.ctx.resume().catch(() => {});
       }
       // Safety: kill stale voices older than 5s (stuck notes)
-      const now = this.ctx.currentTime;
+      // Uses wall-clock time so cleanup works even when AudioContext is suspended
+      const wallNow = performance.now();
       for (const [key, voice] of this.voices) {
-        if (now - voice.env.startTime > 5) {
+        if (wallNow - (voice.wallClock ?? 0) > 5000) {
           this.stopVoice(voice);
           this.voices.delete(key);
         }
@@ -1341,6 +1342,7 @@ export class AudioPort {
    *  Always calls resume() — no-op if already running per spec,
    *  but Firefox may need the explicit call even when state !== "suspended". */
   async resume(): Promise<void> {
+    if (this.ctx.state === "closed") return;
     try { await this.ctx.resume(); } catch { /* ignore */ }
   }
 
@@ -1783,7 +1785,7 @@ export class AudioPort {
       }
     }
 
-    this.voices.set(key, { oscs, panNodes, subOsc, subGain, gain, filter, lfo, lfoGains, driftLFOs, pwmExtras, workletOscs, env: { amp, atk, dec, sus: p.sustain, startTime: when } });
+    this.voices.set(key, { oscs, panNodes, subOsc, subGain, gain, filter, lfo, lfoGains, driftLFOs, pwmExtras, workletOscs, env: { amp, atk, dec, sus: p.sustain, startTime: when }, wallClock: performance.now() });
 
     // Voice limit: kill oldest voices if over 16 to prevent audio thread overload
     const voiceLimit = this.perfMode === "eco" ? 8 : parseInt(localStorage.getItem("mpump-voice-limit") ?? "16") || 16;
