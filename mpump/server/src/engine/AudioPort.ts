@@ -534,7 +534,7 @@ export class AudioPort {
         return merge;
       }
       case "phaser": {
-        // 6-stage allpass phaser with wider frequency spread for deeper sweep
+        // 6-stage allpass phaser — LFO depth scaled per stage to prevent instability
         const { rate, depth } = this.fx.phaser;
         const lfo = this.ctx.createOscillator(); lfo.type = "sine"; lfo.frequency.value = rate; lfo.start();
         this.fxLFOs.push(lfo);
@@ -542,11 +542,12 @@ export class AudioPort {
         const wet = this.ctx.createGain(); wet.gain.value = 0.5;
         prev.connect(dry);
         let apPrev: AudioNode = prev;
-        // 6 stages with logarithmically spaced center frequencies for even sweep
         const apFreqs = [200, 450, 1000, 2200, 4800, 10000];
         for (let i = 0; i < 6; i++) {
           const ap = this.ctx.createBiquadFilter(); ap.type = "allpass"; ap.frequency.value = apFreqs[i];
-          const lg = this.ctx.createGain(); lg.gain.value = depth; lfo.connect(lg); lg.connect(ap.frequency);
+          // Scale LFO depth to 30% of center freq — prevents negative frequencies
+          const lg = this.ctx.createGain(); lg.gain.value = apFreqs[i] * 0.3 * (depth / 1000);
+          lfo.connect(lg); lg.connect(ap.frequency);
           apPrev.connect(ap); apPrev = ap; this.fxNodes.push(ap, lg);
         }
         apPrev.connect(wet);
