@@ -1691,7 +1691,7 @@ export class AudioPort {
 
     if (unisonCount > 1 && unisonSpread > 0) {
       // Unison: N voices spread across stereo field
-      const voiceGain = 1 / Math.pow(unisonCount, 0.15);
+      const voiceGain = 1 / Math.pow(unisonCount, 0.3);
       for (let v = 0; v < unisonCount; v++) {
         const t = unisonCount === 1 ? 0 : (v / (unisonCount - 1)) * 2 - 1; // -1 to +1
         const detuneCents = t * unisonSpread + (p.detune ?? 0);
