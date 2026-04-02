@@ -127,6 +127,7 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
   const [mixModalTab, setMixModalTab] = useState<"vol" | "eq" | "gate">("vol");
   const openMixModal = (ch: number, tab: "vol" | "eq" | "gate") => { setMixModalCh(ch); setMixModalTab(tab); };
   const [volDropCh, setVolDropCh] = useState<number | null>(null);
+  const [cutDropCh, setCutDropCh] = useState<number | null>(null);
   const [chEQ, setChEQ] = useState<Record<number, { low: number; mid: number; high: number }>>({});
   const getChEQ = (ch: number) => chEQ[ch] ?? { low: ch === 9 ? 4 : 0, mid: ch === 1 ? -4 : ch === 0 ? -1.5 : 0, high: ch === 9 ? -1 : ch === 1 ? -1 : 0 };
   const updateChEQ = (ch: number, band: "low" | "mid" | "high", v: number) => {
@@ -736,6 +737,10 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
                 {volDropCh === 9 && <div className="kaos-vol-drop"><input type="range" min={0} max={1} step={0.01} value={channelVolumes[9] ?? 0.7} onChange={e => onChannelVolumeChange(9, parseFloat(e.target.value))} className="kaos-vol-slider" /></div>}
               </div>
               <button className="ch-vol-inline" style={{ cursor: "pointer", background: "none", border: "1px solid var(--border)", borderRadius: 4, padding: "6px 10px", color: "var(--fg)", fontSize: 10, fontWeight: 600, fontFamily: "inherit", minHeight: 28 }} onClick={() => openMixModal(9, "eq")} title="Equalizer">EQ</button>
+              <div style={{ position: "relative" }}>
+                <button className="ch-vol-inline" style={{ cursor: "pointer", background: "none", border: `1px solid ${cutDropCh === 9 ? "var(--preview)" : "var(--border)"}`, borderRadius: 4, padding: "6px 10px", color: "var(--fg)", fontSize: 10, fontWeight: 600, fontFamily: "inherit", minHeight: 28 }} onClick={() => setCutDropCh(cutDropCh === 9 ? null : 9)} title="Mud cut (low-mid reduction)">CUT</button>
+                {cutDropCh === 9 && <div className="kaos-vol-drop"><input type="range" min={-8} max={0} step={0.5} value={getChEQ(9).mid} onChange={e => updateChEQ(9, "mid", parseFloat(e.target.value))} className="kaos-vol-slider" /></div>}
+              </div>
               <button className="ch-vol-inline" style={{ cursor: "pointer", background: "none", border: "1px solid var(--border)", borderRadius: 4, padding: "6px 10px", color: "var(--fg)", fontSize: 10, fontWeight: 600, fontFamily: "inherit", minHeight: 28 }} onClick={() => setShowDrumKit(true)} title="Drum kit tuning">KIT</button>
             </div>
             <div className="kaos-sel-divider" />
@@ -781,6 +786,10 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
                 {volDropCh === 1 && <div className="kaos-vol-drop"><input type="range" min={0} max={1} step={0.01} value={channelVolumes[1] ?? 0.7} onChange={e => onChannelVolumeChange(1, parseFloat(e.target.value))} className="kaos-vol-slider" /></div>}
               </div>
               <button className="ch-vol-inline" style={{ cursor: "pointer", background: "none", border: "1px solid var(--border)", borderRadius: 4, padding: "6px 10px", color: "var(--fg)", fontSize: 10, fontWeight: 600, fontFamily: "inherit", minHeight: 28 }} onClick={() => openMixModal(1, "eq")} title="Equalizer">EQ</button>
+              <div style={{ position: "relative" }}>
+                <button className="ch-vol-inline" style={{ cursor: "pointer", background: "none", border: `1px solid ${cutDropCh === 1 ? "var(--preview)" : "var(--border)"}`, borderRadius: 4, padding: "6px 10px", color: "var(--fg)", fontSize: 10, fontWeight: 600, fontFamily: "inherit", minHeight: 28 }} onClick={() => setCutDropCh(cutDropCh === 1 ? null : 1)} title="Mud cut (low-mid reduction)">CUT</button>
+                {cutDropCh === 1 && <div className="kaos-vol-drop"><input type="range" min={-8} max={0} step={0.5} value={getChEQ(1).mid} onChange={e => updateChEQ(1, "mid", parseFloat(e.target.value))} className="kaos-vol-slider" /></div>}
+              </div>
               <button className="ch-vol-inline" style={{ cursor: "pointer", background: "none", border: "1px solid var(--border)", borderRadius: 4, padding: "6px 10px", color: "var(--fg)", fontSize: 10, fontWeight: 600, fontFamily: "inherit", minHeight: 28 }} onClick={() => openMixModal(1, "gate")} title="Trance gate">GATE</button>
             </div>
             <div className="kaos-sel-divider" />
@@ -826,6 +835,10 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
                 {volDropCh === 0 && <div className="kaos-vol-drop"><input type="range" min={0} max={1} step={0.01} value={channelVolumes[0] ?? 0.7} onChange={e => onChannelVolumeChange(0, parseFloat(e.target.value))} className="kaos-vol-slider" /></div>}
               </div>
               <button className="ch-vol-inline" style={{ cursor: "pointer", background: "none", border: "1px solid var(--border)", borderRadius: 4, padding: "6px 10px", color: "var(--fg)", fontSize: 10, fontWeight: 600, fontFamily: "inherit", minHeight: 28 }} onClick={() => openMixModal(0, "eq")} title="Equalizer">EQ</button>
+              <div style={{ position: "relative" }}>
+                <button className="ch-vol-inline" style={{ cursor: "pointer", background: "none", border: `1px solid ${cutDropCh === 0 ? "var(--preview)" : "var(--border)"}`, borderRadius: 4, padding: "6px 10px", color: "var(--fg)", fontSize: 10, fontWeight: 600, fontFamily: "inherit", minHeight: 28 }} onClick={() => setCutDropCh(cutDropCh === 0 ? null : 0)} title="Mud cut (low-mid reduction)">CUT</button>
+                {cutDropCh === 0 && <div className="kaos-vol-drop"><input type="range" min={-8} max={0} step={0.5} value={getChEQ(0).mid} onChange={e => updateChEQ(0, "mid", parseFloat(e.target.value))} className="kaos-vol-slider" /></div>}
+              </div>
               <button className="ch-vol-inline" style={{ cursor: "pointer", background: "none", border: "1px solid var(--border)", borderRadius: 4, padding: "6px 10px", color: "var(--fg)", fontSize: 10, fontWeight: 600, fontFamily: "inherit", minHeight: 28 }} onClick={() => openMixModal(0, "gate")} title="Trance gate">GATE</button>
             </div>
             <div className="kaos-sel-divider" />

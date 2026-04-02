@@ -128,8 +128,8 @@ export class AudioPort {
 
     this.eqMid = this.ctx.createBiquadFilter();
     this.eqMid.type = "peaking";
-    this.eqMid.frequency.value = 350; // target mud zone (200-500Hz)
-    this.eqMid.Q.value = 1.0;
+    this.eqMid.frequency.value = 300; // target mud zone (200-500Hz)
+    this.eqMid.Q.value = 0.7; // wide Q covers full mud range
     this.eqMid.gain.value = -2; // "Punchy" default: mid cut
 
     this.eqHigh = this.ctx.createBiquadFilter();
