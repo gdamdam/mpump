@@ -162,7 +162,7 @@ For wireless tempo sync with no cables and no MIDI setup, use the **[mpump Link 
 
 1. **Download** `mpump Link Bridge` from the [releases page](https://github.com/gdamdam/mpump/releases) (~3 MB)
 2. **Run it**: a small window shows tempo, peers, and connection status
-3. **Open mpump.live**: it auto-detects the bridge (green dot ● appears next to the logo)
+3. **Open mpump.live**: enable Link in Settings → Sync section (green dot ● appears next to the logo when connected)
 4. **Open Ableton Live** (or any Link-enabled app): tempo syncs automatically
 
 No terminal, no configuration. Works with Ableton Live, Logic Pro, Bitwig, Traktor, djay, and hundreds of Link-enabled apps.

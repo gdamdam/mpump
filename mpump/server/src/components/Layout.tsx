@@ -1224,6 +1224,7 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
       "idm": 135, "edm": 128, "drum-and-bass": 174, "house": 124,
       "breakbeat": 140, "jungle": 170, "garage": 132, "ambient": 90,
       "glitch": 130, "electro": 128, "downtempo": 95,
+      "dubstep": 140, "lo-fi": 80, "synthwave": 115, "deep-house": 122, "psytrance": 145,
     };
     const bpm = GENRE_BPM[genre];
     if (bpm) command({ type: "set_bpm", bpm });

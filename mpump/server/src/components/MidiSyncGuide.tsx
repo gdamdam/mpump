@@ -57,7 +57,7 @@ const LINK_STEPS = [
   },
   {
     title: "3. Open mpump",
-    body: "Open mpump.live in your browser. It auto-detects the Link Bridge — a green dot ● appears next to the logo. No need to change any settings.",
+    body: "Open mpump.live in your browser. Go to Settings → Sync and enable Link. A green dot ● appears next to the logo when connected.",
   },
   {
     title: "4. Open Ableton Live",

@@ -170,7 +170,7 @@ const SECTIONS = [
       "**Ableton Link** provides wireless tempo and transport sync between apps — no cables, no MIDI setup",
       'Download the <strong><a href="https://github.com/gdamdam/mpump/releases/latest" target="_blank" rel="noopener noreferrer">mpump Link Bridge</a></strong> companion app (~3 MB)',
       "Double-click to run — a small window shows tempo, peers, and connection status. Allow the macOS firewall prompt (Link needs local network for peer discovery)",
-      "mpump **auto-detects** the Link Bridge — no need to enable anything in Settings. A green dot **●** appears next to the logo when connected",
+      "Enable **Link** in Settings → Sync section. A green dot **●** appears next to the logo when connected",
       "Open Ableton Live (or any Link-enabled app) — they discover each other automatically via your local network",
       "Tempo changes in any app propagate to all Link peers instantly",
       "Works with Ableton Live, Logic Pro, Bitwig, Traktor, djay, and hundreds of Link-enabled iOS/Android apps",
@@ -181,7 +181,7 @@ const SECTIONS = [
     items: [
       "Requires **Chrome, Edge, or Opera** (Firefox/Safari don't support Web MIDI)",
       "Click **MIDI** button in the header to connect",
-      "50 devices registered: Roland, Korg, Elektron, Novation, Arturia, Behringer, and more",
+      "53 devices registered: Roland, Korg, Elektron, Novation, Arturia, Behringer, and more",
       "3 tested (S-1, T-8, J-6), 47 registered with expected port names",
       "Hot-plug: connect and disconnect devices while playing",
     ],
