@@ -821,30 +821,27 @@ export class AudioPort {
       const eqLow = this.ctx.createBiquadFilter();
       eqLow.type = "lowshelf";
       eqLow.frequency.value = isDrums ? 80 : 200; // drums: boost sub (50Hz) not mud (200Hz)
-      eqLow.gain.value = isDrums ? 4 : 0; // drum kick boost (Fletcher-Munson compensation)
+      eqLow.gain.value = isDrums ? 2 : 0; // gentle drum sub boost (F-M per-hit handles most compensation)
       const eqMid = this.ctx.createBiquadFilter();
       eqMid.type = "peaking";
       eqMid.frequency.value = (isBass || isSynth) ? 300 : 1000; // bass+synth: target mud zone
       eqMid.Q.value = (isBass || isSynth) ? 1.2 : 0.7;
-      eqMid.gain.value = isBass ? -4 : isSynth ? -0.5 : 0; // minimal synth mud cut (preserve lead body + harmonics)
+      eqMid.gain.value = isBass ? -1.5 : isSynth ? -0.5 : 0; // gentle bass mud cut (preserve punch + harmonics)
       const eqHigh = this.ctx.createBiquadFilter();
       eqHigh.type = "highshelf"; eqHigh.frequency.value = 5000;
-      eqHigh.gain.value = isDrums ? -1 : isBass ? -1 : 0; // gentle — hat/cymbal levels already reduced via FM gain
+      eqHigh.gain.value = isDrums ? 0 : isBass ? -1 : 0; // no cut on drums — hats/cymbals need their air
       this.channelEQs.set(ch, [eqLow, eqMid, eqHigh]);
 
       // Route: bus → [HP on bass+synth] → EQ (low→mid→high) → panner → master
       const panner = this.ctx.createStereoPanner();
       panner.pan.value = 0;
       if (isBass) {
-        // Bass: HP at 50Hz (kick owns sub) + LP at 3kHz (synth owns highs)
+        // Bass: HP at 50Hz (kick owns sub) — no LP, let preset filters shape tone
         const hp = this.ctx.createBiquadFilter();
         hp.type = "highpass"; hp.frequency.value = 50; hp.Q.value = 0.7;
         this.channelHPFs.set(ch, hp);
-        const lp = this.ctx.createBiquadFilter();
-        lp.type = "lowpass"; lp.frequency.value = 3000; lp.Q.value = 0.7;
         bus.connect(hp);
-        hp.connect(lp);
-        lp.connect(eqLow);
+        hp.connect(eqLow);
       } else if (isSynth) {
         // Synth: HP at 40Hz (kick owns sub)
         const hp = this.ctx.createBiquadFilter();
@@ -1390,19 +1387,21 @@ export class AudioPort {
 
     // Fletcher-Munson compensation: human hearing is most sensitive at 2-5kHz.
     // Low drums (kick=36) need more gain to sound as loud as high drums (hats=42,46).
-    // Values tuned empirically against 808 reference samples.
-    // Fallback 1.5 for unmapped notes (mid-range default).
+    // Fletcher-Munson compensation — modest correction only.
+    // Synthesis amplitudes already vary (kick ~1.0, hat ~0.2), so F-M
+    // should NOT try to compensate the full psychoacoustic range.
+    // Channel lowshelf (+2dB) handles additional kick sub boost.
     const fmGain: Record<number, number> = {
-      36: 1.8,  // kick — low freq needs most boost
-      38: 1.1,  // snare — mid body but high wire sizzle
-      42: 0.9,  // closed hat — ear-sensitive range
-      46: 0.8,  // open hat
-      47: 1.5,  // tom — mid-range
-      49: 0.7,  // crash — brightest
-      50: 0.9,  // clap — noise, 1-5kHz
-      51: 0.8,  // ride — high partials
-      37: 1.0,  // rimshot — mid-high
-      56: 0.8,  // cowbell — mid-high
+      36: 1.6,  // kick — punchy boost (lowshelf adds +2dB sub on top)
+      38: 1.1,  // snare — keep (wide spectrum, slight boost)
+      42: 1.3,  // closed hat — RAISED (synthesis is very quiet)
+      46: 1.2,  // open hat — RAISED
+      47: 1.0,  // cowbell — REDUCED (800Hz is very audible)
+      49: 1.1,  // crash — RAISED (synthesis is very quiet)
+      50: 0.9,  // clap — keep (well-balanced)
+      51: 1.0,  // ride — RAISED
+      37: 1.0,  // rimshot — keep
+      56: 0.9,  // cowbell alt
     };
     const targetGain = (vel / 127) * level * (fmGain[note] ?? 1.5);
     const gain = this.ctx.createGain();

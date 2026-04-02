@@ -130,7 +130,7 @@ function synthSnare(ctx: AudioContext, vp: DrumVoiceParams): AudioBuffer {
     // Pitch envelope: 808 body starts ~280Hz, decays to ~185Hz
     const pitchEnv = 1 + 0.5 * Math.exp(-t * 60);
     const body = Math.sin(2 * Math.PI * 185 * r * pitchEnv * t) * Math.exp(-t * (18 / decay)) * toneLevel;
-    const low = Math.sin(2 * Math.PI * 110 * r * t) * Math.exp(-t * (22 / decay)) * (toneLevel * 0.4);
+    const low = Math.sin(2 * Math.PI * 110 * r * t) * Math.exp(-t * (22 / decay)) * (toneLevel * 0.2);
     const rawNoise = rand() * 2 - 1;
     // Shaped noise through bandpass at 3.8kHz
     const shaped = (wireBpB0 * rawNoise - wireBpB0 * wireX2 - wireBpA1 * wireY1 - wireBpA2 * wireY2) / wireBpA0;
@@ -158,15 +158,15 @@ function synthClosedHat(ctx: AudioContext, vp: DrumVoiceParams): AudioBuffer {
   const r = tuneRatio(tune);
   // 6 inharmonic partials centered around 808's ~7.5kHz peak
   const freqs = [3500, 5200, 7500, 4100, 6300, 8800].map(f => f * shift * r);
-  const amps = [0.03, 0.02, 0.04, 0.02, 0.03, 0.01]; // CH: subtle ring, noise-dominant (tight click)
+  const amps = [0.06, 0.04, 0.08, 0.04, 0.06, 0.02]; // CH: boosted ring for presence in mix
   const rand = seededRandom(42);
   let prev = 0;
   for (let i = 0; i < buf.length; i++) {
     const t = i / ctx.sampleRate;
     const raw = rand() * 2 - 1;
     // Sharp transient burst (808 has very fast attack ~1.7ms)
-    const transient = Math.exp(-t * 1000) * 0.15;
-    const noise = (raw - prev) * Math.exp(-t * (50 / decay)) * 0.3;
+    const transient = Math.exp(-t * 1000) * 0.25;
+    const noise = (raw - prev) * Math.exp(-t * (50 / decay)) * 0.45;
     let ring = 0;
     for (let p = 0; p < 6; p++) {
       ring += Math.sin(2 * Math.PI * freqs[p] * t) * amps[p];
@@ -189,15 +189,15 @@ function synthOpenHat(ctx: AudioContext, vp: DrumVoiceParams): AudioBuffer {
   const r = tuneRatio(tune);
   // 6 inharmonic partials centered around 808's ~7.5kHz peak
   const freqs = [3500, 5200, 7500, 4100, 6300, 8800].map(f => f * shift * r);
-  const amps = [0.06, 0.04, 0.07, 0.04, 0.05, 0.02]; // OH: audible ring sustain (open character)
+  const amps = [0.10, 0.07, 0.12, 0.07, 0.09, 0.04]; // OH: boosted ring for presence in mix
   const rand = seededRandom(46);
   let prev = 0;
   for (let i = 0; i < buf.length; i++) {
     const t = i / ctx.sampleRate;
     const raw = rand() * 2 - 1;
     // Sharp transient burst
-    const transient = Math.exp(-t * 600) * 0.1;
-    const noise = (raw - prev) * Math.exp(-t * (6 / decay)) * 0.25;
+    const transient = Math.exp(-t * 600) * 0.18;
+    const noise = (raw - prev) * Math.exp(-t * (6 / decay)) * 0.35;
     let ring = 0;
     for (let p = 0; p < 6; p++) {
       ring += Math.sin(2 * Math.PI * freqs[p] * t) * amps[p];
@@ -240,14 +240,14 @@ function synthCrash(ctx: AudioContext, vp: DrumVoiceParams): AudioBuffer {
   const buf = out.getChannelData(0);
   // Dense inharmonic partials (909 crash: ~5.6kHz average, ~7.9kHz early)
   const freqs = [3200, 5000, 6800, 8500, 11000].map(f => f * shift * r);
-  const amps = [0.05, 0.06, 0.05, 0.04, 0.02];
+  const amps = [0.08, 0.10, 0.08, 0.06, 0.04];
   const rand = seededRandom(49);
   let prev = 0;
   for (let i = 0; i < buf.length; i++) {
     const t = i / ctx.sampleRate;
     const raw = rand() * 2 - 1;
-    const transient = Math.exp(-t * 300) * 0.25;
-    const noise = (raw - prev) * Math.exp(-t * (3 / decay)) * 0.3;
+    const transient = Math.exp(-t * 300) * 0.35;
+    const noise = (raw - prev) * Math.exp(-t * (3 / decay)) * 0.40;
     let ring = 0;
     for (let p = 0; p < 5; p++) {
       // Each partial decays at slightly different rate for shimmer
@@ -332,15 +332,15 @@ function synthRide(ctx: AudioContext, vp: DrumVoiceParams): AudioBuffer {
   // 909 ride: bell-like with harmonics from low-mid to high
   // Real ride has fundamental ~300-400Hz with inharmonic overtones
   const freqs = [392, 1200, 2800, 4600, 6200, 8500].map(f => f * shift * r);
-  const amps = [0.02, 0.03, 0.03, 0.02, 0.02, 0.01]; // subtle bell color, noise-dominant
+  const amps = [0.04, 0.05, 0.05, 0.04, 0.03, 0.02]; // boosted bell for presence
   const rand = seededRandom(51);
   let prev = 0;
   for (let i = 0; i < buf.length; i++) {
     const t = i / ctx.sampleRate;
     const raw = rand() * 2 - 1;
     // Stick attack transient
-    const stick = Math.exp(-t * 400) * 0.1;
-    const noise = (raw - prev) * 0.25 * Math.exp(-t * (5 / decay));
+    const stick = Math.exp(-t * 400) * 0.18;
+    const noise = (raw - prev) * 0.35 * Math.exp(-t * (5 / decay));
     let ring = 0;
     for (let p = 0; p < 6; p++) {
       ring += Math.sin(2 * Math.PI * freqs[p] * t) * amps[p];
