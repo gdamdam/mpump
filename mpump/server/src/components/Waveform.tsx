@@ -52,17 +52,22 @@ export function Waveform({ getAnalyser, command }: Props) {
     const ro = new ResizeObserver(resize);
     ro.observe(canvas);
 
+    const isMobile = window.innerWidth < 700;
+    let dataBuf: Uint8Array | null = null;
+    let skip = 0;
     const draw = () => {
       rafRef.current = requestAnimationFrame(draw);
+      if (isMobile) return; // no waveform rendering on mobile
+      if (++skip % 3 !== 0) return; // ~20fps
       const analyser = getAnalyser();
       if (!analyser) return;
 
-      const data = new Uint8Array(analyser.fftSize);
-      analyser.getByteTimeDomainData(data);
+      if (!dataBuf || dataBuf.length !== analyser.fftSize) dataBuf = new Uint8Array(analyser.fftSize);
+      analyser.getByteTimeDomainData(dataBuf);
+      const data = dataBuf;
 
-      const rect = canvas.getBoundingClientRect();
-      const w = rect.width;
-      const h = rect.height;
+      const w = canvas.clientWidth;
+      const h = canvas.clientHeight;
       ctx.clearRect(0, 0, w, h);
 
       const accent = getComputedStyle(document.documentElement).getPropertyValue("--preview").trim() || "#b388ff";

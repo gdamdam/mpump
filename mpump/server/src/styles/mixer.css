@@ -488,7 +488,7 @@
 /* ── Mobile ── */
 @media (max-width: 600px) {
   .mx-master-vu { display: none; }
-  .mx-master-led { display: block; }
+  .mx-master-led { display: none; }
 
   .mx-panel {
     padding: 8px 6px 16px;

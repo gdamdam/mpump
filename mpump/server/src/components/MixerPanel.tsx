@@ -790,12 +790,14 @@ export function MixerPanel({
         {/* Master strip */}
         <div className="mx-strip mx-strip-master">
           <div className="mx-strip-label mx-label-master">MASTER</div>
-          <div className="mx-master-vu">
-            <NeedleMeter getAnalyser={() => getAnalyser?.() ?? null} />
-          </div>
-          <div className="mx-master-led">
-            <VuBar getAnalyser={() => getAnalyser?.() ?? null} />
-          </div>
+          {window.innerWidth >= 700 && <>
+            <div className="mx-master-vu">
+              <NeedleMeter getAnalyser={() => getAnalyser?.() ?? null} />
+            </div>
+            <div className="mx-master-led">
+              <VuBar getAnalyser={() => getAnalyser?.() ?? null} />
+            </div>
+          </>}
           <input
             type="range" min={0} max={1} step={0.01}
             value={volume}

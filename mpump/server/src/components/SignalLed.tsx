@@ -1,18 +1,21 @@
 import { useRef, useEffect } from "react";
 
+const IS_MOBILE = window.innerWidth < 700;
+
 export function SignalLed({ getAnalyser }: { getAnalyser: () => AnalyserNode | null }) {
   const dotRef = useRef<HTMLSpanElement>(null);
   const rafRef = useRef<number>(0);
   const levelRef = useRef(0);
-  // Keep a stable ref so the RAF loop always calls the latest getter
-  // without restarting when the inline prop function changes reference.
   const getAnalyserRef = useRef(getAnalyser);
   getAnalyserRef.current = getAnalyser;
 
   useEffect(() => {
+    if (IS_MOBILE) return; // no analyser polling on mobile
     const buf = new Uint8Array(256);
+    let skip = 0;
     const tick = () => {
       rafRef.current = requestAnimationFrame(tick);
+      if (++skip % 4 !== 0) return; // ~15fps
       const analyser = getAnalyserRef.current();
       if (!analyser || !dotRef.current) return;
       analyser.getByteTimeDomainData(buf);
