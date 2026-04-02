@@ -86,6 +86,19 @@ const EFFECT_LABELS: Record<EffectName, string> = {
   flanger: "FLANG",
   tremolo: "TREM",
 };
+const EFFECT_FULL_NAMES: Record<EffectName, string> = {
+  delay: "Delay",
+  distortion: "Distortion",
+  reverb: "Reverb",
+  compressor: "Compressor",
+  highpass: "High-Pass Filter",
+  chorus: "Chorus",
+  phaser: "Phaser",
+  bitcrusher: "Bitcrusher",
+  duck: "Sidechain Duck",
+  flanger: "Flanger",
+  tremolo: "Tremolo",
+};
 
 export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChange, channelVolumes, onChannelVolumeChange, presetState, getAnalyser, getChannelAnalyser, onMix, onExport, trackName, onTrackNameChange, onJamXY, jamApplyXYRef, peerList, myPeerId, jamFxRef, inJam, isListener, pendingMutes, currentStep, jamXYLoopRef, onKbdFocusChange, kbdFocusDevice, soloChannel: soloProp, onSoloChange }: Props) {
   const drumsDevice = devices.find(d => d.id === "preview_drums");
@@ -727,7 +740,7 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
               <span className="kaos-sel-label">DRUMS</span>
             </div>
             <div className="kaos-sel-row"><span className="kaos-sel-row-label">SOUND</span>
-              <KaosDropdown className="kaos-dropdown-sound" value={presetState?.activeDrumKit ?? "0"} onChange={(v: string) => presetState?.onDrumKitChange(v)} options={[
+              <KaosDropdown className="kaos-dropdown-sound" title="Drum kit sound" value={presetState?.activeDrumKit ?? "0"} onChange={(v: string) => presetState?.onDrumKitChange(v)} options={[
                 { group: "Machines", items: SAMPLE_PACKS.map(p => ({ label: p.name, value: `pack:${p.id}` })) },
                 { group: "Presets", items: DRUM_KIT_PRESETS.map((p, i) => ({ label: p.name, value: String(i) })) },
               ]} />
@@ -775,7 +788,7 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
               <span className="kaos-sel-label">BASS</span>
             </div>
             <div className="kaos-sel-row"><span className="kaos-sel-row-label">SOUND</span>
-              <KaosDropdown className="kaos-dropdown-sound" value={presetState?.activeBass ?? "0"} onChange={(v: string) => presetState?.onBassChange(v)} options={groupPresets(BASS_PRESETS).map(([g, items]) => ({ group: g || "Presets", items: items.map(([i, p]) => ({ label: p.name, value: String(i) })) }))} />
+              <KaosDropdown className="kaos-dropdown-sound" title="Bass sound preset" value={presetState?.activeBass ?? "0"} onChange={(v: string) => presetState?.onBassChange(v)} options={groupPresets(BASS_PRESETS).map(([g, items]) => ({ group: g || "Presets", items: items.map(([i, p]) => ({ label: p.name, value: String(i) })) }))} />
               <button className={`sound-lock-btn ${presetState?.soundLock.bass ? "locked" : ""}`} title={presetState?.soundLock.bass ? "Unlock bass for MIX" : "Lock bass from MIX"} onClick={() => presetState?.setSoundLock(prev => ({ ...prev, bass: !prev.bass }))}>{presetState?.soundLock.bass ? "\u{1F512}" : "\u{1F513}"}</button>
             </div>
             <div style={{ display: "flex", gap: 3, justifyContent: "center" }}>
@@ -820,7 +833,7 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
               <span className="kaos-sel-label">SYNTH</span>
             </div>
             <div className="kaos-sel-row"><span className="kaos-sel-row-label">SOUND</span>
-              <KaosDropdown className="kaos-dropdown-sound" value={presetState?.activeSynth ?? "0"} onChange={(v: string) => presetState?.onSynthChange(v)} options={groupPresets(SYNTH_PRESETS).map(([g, items]) => ({ group: g || "Presets", items: items.map(([i, p]) => ({ label: p.name, value: String(i) })) }))} />
+              <KaosDropdown className="kaos-dropdown-sound" title="Synth sound preset" value={presetState?.activeSynth ?? "0"} onChange={(v: string) => presetState?.onSynthChange(v)} options={groupPresets(SYNTH_PRESETS).map(([g, items]) => ({ group: g || "Presets", items: items.map(([i, p]) => ({ label: p.name, value: String(i) })) }))} />
               <button className={`sound-lock-btn ${presetState?.soundLock.synth ? "locked" : ""}`} title={presetState?.soundLock.synth ? "Unlock synth for MIX" : "Lock synth from MIX"} onClick={() => presetState?.setSoundLock(prev => ({ ...prev, synth: !prev.synth }))}>{presetState?.soundLock.synth ? "\u{1F512}" : "\u{1F513}"}</button>
             </div>
             <div style={{ display: "flex", gap: 3, justifyContent: "center" }}>
@@ -950,7 +963,7 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
                 key={n}
                 className={`kaos-fx-btn ${isOn ? "active" : ""}`}
                 style={{ position: "relative" }}
-                title={`${EFFECT_LABELS[n]}: ${isOn ? "on" : "off"} (hold or right-click to edit)`}
+                title={`${EFFECT_FULL_NAMES[n]}: ${isOn ? "on" : "off"} (hold or right-click to edit)`}
                 onClick={() => n === "duck" ? toggleDuck() : toggleFx(n)}
                 onContextMenu={(e) => fxContextMenu(e, n)}
                 onPointerDown={() => fxPointerDown(n)}

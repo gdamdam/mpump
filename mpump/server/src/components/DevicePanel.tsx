@@ -418,7 +418,7 @@ export function DevicePanel({ state, catalog, command, onLoadSamples, bpm, prese
           {editing && <div className="editing-badge">EDIT</div>}
         </div>
         <div className="panel-actions">
-          <KaosDropdown className="kaos-dropdown-pat" value={state.patternLength} onChange={(v: number) => command({ type: "set_pattern_length", device, length: v as typeof STEP_LENGTHS[number] })} options={STEP_LENGTHS.map(n => ({ label: String(n), value: n }))} />
+          <KaosDropdown className="kaos-dropdown-pat" value={state.patternLength} onChange={(v: number) => command({ type: "set_pattern_length", device, length: v as typeof STEP_LENGTHS[number] })} title="Pattern length in steps" options={STEP_LENGTHS.map(n => ({ label: String(n), value: n }))} />
           <button
             className="device-midi-btn"
             title="Export MIDI"
@@ -483,17 +483,6 @@ export function DevicePanel({ state, catalog, command, onLoadSamples, bpm, prese
                   {getChannelAnalyser && <SignalLed getAnalyser={() => getChannelAnalyser(9)} />}
                 </div>
                 {onChannelVolumeChange && <label className="ch-vol-inline"><span className="ch-vol-label">VOL</span><input type="range" className="ch-vol-slider" min={0} max={1} step={0.01} value={channelVolumes?.[9] ?? 0.4} title={`Drums: ${Math.round((channelVolumes?.[9] ?? 0.4) * 100)}%`} onChange={(e) => onChannelVolumeChange(9, parseFloat(e.target.value))} /></label>}
-                {isPreview && presetState && (
-                  <KaosDropdown className="kaos-dropdown-sound" value={presetState.activeDrumKit} onChange={(v: string) => presetState.onDrumKitChange(v)} options={[
-                    { group: "Machines", items: SAMPLE_PACKS.map(p => ({ label: p.name, value: `pack:${p.id}` })) },
-                    { group: "Presets", items: DRUM_KIT_PRESETS.map((p, i) => ({ label: p.name, value: String(i) })) },
-                  ]} />
-                )}
-                {isPreview && presetState && (
-                  <button className={`sound-lock-btn ${presetState.soundLock.drums ? "locked" : ""}`} title={presetState.soundLock.drums ? "Unlock drum kit" : "Lock drum kit"} onClick={() => presetState.setSoundLock(prev => ({ ...prev, drums: !prev.drums }))}>
-                    {presetState.soundLock.drums ? "\u{1F512}" : "\u{1F513}"}
-                  </button>
-                )}
                 {isPreview && (<>
                   <button className={`device-mute-btn ${state.drumsMuted ? "muted" : ""}`} title={state.drumsMuted ? "Unmute drums" : "Mute drums"} onClick={() => { setSoloChannel(null); command({ type: "toggle_drums_mute", device }); }}>
                     {state.drumsMuted ? "MUTED" : "MUTE"}
@@ -510,21 +499,33 @@ export function DevicePanel({ state, catalog, command, onLoadSamples, bpm, prese
                 </>)}
               </div>
             )}
+            {isPreview && presetState && (
+              <div className="info-row">
+                <span className="info-key">sound</span>
+                <KaosDropdown className="kaos-dropdown-sound" title="Drum kit sound" value={presetState.activeDrumKit} onChange={(v: string) => presetState.onDrumKitChange(v)} options={[
+                  { group: "Machines", items: SAMPLE_PACKS.map(p => ({ label: p.name, value: `pack:${p.id}` })) },
+                  { group: "Presets", items: DRUM_KIT_PRESETS.map((p, i) => ({ label: p.name, value: String(i) })) },
+                ]} />
+                <button className={`sound-lock-btn ${presetState.soundLock.drums ? "locked" : ""}`} title={presetState.soundLock.drums ? "Unlock drum kit" : "Lock drum kit from MIX"} onClick={() => presetState.setSoundLock(prev => ({ ...prev, drums: !prev.drums }))}>
+                  {presetState.soundLock.drums ? "\u{1F512}" : "\u{1F513}"}
+                </button>
+              </div>
+            )}
             <div className="info-row">
               <span className="info-key">genre</span>
-              <KaosDropdown value={state.genre_idx} onChange={(idx: number) => command({ type: "set_genre", device, idx })} options={[...genreList].map((g, oi) => ({ label: g.name, value: oi })).sort((a, b) => a.label.localeCompare(b.label))} />
+              <KaosDropdown value={state.genre_idx} onChange={(idx: number) => command({ type: "set_genre", device, idx })} title="Genre — sets the style of patterns" options={[...genreList].map((g, oi) => ({ label: g.name, value: oi })).sort((a, b) => a.label.localeCompare(b.label))} />
               {isPreview && presetState && <button className={`sound-lock-btn ${presetState.patternLock.drums ? "locked" : ""}`} title={presetState.patternLock.drums ? "Unlock drums genre/pattern" : "Lock drums genre/pattern"} onClick={() => presetState.setPatternLock(prev => ({ ...prev, drums: !prev.drums }))}>{presetState.patternLock.drums ? "\u{1F512}" : "\u{1F513}"}</button>}
             </div>
             <div className="info-row">
               <span className="info-key">pattern</span>
-              <KaosDropdown className="kaos-dropdown-pat" value={state.pattern_idx} onChange={(idx: number) => command({ type: "set_pattern", device, idx })} options={patternList.map((p, i) => ({ label: p.name, value: i })).sort((a, b) => a.label.localeCompare(b.label))} />
+              <KaosDropdown className="kaos-dropdown-pat" value={state.pattern_idx} onChange={(idx: number) => command({ type: "set_pattern", device, idx })} title="Pattern — the beat sequence" options={patternList.map((p, i) => ({ label: p.name, value: i })).sort((a, b) => a.label.localeCompare(b.label))} />
               {isPreview && presetState && presetState.patternLock.drums && <button className={`sound-lock-btn ${presetState.stepPatternLock.drums ? "locked" : ""}`} title={presetState.stepPatternLock.drums ? "Unlock drums pattern from MIX" : "Lock drums pattern from MIX"} onClick={() => presetState.setStepPatternLock(prev => ({ ...prev, drums: !prev.drums }))}>{presetState.stepPatternLock.drums ? "\u{1F512}" : "\u{1F513}"}</button>}
             </div>
             {patInfo?.desc && <div className="info-desc">{patInfo.desc}</div>}
             {isPreview && patternList.length > 1 && (
               <div className="chain-row">
-                <span className="chain-label" title={state.chainEnabled ? `Alternating: ${patternList[state.pattern_idx]?.name ?? "A"} ↔ ${patternList[state.chainPatternIdx]?.name ?? "B"} every bar` : "Chain two patterns to alternate every bar"}>Chain:</span>
-                <KaosDropdown className="kaos-dropdown-pat" value={state.chainEnabled ? String(state.chainPatternIdx) : ""} onChange={(v: string) => {
+                <span className="chain-label" title="Alternate between two patterns every bar">Chain:</span>
+                <KaosDropdown className="kaos-dropdown-pat" title="Chain — alternate two patterns every bar" value={state.chainEnabled ? String(state.chainPatternIdx) : ""} onChange={(v: string) => {
                     if (v === "") {
                       if (state.chainEnabled) command({ type: "toggle_chain", device, chainIdx: state.chainPatternIdx });
                     } else {
@@ -618,12 +619,12 @@ export function DevicePanel({ state, catalog, command, onLoadSamples, bpm, prese
               </div>
               <div className="info-row">
                 <span className="info-key">genre</span>
-                <KaosDropdown value={state.bass_genre_idx} onChange={(idx: number) => command({ type: "set_genre", device: "preview_bass", idx })} options={[...bassGenreList!].map((g, oi) => ({ label: g.name, value: oi })).sort((a, b) => a.label.localeCompare(b.label))} />
+                <KaosDropdown value={state.bass_genre_idx} onChange={(idx: number) => command({ type: "set_genre", device: "preview_bass", idx })} title="Bass genre" options={[...bassGenreList!].map((g, oi) => ({ label: g.name, value: oi })).sort((a, b) => a.label.localeCompare(b.label))} />
                 {isPreview && presetState && <button className={`sound-lock-btn ${presetState.patternLock.bass ? "locked" : ""}`} title={presetState.patternLock.bass ? "Unlock bass genre/pattern" : "Lock bass genre/pattern"} onClick={() => presetState.setPatternLock(prev => ({ ...prev, bass: !prev.bass }))}>{presetState.patternLock.bass ? "\u{1F512}" : "\u{1F513}"}</button>}
               </div>
               <div className="info-row">
                 <span className="info-key">pattern</span>
-                <KaosDropdown className="kaos-dropdown-pat" value={state.bass_pattern_idx} onChange={(idx: number) => command({ type: "set_pattern", device: "preview_bass", idx })} options={(bassPatternList ?? []).map((p, i) => ({ label: p.name, value: i })).sort((a, b) => a.label.localeCompare(b.label))} />
+                <KaosDropdown className="kaos-dropdown-pat" value={state.bass_pattern_idx} onChange={(idx: number) => command({ type: "set_pattern", device: "preview_bass", idx })} title="Bass pattern" options={(bassPatternList ?? []).map((p, i) => ({ label: p.name, value: i })).sort((a, b) => a.label.localeCompare(b.label))} />
                 {isPreview && presetState && presetState.patternLock.bass && <button className={`sound-lock-btn ${presetState.stepPatternLock.bass ? "locked" : ""}`} title={presetState.stepPatternLock.bass ? "Unlock bass pattern from MIX" : "Lock bass pattern from MIX"} onClick={() => presetState.setStepPatternLock(prev => ({ ...prev, bass: !prev.bass }))}>{presetState.stepPatternLock.bass ? "\u{1F512}" : "\u{1F513}"}</button>}
               </div>
               {state.hasKey && keys && (
@@ -699,18 +700,6 @@ export function DevicePanel({ state, catalog, command, onLoadSamples, bpm, prese
                 {getChannelAnalyser && <SignalLed getAnalyser={() => getChannelAnalyser(mode === "bass" ? 1 : 0)} />}
               </div>
               {onChannelVolumeChange && <label className="ch-vol-inline"><span className="ch-vol-label">VOL</span><input type="range" className="ch-vol-slider" min={0} max={1} step={0.01} value={channelVolumes?.[mode === "bass" ? 1 : 0] ?? 0.5} title={`${mode}: ${Math.round((channelVolumes?.[mode === "bass" ? 1 : 0] ?? 0.5) * 100)}%`} onChange={(e) => onChannelVolumeChange(mode === "bass" ? 1 : 0, parseFloat(e.target.value))} /></label>}
-              {isPreview && presetState && mode === "bass" && (<>
-                <KaosDropdown className="kaos-dropdown-sound" value={presetState.activeBass} onChange={(v: string) => presetState.onBassChange(v)} options={groupPresets(BASS_PRESETS).map(([g, items]) => ({ group: g || "Presets", items: items.map(([i, p]) => ({ label: p.name, value: String(i) })) }))} />
-                <button className={`sound-lock-btn ${presetState.soundLock.bass ? "locked" : ""}`} title={presetState.soundLock.bass ? "Unlock bass" : "Lock bass"} onClick={() => presetState.setSoundLock(prev => ({ ...prev, bass: !prev.bass }))}>
-                  {presetState.soundLock.bass ? "\u{1F512}" : "\u{1F513}"}
-                </button>
-              </>)}
-              {isPreview && presetState && mode !== "bass" && (<>
-                <KaosDropdown className="kaos-dropdown-sound" value={presetState.activeSynth} onChange={(v: string) => presetState.onSynthChange(v)} options={groupPresets(SYNTH_PRESETS).map(([g, items]) => ({ group: g || "Presets", items: items.map(([i, p]) => ({ label: p.name, value: String(i) })) }))} />
-                <button className={`sound-lock-btn ${presetState.soundLock.synth ? "locked" : ""}`} title={presetState.soundLock.synth ? "Unlock synth" : "Lock synth"} onClick={() => presetState.setSoundLock(prev => ({ ...prev, synth: !prev.synth }))}>
-                  {presetState.soundLock.synth ? "\u{1F512}" : "\u{1F513}"}
-                </button>
-              </>)}
               <button className={`device-mute-btn ${state.drumsMuted ? "muted" : ""}`} title={state.drumsMuted ? `Unmute ${mode}` : `Mute ${mode}`} onClick={() => { setSoloChannel(null); command({ type: "toggle_drums_mute", device }); }}>
                 {state.drumsMuted ? "MUTED" : "MUTE"}
               </button>
@@ -727,17 +716,44 @@ export function DevicePanel({ state, catalog, command, onLoadSamples, bpm, prese
               </button>
             </div>
           )}
+          {isPreview && presetState && (
+            <div className="info-row">
+              <span className="info-key">sound</span>
+              {mode === "bass" ? (
+                <KaosDropdown className="kaos-dropdown-sound" title="Bass sound preset" value={presetState.activeBass} onChange={(v: string) => presetState.onBassChange(v)} options={groupPresets(BASS_PRESETS).map(([g, items]) => ({ group: g || "Presets", items: items.map(([i, p]) => ({ label: p.name, value: String(i) })) }))} />
+              ) : (
+                <KaosDropdown className="kaos-dropdown-sound" title="Synth sound preset" value={presetState.activeSynth} onChange={(v: string) => presetState.onSynthChange(v)} options={groupPresets(SYNTH_PRESETS).map(([g, items]) => ({ group: g || "Presets", items: items.map(([i, p]) => ({ label: p.name, value: String(i) })) }))} />
+              )}
+              <button className={`sound-lock-btn ${presetState.soundLock[mode === "bass" ? "bass" : "synth"] ? "locked" : ""}`} title={presetState.soundLock[mode === "bass" ? "bass" : "synth"] ? `Unlock ${mode} sound` : `Lock ${mode} sound from MIX`} onClick={() => presetState.setSoundLock(prev => ({ ...prev, [mode === "bass" ? "bass" : "synth"]: !prev[mode === "bass" ? "bass" : "synth"] }))}>
+                {presetState.soundLock[mode === "bass" ? "bass" : "synth"] ? "\u{1F512}" : "\u{1F513}"}
+              </button>
+            </div>
+          )}
           <div className="info-row">
             <span className="info-key">genre</span>
-            <KaosDropdown value={state.genre_idx} onChange={(idx: number) => command({ type: "set_genre", device, idx })} options={[...genreList].map((g, oi) => ({ label: g.name, value: oi })).sort((a, b) => a.label.localeCompare(b.label))} />
+            <KaosDropdown value={state.genre_idx} onChange={(idx: number) => command({ type: "set_genre", device, idx })} title="Genre — sets the style of patterns" options={[...genreList].map((g, oi) => ({ label: g.name, value: oi })).sort((a, b) => a.label.localeCompare(b.label))} />
             {isPreview && presetState && <button className={`sound-lock-btn ${presetState.patternLock[mode === "bass" ? "bass" : "synth"] ? "locked" : ""}`} title={`${presetState.patternLock[mode === "bass" ? "bass" : "synth"] ? "Unlock" : "Lock"} ${mode} genre/pattern`} onClick={() => presetState.setPatternLock(prev => ({ ...prev, [mode === "bass" ? "bass" : "synth"]: !prev[mode === "bass" ? "bass" : "synth"] }))}>{presetState.patternLock[mode === "bass" ? "bass" : "synth"] ? "\u{1F512}" : "\u{1F513}"}</button>}
           </div>
           <div className="info-row">
             <span className="info-key">pattern</span>
-            <KaosDropdown className="kaos-dropdown-pat" value={state.pattern_idx} onChange={(idx: number) => command({ type: "set_pattern", device, idx })} options={patternList.map((p, i) => ({ label: p.name, value: i })).sort((a, b) => a.label.localeCompare(b.label))} />
+            <KaosDropdown className="kaos-dropdown-pat" value={state.pattern_idx} onChange={(idx: number) => command({ type: "set_pattern", device, idx })} title="Pattern — the beat sequence" options={patternList.map((p, i) => ({ label: p.name, value: i })).sort((a, b) => a.label.localeCompare(b.label))} />
             {isPreview && presetState && presetState.patternLock[mode === "bass" ? "bass" : "synth"] && <button className={`sound-lock-btn ${presetState.stepPatternLock[mode === "bass" ? "bass" : "synth"] ? "locked" : ""}`} title={`${presetState.stepPatternLock[mode === "bass" ? "bass" : "synth"] ? "Unlock" : "Lock"} ${mode} pattern from MIX`} onClick={() => presetState.setStepPatternLock(prev => ({ ...prev, [mode === "bass" ? "bass" : "synth"]: !prev[mode === "bass" ? "bass" : "synth"] }))}>{presetState.stepPatternLock[mode === "bass" ? "bass" : "synth"] ? "\u{1F512}" : "\u{1F513}"}</button>}
           </div>
           {patInfo?.desc && <div className="info-desc">{patInfo.desc}</div>}
+          {isPreview && patternList.length > 1 && (
+            <div className="chain-row">
+              <span className="chain-label" title="Alternate between two patterns every bar">Chain:</span>
+              <KaosDropdown className="kaos-dropdown-pat" title="Chain — alternate two patterns every bar" value={state.chainEnabled ? String(state.chainPatternIdx) : ""} onChange={(v: string) => {
+                  if (v === "") {
+                    if (state.chainEnabled) command({ type: "toggle_chain", device, chainIdx: state.chainPatternIdx });
+                  } else {
+                    const idx = parseInt(v);
+                    if (!isNaN(idx)) command({ type: "toggle_chain", device, chainIdx: idx });
+                  }
+                }} options={[{ label: "Off", value: "" }, ...patternList.filter((_, i) => i !== state.pattern_idx).map((p, _i) => { const oi = patternList.indexOf(p); return { label: p.name, value: String(oi) }; })]} />
+              {state.chainEnabled && <span className="chain-badge" style={{ color: accent }} title={`${patternList[state.pattern_idx]?.name ?? "A"} ↔ ${patternList[state.chainPatternIdx]?.name ?? "B"}`}>A/B</span>}
+            </div>
+          )}
           {state.hasKey && keys && (
             <div className="key-octave-row">
               <label className="info-row half" title="Constrain notes to a musical scale" style={{ display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>

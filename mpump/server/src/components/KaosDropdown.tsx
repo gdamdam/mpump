@@ -17,6 +17,7 @@ interface Props {
   value: number | string;
   onChange: (value: any) => void;
   className?: string;
+  title?: string;
 }
 
 function isGrouped(items: Items): items is OptionGroup[] {
@@ -39,7 +40,7 @@ function findLabel(options: Items, value: number | string): string {
  * Native <select> renders with OS-specific colors (e.g. forest green on white
  * on Windows) that clash with the dark theme.
  */
-export function KaosDropdown({ options, value, onChange, className }: Props) {
+export function KaosDropdown({ options, value, onChange, className, title }: Props) {
   const [open, setOpen] = useState(false);
   const [flipUp, setFlipUp] = useState(false);
   const [alignRight, setAlignRight] = useState(false);
@@ -81,6 +82,7 @@ export function KaosDropdown({ options, value, onChange, className }: Props) {
     <div className={`kaos-dropdown ${className ?? ""}`} ref={ref}>
       <button
         className="kaos-dropdown-trigger"
+        title={title ?? findLabel(options, value)}
         onClick={() => {
           if (!open && ref.current) {
             const rect = ref.current.getBoundingClientRect();
@@ -91,7 +93,6 @@ export function KaosDropdown({ options, value, onChange, className }: Props) {
           }
           setOpen(!open);
         }}
-        title={findLabel(options, value)}
       >
         {findLabel(options, value)}
       </button>

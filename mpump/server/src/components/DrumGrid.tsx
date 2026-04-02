@@ -11,16 +11,16 @@ interface Props {
   onToggleMute?: (note: number) => void;
 }
 
-const DRUM_ROWS: [number, string][] = [
-  [36, "BD"],
-  [37, "RS"],
-  [38, "SD"],
-  [42, "CH"],
-  [46, "OH"],
-  [47, "CB"],
-  [49, "CY"],
-  [50, "CP"],
-  [51, "RD"],
+const DRUM_ROWS: [number, string, string][] = [
+  [36, "BD", "Bass Drum"],
+  [37, "RS", "Rimshot"],
+  [38, "SD", "Snare"],
+  [42, "CH", "Closed Hi-Hat"],
+  [46, "OH", "Open Hi-Hat"],
+  [47, "CB", "Cowbell"],
+  [49, "CY", "Crash"],
+  [50, "CP", "Clap"],
+  [51, "RD", "Ride"],
 ];
 
 const DEFAULT_VEL = 100;
@@ -30,13 +30,13 @@ export function DrumGrid({ drumData, currentStep, accent, onToggle, mutedNotes, 
 
   return (
     <div className="drum-grid">
-      {DRUM_ROWS.map(([note, label]) => {
+      {DRUM_ROWS.map(([note, label, fullName]) => {
         const muted = mutedNotes?.has(note) ?? false;
         return (
           <div key={note} className={`drum-row ${muted ? "drum-row-muted" : ""}`}>
             <span
               className={`drum-label ${onToggleMute ? "drum-label-btn" : ""} ${muted ? "drum-label-muted" : ""}`}
-              title={muted ? `Unmute ${label}` : `Mute ${label}`}
+              title={muted ? `Unmute ${fullName}` : `Mute ${fullName}`}
               onClick={() => onToggleMute?.(note)}
             >
               {label}

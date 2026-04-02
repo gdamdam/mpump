@@ -1775,7 +1775,7 @@ export class AudioPort {
     this.voices.set(key, { oscs, panNodes, subOsc, subGain, gain, filter, lfo, lfoGains, driftLFOs, pwmExtras, workletOscs, env: { amp, atk, dec, sus: p.sustain, startTime: when } });
 
     // Voice limit: kill oldest voices if over 16 to prevent audio thread overload
-    const voiceLimit = this.perfMode === "eco" ? 8 : 16;
+    const voiceLimit = this.perfMode === "eco" ? 8 : parseInt(localStorage.getItem("mpump-voice-limit") ?? "16") || 16;
     if (this.voices.size > voiceLimit) {
       const oldest = this.voices.keys().next().value;
       if (oldest) {

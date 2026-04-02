@@ -51,6 +51,11 @@ function getAvailableNotes(scaleLock: string | undefined, rootNote: number): { s
   return notes.reverse();
 }
 
+function semiToNoteName(semi: number, root: number): string {
+  const midi = root + semi;
+  return NOTE_NAMES[((midi % 12) + 12) % 12] + Math.floor(midi / 12 - 1);
+}
+
 export function StepGrid({ steps, currentStep, accent, onTap, onLongPress, rootNote = 45, scaleLock, onEditStep }: Props) {
   const longFired = useRef(false);
   const timerRef = useRef<number>(0);
@@ -130,6 +135,7 @@ export function StepGrid({ steps, currentStep, accent, onTap, onLongPress, rootN
               <div
                 key={i}
                 className={`step-cell rest ${active ? "active" : ""} ${barStart ? "bar-start" : ""} ${onTap ? "editable" : ""} ${pressingIdx === i ? "step-pressing" : ""}`}
+                title={`Step ${i + 1}: rest`}
                 onClick={() => handleClick(i)}
                 onPointerDown={() => startLong(i)}
                 onPointerUp={cancelLong}
@@ -148,6 +154,7 @@ export function StepGrid({ steps, currentStep, accent, onTap, onLongPress, rootN
             <div
               key={i}
               className={`step-cell ${active ? "active" : ""} ${barStart ? "bar-start" : ""} ${step.slide ? "slide" : ""} ${onTap ? "editable" : ""} ${pressingIdx === i ? "step-pressing" : ""}`}
+              title={`Step ${i + 1}: ${semiToNoteName(step.semi, rootNote)} vel:${step.vel}`}
               onClick={() => handleClick(i)}
               onPointerDown={() => startLong(i)}
               onPointerUp={cancelLong}
