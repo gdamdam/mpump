@@ -1,17 +1,7 @@
 <h1 align="center">mpump</h1>
-<p align="center"><strong>A groove you can share.</strong><br><br>Browser instrument for electronic music. Make something, send it as a link.<br>Open it, change it, send it back different.<br>No install. No account. Free.</p>
+<p align="center"><strong>Make a beat. Send a link. Let someone change it.</strong><br><br>A browser drum machine and synth where the beat lives in the link.<br>Open it, change it, send it back different.<br>No install. No account. Free.</p>
 
 <p align="center">
-  <a href="https://github.com/gdamdam/mpump"><img src="https://img.shields.io/badge/version-1.5.1-blue" alt="Version"></a>
-  <a href="https://github.com/gdamdam/mpump/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue" alt="License"></a>
-  <br>
-  <img src="https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=white" alt="React">
-  <img src="https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white" alt="TypeScript">
-  <img src="https://img.shields.io/badge/Vite-6-646CFF?logo=vite&logoColor=white" alt="Vite">
-  <img src="https://img.shields.io/badge/Web%20Audio-API-FF6600?logo=mozilla&logoColor=white" alt="Web Audio API">
-  <img src="https://img.shields.io/badge/AudioWorklet-DSP-FF6600?logo=mozilla&logoColor=white" alt="AudioWorklet">
-  <img src="https://img.shields.io/badge/Web%20MIDI-API-FF6600?logo=midi&logoColor=white" alt="Web MIDI API">
-  <br>
   <a href="https://mpump.live/">https://mpump.live/</a>
 </p>
 
@@ -21,17 +11,30 @@
   <img src="mpump-demo.gif?v=1.5.1" width="600" alt="mpump demo">
 </p>
 
-Curated patterns across 20 genres. Built-in drums, bass, synth, real-time effects, and an analog needle VU meter. All synthesized in the browser via Web Audio. No install. No account. No personal data.
+You make a groove, send the link, and the other person opens it in their browser — same beat, same sounds. They change it and send it back different. Or they join live and you play together.
+
+It starts fast, sounds good, and stays out of the way.
+
+No install, no account, no personal data. Your stuff stays in your browser. Free forever.
+
+<p align="center">
+  <a href="https://github.com/gdamdam/mpump"><img src="https://img.shields.io/badge/version-1.5.1-blue" alt="Version"></a>
+  <a href="https://github.com/gdamdam/mpump/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue" alt="License"></a>
+  <img src="https://img.shields.io/badge/Web%20Audio-API-FF6600" alt="Web Audio API">
+  <img src="https://img.shields.io/badge/AudioWorklet-DSP-FF6600" alt="AudioWorklet">
+</p>
 
 ---
 
-## Why mpump
+## What you can do
 
-I built mpump because I wanted to make music anywhere and share it instantly. Just a link. They open it, they hear the beat, they can change it and share it back. Or better: they join and play with you, live.
+- **Make a groove in seconds** — hit MIX and a beat is already playing. Drums, bass, synth, effects — all ready.
+- **Send it as a link** — share the URL. The other person opens it and hears exactly what you made.
+- **Let them change it** — they can tweak the beat, switch genres, change sounds, and send it back different.
+- **Play together live** — start a Jam session with up to 4 friends, or a Live Set for up to 49 listeners.
+- **Go deep if you want** — 20 genres, 1210+ patterns, step editor, arpeggiator, effects chain, mixer with EQ and compression.
 
-Most music tools make you choose: too simple to be useful, or too complex to be fun. I wanted a groovebox that starts instantly, gives you something good fast, and lets you change it, share it, jam on it, or perform it for others.
-
-No install, no account, no personal data. Your music stays on your device. Free forever.
+No install. No account. Works offline. Your stuff stays in your browser.
 
 ---
 

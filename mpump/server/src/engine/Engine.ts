@@ -232,24 +232,32 @@ export class Engine {
   private static PREVIEW_IDS = ["preview_drums", "preview_bass", "preview_synth"];
 
   /** Curated genre combos for preview start (same genre across all devices). */
-  private static CURATED_STARTS = [
-    { genre: "techno", bpm: 130 },
-    { genre: "acid-techno", bpm: 138 },
-    { genre: "trance", bpm: 140 },
-    { genre: "dub-techno", bpm: 118 },
-    { genre: "idm", bpm: 135 },
-    { genre: "house", bpm: 124 },
-    { genre: "breakbeat", bpm: 140 },
-    { genre: "garage", bpm: 132 },
-    { genre: "ambient", bpm: 90 },
-    { genre: "glitch", bpm: 130 },
-    { genre: "electro", bpm: 128 },
-    { genre: "downtempo", bpm: 95 },
-    { genre: "dubstep", bpm: 140 },
-    { genre: "lo-fi", bpm: 80 },
-    { genre: "synthwave", bpm: 118 },
-    { genre: "deep-house", bpm: 122 },
-    { genre: "psytrance", bpm: 145 },
+  // Curated first-load combos: genre + BPM + preset names that sound good together.
+  // "weight" controls how likely this combo is picked (higher = more likely).
+  // High-weight combos are crowd-pleasers for first impressions.
+  private static CURATED_STARTS: { genre: string; bpm: number; synth?: string; bass?: string; kit?: string; weight: number }[] = [
+    // High weight — these sound great on first listen
+    { genre: "techno", bpm: 130, synth: "Classic Saw", bass: "Acid Bass", kit: "Default", weight: 3 },
+    { genre: "house", bpm: 124, synth: "House Stab", bass: "Pluck Bass", kit: "House", weight: 3 },
+    { genre: "trance", bpm: 140, synth: "Supersaw", bass: "Deep Sub", kit: "Trance", weight: 3 },
+    { genre: "acid-techno", bpm: 138, synth: "Acid Squelch", bass: "303 Acid", kit: "Default", weight: 2 },
+    { genre: "electro", bpm: 128, synth: "Square Lead", bass: "Square Bass", kit: "Electro", weight: 2 },
+    { genre: "deep-house", bpm: 122, synth: "Warm Pad", bass: "Warm Bass", kit: "House", weight: 2 },
+    { genre: "synthwave", bpm: 118, synth: "Supersaw", bass: "Arp Bass", kit: "Default", weight: 2 },
+    // Normal weight — solid but more niche
+    { genre: "dub-techno", bpm: 118, synth: "Dark Drone", bass: "Deep Sub", kit: "Dub", weight: 1 },
+    { genre: "breakbeat", bpm: 140, synth: "Classic Saw", bass: "Pluck Bass", kit: "DnB", weight: 1 },
+    { genre: "garage", bpm: 132, synth: "House Stab", bass: "Garage Bass", kit: "Garage", weight: 1 },
+    { genre: "dubstep", bpm: 140, synth: "Neuro", bass: "Wobble", kit: "Heavy", weight: 1 },
+    { genre: "psytrance", bpm: 145, synth: "Supersaw", bass: "Psy Bass", kit: "Trance", weight: 1 },
+    { genre: "downtempo", bpm: 95, synth: "Warm Pad", bass: "Warm Bass", kit: "Lo-Fi", weight: 1 },
+    { genre: "lo-fi", bpm: 80, synth: "Rhodes Keys", bass: "Deep Sub", kit: "Lo-Fi", weight: 1 },
+    { genre: "idm", bpm: 135, synth: "FM Bell", bass: "Zapper", kit: "Glitch", weight: 1 },
+    { genre: "ambient", bpm: 90, synth: "String Pad", bass: "Foghorn", kit: "Dub", weight: 1 },
+    { genre: "glitch", bpm: 130, synth: "FM Bell", bass: "Distorted", kit: "Glitch", weight: 1 },
+    { genre: "jungle", bpm: 170, synth: "Classic Saw", bass: "Reese", kit: "DnB", weight: 1 },
+    { genre: "drum-and-bass", bpm: 174, synth: "Neuro", bass: "Reese", kit: "DnB", weight: 1 },
+    { genre: "edm", bpm: 128, synth: "EDM Pluck", bass: "Pluck Bass", kit: "Default", weight: 1 },
   ];
 
   /** Create AudioPort early (must be called synchronously during user gesture for Safari). */
@@ -290,9 +298,28 @@ export class Engine {
     }
 
     if (!skipRandomize) {
-      // Pick a curated genre combo (same genre + BPM for all devices)
-      const startIdx = Math.floor(Math.random() * Engine.CURATED_STARTS.length);
-      const curated = Engine.CURATED_STARTS[startIdx];
+      // Curated selection fades over sessions (by unique days), with a 40% floor:
+      // day 1=100%, 2=80%, 3=60%, 4=50%, 5+=40% (always some chance of a good combo)
+      const today = new Date().toISOString().slice(0, 10);
+      const lastDay = localStorage.getItem("mpump-load-day") ?? "";
+      let loadCount = parseInt(localStorage.getItem("mpump-load-count") ?? "0");
+      if (today !== lastDay) { loadCount++; localStorage.setItem("mpump-load-count", String(loadCount)); localStorage.setItem("mpump-load-day", today); }
+      const curateChance = Math.max(0.4, 1 - (loadCount - 1) * 0.2); // 1.0→0.8→0.6→0.5→0.4 floor
+      const useCurated = Math.random() < curateChance;
+
+      // Pick genre combo — weighted if curated, uniform if not
+      let curated: typeof Engine.CURATED_STARTS[0];
+      if (useCurated) {
+        const totalWeight = Engine.CURATED_STARTS.reduce((s, c) => s + c.weight, 0);
+        let roll = Math.random() * totalWeight;
+        curated = Engine.CURATED_STARTS[0];
+        for (const c of Engine.CURATED_STARTS) {
+          roll -= c.weight;
+          if (roll <= 0) { curated = c; break; }
+        }
+      } else {
+        curated = Engine.CURATED_STARTS[Math.floor(Math.random() * Engine.CURATED_STARTS.length)];
+      }
       this.bpm = curated.bpm;
       for (const id of Engine.PREVIEW_IDS) {
         const ds = this.deviceStates.get(id);
@@ -306,10 +333,12 @@ export class Engine {
         this.restartDevice(id);
       }
 
-      // Pick random sound presets at startup
-      const synthPreset = SYNTH_PRESETS[Math.floor(Math.random() * SYNTH_PRESETS.length)];
-      const bassPreset = BASS_PRESETS[Math.floor(Math.random() * BASS_PRESETS.length)];
-      const drumPreset = DRUM_KIT_PRESETS[Math.floor(Math.random() * DRUM_KIT_PRESETS.length)];
+      // Use curated presets if in curated mode, otherwise fully random
+      const findPreset = <T extends { name: string }>(list: T[], name?: string): T =>
+        (useCurated && name && list.find(p => p.name === name)) || list[Math.floor(Math.random() * list.length)];
+      const synthPreset = findPreset(SYNTH_PRESETS, curated.synth);
+      const bassPreset = findPreset(BASS_PRESETS, curated.bass);
+      const drumPreset = findPreset(DRUM_KIT_PRESETS, curated.kit);
 
       const synthDs = this.deviceStates.get("preview_synth");
       if (synthDs) {

@@ -66,7 +66,7 @@ export function MidiGate({ midiState, onConnectMidi, onPreview, midiSupported }:
         }, 400);
       }}>{"█▀▄▀█ █▀█ █ █ █▀▄▀█ █▀█\n█ ▀ █ █▀▀ ▀▄▀ █ ▀ █ █▀▀"}</pre>
 
-      <div className="midi-gate-subtitle">Grooves live in a link</div>
+      <div className="midi-gate-subtitle">Make a beat. Send it as a link.</div>
 
       <button className="midi-gate-btn-preview" title="Start playing with browser audio"
         onClick={() => { trackEvent("play-start"); setLogoKey(k => k + 1); clearTimeout(flashTimer.current); flashTimer.current = window.setTimeout(() => onPreview(), 450); }}>
@@ -74,13 +74,13 @@ export function MidiGate({ midiState, onConnectMidi, onPreview, midiSupported }:
       </button>
 
       <div className="midi-gate-intro">
-        Everything is already moving.
+        Click Open — music plays instantly.
       </div>
 
       <div className="midi-gate-featured">
-        <span className="midi-gate-pill">Working Grooves</span>
-        <span className="midi-gate-pill">Playable Links</span>
-        <span className="midi-gate-pill">Jam &amp; Live Set</span>
+        <span className="midi-gate-pill">Instant grooves</span>
+        <span className="midi-gate-pill">Shareable links</span>
+        <span className="midi-gate-pill">Play together</span>
       </div>
 
       <div className="midi-gate-about">

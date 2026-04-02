@@ -18,12 +18,12 @@ interface Step {
 }
 
 const STEPS: Step[] = [
-  { title: "Welcome to mpump", body: "An instant groovebox in your browser. Start fast, stay in flow." },
-  { title: "Play and mix", body: "▶ starts playback. MIX gives you a new groove. The XY pad shapes the sound.", target: ".shuffle-btn" },
-  { title: "Share it", body: "Made something cool? Share a playable link with your friends. They open it and hear your beat instantly. No app needed.", target: ".header-share-btn" },
-  { title: "Jam together", body: "Click Jam to start a live session. Jam with up to 4 friends, or start a Live Set for up to 49 listeners. Share the link, they join instantly.", target: ".jam-header-btn" },
-  { title: "Take it with you", body: "Works offline for solo play. Bookmark this page or install it as an app for instant access anytime." },
-  { title: "Go create", body: "Everything you make is yours.\nNo install. No account. No personal data.", last: true },
+  { title: "Welcome to mpump", body: "Make a beat, send it as a link. The other person can open it and change it too." },
+  { title: "Play and mix", body: "▶ starts playback. MIX gives you a new groove. Drag the XY pad to shape the sound.", target: ".shuffle-btn" },
+  { title: "Share it", body: "Send a playable link. They open it, hear your beat, and can change it. No app needed.", target: ".header-share-btn" },
+  { title: "Jam together", body: "Start a live session with up to 4 friends, or a Live Set for up to 49 listeners.", target: ".jam-header-btn" },
+  { title: "Works offline", body: "Bookmark or install as an app. Your stuff stays in your browser." },
+  { title: "Go make something", body: "Everything you make is yours.\nNo install. No account. No personal data.", last: true },
 ];
 
 const MOBILE_BREAKPOINT = 700;
