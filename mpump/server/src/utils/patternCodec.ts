@@ -54,6 +54,9 @@ export interface SharePayload {
   lc?: number;  // low cut frequency (Hz)
   mb?: number;  // multiband: 0=off
   mba?: number; // multiband amount (0-100)
+  ki?: number;  // key index (0-16)
+  oc?: number;  // octave (0-6)
+  tn?: string;  // track name
 }
 
 /** Parse and validate a share URL hash. Returns null if invalid. */
@@ -91,6 +94,9 @@ export function validateSharePayload(raw: unknown): SharePayload | null {
   if (d.dk != null) result.dk = String(d.dk).slice(0, 100);
   if (d.sp != null) result.sp = String(d.sp).slice(0, 100);
   if (d.bp != null) result.bp = String(d.bp).slice(0, 100);
+  if (isNum(d.ki)) result.ki = clamp(d.ki as number, 0, 16);
+  if (isNum(d.oc)) result.oc = clamp(d.oc as number, 0, 6);
+  if (typeof d.tn === "string") result.tn = d.tn.slice(0, 50);
 
   // Effects bitmask: optional, string of 0/1 only
   if (typeof d.fx === "string" && /^[01]{1,16}$/.test(d.fx)) {

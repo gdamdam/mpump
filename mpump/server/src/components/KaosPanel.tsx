@@ -135,6 +135,16 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
   });
   const [editingFx, setEditingFx] = useState<EffectName | null>(null);
 
+  // Re-read effects from localStorage when restored from a share link
+  useEffect(() => {
+    const handler = () => {
+      const saved = getJSON<Partial<EffectParams>>("mpump-effects", {});
+      setFx({ ...JSON.parse(JSON.stringify(DEFAULT_EFFECTS)), ...saved } as EffectParams);
+    };
+    window.addEventListener("mpump-effects-restored", handler);
+    return () => window.removeEventListener("mpump-effects-restored", handler);
+  }, []);
+
   // Channel mix modals (separate for VOL, EQ, GATE)
   const [mixModalCh, setMixModalCh] = useState<number | null>(null);
   const [mixModalTab, setMixModalTab] = useState<"vol" | "eq" | "gate">("vol");

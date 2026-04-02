@@ -836,6 +836,9 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
         if (data.dk != null) handleDrumKitChange(data.dk);
         if (data.sp != null) handleSynthChange(data.sp);
         if (data.bp != null) handleBassChange(data.bp);
+        // Restore key and octave from share link
+        if (data.ki != null) { command({ type: "set_key", device: "preview_synth", idx: data.ki }); command({ type: "set_key", device: "preview_bass", idx: data.ki }); }
+        if (data.oc != null) { command({ type: "set_octave", device: "preview_synth", octave: data.oc }); command({ type: "set_octave", device: "preview_bass", octave: data.oc }); }
         if (data.fx) {
           for (let i = 0; i < EFFECT_ORDER.length && i < data.fx.length; i++) {
             if (data.fx[i] === "1") {
@@ -854,6 +857,17 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
           }
           setJSON("mpump-effects", { ...getJSON("mpump-effects", {}), ...Object.fromEntries(Object.entries(data.fp).map(([n, p]) => [n, { ...p, on: data.fx ? data.fx[EFFECT_ORDER.indexOf(n as EffectName)] === "1" : false }])) });
         }
+        // Also write on/off states for effects without full params
+        if (data.fx && !data.fp) {
+          const saved = getJSON<Record<string, Record<string, unknown>>>("mpump-effects", {});
+          for (let i = 0; i < EFFECT_ORDER.length && i < data.fx.length; i++) {
+            const n = EFFECT_ORDER[i];
+            saved[n] = { ...(saved[n] ?? {}), on: data.fx[i] === "1" };
+          }
+          setJSON("mpump-effects", saved);
+        }
+        // Notify KaosPanel to re-read effects from localStorage
+        window.dispatchEvent(new Event("mpump-effects-restored"));
         // Restore synth params (decode compact short keys back to full names)
         if (data.spp) command({ type: "set_synth_params", device: "preview_synth", params: decodeSynthParamsCompact(data.spp) });
         if (data.bpp) command({ type: "set_synth_params", device: "preview_bass", params: decodeSynthParamsCompact(data.bpp) });
@@ -1665,9 +1679,11 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
                   for (const d of connectedDevices) {
                     g[d.id] = { gi: d.genre_idx, pi: d.pattern_idx, bgi: d.bass_genre_idx, bpi: d.bass_pattern_idx };
                   }
+                  const synthDev2 = connectedDevices.find(d => d.id === "preview_synth");
                   const base: Record<string, unknown> = {
                     bpm: state.bpm, sw: state.swing, dk: activeDrumKit, sp: activeSynth, bp: activeBass, g,
                     tn: trackName,
+                    ki: synthDev2?.key_idx ?? 0, oc: synthDev2?.octave ?? 2,
                   };
                   // Synth params
                   const synthDev = connectedDevices.find(d => d.id === "preview_synth");
