@@ -471,6 +471,7 @@ export class Engine {
         ds.step = step;
         this.cb.onStep(id, step);
         if (step === 0 && ds.chainEnabled) this.chainSwap(id);
+        if (step === 0 && this.restartAtLoop.has(id)) this.restartDevice(id, true);
         // Metronome click on quarter notes (every 4th step)
         if (step % 4 === 0 && this.audioPort) this.audioPort.playClick();
       };
@@ -507,6 +508,7 @@ export class Engine {
         ds.step = step;
         this.cb.onStep(id, step);
         if (step === 0 && ds.chainEnabled) this.chainSwap(id);
+        if (step === 0 && this.restartAtLoop.has(id)) this.restartDevice(id, true);
       };
       seq.start();
       this.sequencers.set(id, seq);
@@ -528,11 +530,14 @@ export class Engine {
   }
 
   /** Stop then re-start a device (used after pattern/key/BPM changes).
-   *  Throttled: collapses calls within 50ms per-device — queues the last one
-   *  instead of dropping it, so final state is always applied. */
+   *  If a sequencer is running, defers the restart to step 0 (loop boundary)
+   *  so scheduled notes complete naturally — avoids mid-loop clicks/cracks.
+   *  Throttled: collapses calls within 50ms per-device. */
   private restartTimers: Map<string, number> = new Map();
   private restartPending: Map<string, ReturnType<typeof setTimeout>> = new Map();
-  private restartDevice(id: string): void {
+  /** Devices waiting for loop-boundary restart (step 0). */
+  private restartAtLoop: Set<string> = new Set();
+  private restartDevice(id: string, immediate = false): void {
     const now = performance.now();
     const last = this.restartTimers.get(id) ?? 0;
     if (now - last < 50) {
@@ -541,13 +546,24 @@ export class Engine {
       if (existing) clearTimeout(existing);
       this.restartPending.set(id, setTimeout(() => {
         this.restartPending.delete(id);
-        this.restartDevice(id);
+        this.restartDevice(id, immediate);
       }, 50 - (now - last)));
       return;
     }
     this.restartTimers.set(id, now);
     const pending = this.restartPending.get(id);
     if (pending) { clearTimeout(pending); this.restartPending.delete(id); }
+
+    // If a sequencer is running, defer to loop boundary (step 0) to avoid
+    // mid-loop teardown that causes clicks. Immediate mode skips this
+    // (used for initial start, BPM changes, and staggered preview starts).
+    const seq = this.sequencers.get(id);
+    if (!immediate && seq) {
+      this.restartAtLoop.add(id);
+      return;
+    }
+
+    this.restartAtLoop.delete(id);
     this.stopDevice(id);
     const ds = this.deviceStates.get(id);
     if (ds && this.ports[id] && !this.stopped.has(id)) {

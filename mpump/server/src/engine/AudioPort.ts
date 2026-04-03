@@ -55,7 +55,10 @@ export class AudioPort {
   private reverbIRCache: { decay: number; type: string; buffer: AudioBuffer } | null = null;
   /** CPU load indicator: max scheduling drift in ms (updated by sequencer). */
   private _maxDrift = 0;
-  private _driftSamples: number[] = [];
+  /** Fixed ring buffer for drift samples — avoids per-second array allocation. */
+  private _driftBuf = new Float32Array(64);
+  private _driftIdx = 0;
+  private _driftCount = 0;
   /** Mid-side EQ: cut low-mids on side channel for spatial mud reduction. */
   private msEnabled = false;
   private msSplitL: GainNode | null = null;
@@ -69,6 +72,9 @@ export class AudioPort {
   private mutedDrumNotes: Set<number> = new Set();
   /** Active drum sources — tracked to prevent accumulation. */
   private activeDrumSrcs: Set<AudioBufferSourceNode> = new Set();
+  /** Pooled drum Gain+Panner pairs — avoids per-hit node creation (GC pressure). */
+  private drumNodePool: { gain: GainNode; pan: StereoPannerNode }[] = [];
+  private drumNodePoolMax = 24;
   /** Current BPM for tempo-synced LFO. */
   private bpm = 120;
   /** Sidechain duck: duck non-drum channels on kick hits. */
@@ -181,9 +187,9 @@ export class AudioPort {
     this.driveGain = this.ctx.createGain();
     this.driveGain.gain.value = Math.pow(10, 1 / 20); // +1.0 dB default drive
 
-    // Multiband compressor: skip in eco mode (expensive)
-    if (this.perfMode !== "eco") this.initMultiband();
-    if (this.perfMode === "eco") this.mbEnabled = false;
+    // Multiband compressor: skip in lite/eco mode (12 nodes, 3 compressors)
+    if (this.perfMode === "normal") this.initMultiband();
+    if (this.perfMode !== "normal") this.mbEnabled = false;
 
     this.analyser = this.ctx.createAnalyser();
     this.analyser.fftSize = 256;
@@ -246,10 +252,15 @@ export class AudioPort {
         } catch { /* */ }
       }
 
-      // CPU drift: compute average from samples, reset
-      if (this._driftSamples.length > 0) {
-        this._maxDrift = Math.max(...this._driftSamples);
-        this._driftSamples = [];
+      // CPU drift: compute max from ring buffer, reset count
+      if (this._driftCount > 0) {
+        let max = 0;
+        for (let i = 0; i < this._driftCount; i++) {
+          if (this._driftBuf[i] > max) max = this._driftBuf[i];
+        }
+        this._maxDrift = max;
+        this._driftCount = 0;
+        this._driftIdx = 0;
       } else {
         this._maxDrift *= 0.5; // decay when no samples
       }
@@ -1257,7 +1268,9 @@ export class AudioPort {
 
   /** Report scheduling drift from sequencer (ms). Called per step. */
   reportDrift(driftMs: number): void {
-    this._driftSamples.push(Math.abs(driftMs));
+    this._driftBuf[this._driftIdx] = Math.abs(driftMs);
+    this._driftIdx = (this._driftIdx + 1) & 63; // wrap at 64
+    if (this._driftCount < 64) this._driftCount++;
   }
 
   /** Get current CPU load indicator (0-1). 0=healthy, >0.5=struggling, 1=critical. */
@@ -1395,6 +1408,29 @@ export class AudioPort {
 
   // ── Drum playback ────────────────────────────────────────────────────
 
+  /** Borrow a Gain+Panner pair from pool, or create if pool empty. */
+  private borrowDrumNodes(): { gain: GainNode; pan: StereoPannerNode } {
+    const pair = this.drumNodePool.pop();
+    if (pair) return pair;
+    return { gain: this.ctx.createGain(), pan: this.ctx.createStereoPanner() };
+  }
+
+  /** Return a Gain+Panner pair to the pool (disconnect src, keep gain→pan→bus wired). */
+  private returnDrumNodes(pair: { gain: GainNode; pan: StereoPannerNode }): void {
+    if (this.drumNodePool.length < this.drumNodePoolMax) {
+      this.drumNodePool.push(pair);
+    } else {
+      // Pool full — disconnect and let GC collect
+      try { pair.gain.disconnect(); pair.pan.disconnect(); } catch { /* */ }
+    }
+  }
+
+  // Fletcher-Munson compensation table (static — no per-hit allocation)
+  private static readonly FM_GAIN: Record<number, number> = {
+    36: 1.6, 38: 1.1, 42: 1.3, 46: 1.2, 47: 1.0,
+    49: 1.1, 50: 0.9, 51: 1.0, 37: 1.0, 56: 0.9,
+  };
+
   private playDrum(note: number, vel: number, time?: number): void {
     if (this.mutedDrumNotes.has(note)) return;
     const buffer = this.customSamples.get(note) ?? this.kit.get(note);
@@ -1406,45 +1442,32 @@ export class AudioPort {
     const src = this.ctx.createBufferSource();
     src.buffer = buffer;
 
-    // Fletcher-Munson compensation: human hearing is most sensitive at 2-5kHz.
-    // Low drums (kick=36) need more gain to sound as loud as high drums (hats=42,46).
-    // Fletcher-Munson compensation — modest correction only.
-    // Synthesis amplitudes already vary (kick ~1.0, hat ~0.2), so F-M
-    // should NOT try to compensate the full psychoacoustic range.
-    // Channel lowshelf (+2dB) handles additional kick sub boost.
-    const fmGain: Record<number, number> = {
-      36: 1.6,  // kick — punchy boost (lowshelf adds +2dB sub on top)
-      38: 1.1,  // snare — keep (wide spectrum, slight boost)
-      42: 1.3,  // closed hat — RAISED (synthesis is very quiet)
-      46: 1.2,  // open hat — RAISED
-      47: 1.0,  // cowbell — REDUCED (800Hz is very audible)
-      49: 1.1,  // crash — RAISED (synthesis is very quiet)
-      50: 0.9,  // clap — keep (well-balanced)
-      51: 1.0,  // ride — RAISED
-      37: 1.0,  // rimshot — keep
-      56: 0.9,  // cowbell alt
-    };
-    const targetGain = (vel / 127) * level * (fmGain[note] ?? 1.5);
-    const gain = this.ctx.createGain();
+    const targetGain = (vel / 127) * level * (AudioPort.FM_GAIN[note] ?? 1.5);
+    const { gain, pan } = this.borrowDrumNodes();
     const drumWhen = perfToCtx(this.ctx, time);
-    // Set gain immediately — drum buffers start from zero (sin(0)=0) so no onset click
     gain.gain.value = targetGain;
 
     // Stereo drum placement (user pan overrides default)
-    const panVal = vp?.pan ?? DRUM_PAN[note] ?? 0;
-    const pan = this.ctx.createStereoPanner();
-    pan.pan.value = panVal;
+    pan.pan.value = vp?.pan ?? DRUM_PAN[note] ?? 0;
 
+    // Wire: src → gain → pan → bus (gain→pan→bus stays wired for reuse)
     src.connect(gain);
     gain.connect(pan);
     pan.connect(this.getChannelBus(DRUM_CH));
     src.start(drumWhen);
 
-    // Track active drum sources and clean up when done
+    // Track active drum sources and return nodes to pool when done
     this.activeDrumSrcs.add(src);
-    src.onended = () => { this.activeDrumSrcs.delete(src); try { src.disconnect(); gain.disconnect(); pan.disconnect(); } catch { /* */ } };
+    const nodes = { gain, pan };
+    src.onended = () => {
+      this.activeDrumSrcs.delete(src);
+      try { src.disconnect(); } catch { /* */ }
+      // Disconnect gain→pan→bus before returning to pool (clean slate)
+      try { gain.disconnect(); pan.disconnect(); } catch { /* */ }
+      this.returnDrumNodes(nodes);
+    };
 
-    // Safety: if too many drum sources active, kill oldest ones and clean up immediately
+    // Safety: if too many drum sources active, kill oldest ones
     if (this.activeDrumSrcs.size > 16) {
       const iter = this.activeDrumSrcs.values();
       for (let i = 0; i < 8; i++) {
