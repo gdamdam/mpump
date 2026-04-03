@@ -256,7 +256,6 @@ export function Settings({ volume, onVolumeChange, onClose, swing, onSwingChange
               <div className="settings-toggles" style={{ marginTop: 8 }}>
                 <select className="synth-preset-select" value={getItem("mpump-logo-pulse", "kick")} title="Logo pulse mode"
                   onChange={(e) => { setItem("mpump-logo-pulse", e.target.value); window.dispatchEvent(new Event("mpump-settings-changed")); refreshToggles(); }} style={{ fontSize: 11 }}>
-                  <option value="audio">Logo Pulse: Audio</option>
                   <option value="kick">Logo Pulse: Kick</option>
                   <option value="off">Logo Pulse: Off</option>
                 </select>

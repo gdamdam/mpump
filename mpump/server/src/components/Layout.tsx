@@ -682,52 +682,7 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
 
   // Logo audio pulse — bass glow + transient flash
   const logoRef = useRef<HTMLPreElement>(null);
-  useEffect(() => {
-    const lp = new URLSearchParams(window.location.search);
-    const perfOff = lp.get("lite") === "true" || lp.get("eco") === "true" || localStorage.getItem("mpump-perf-mode") === "lite" || localStorage.getItem("mpump-perf-mode") === "eco";
-    if (logoPulseMode !== "audio" || !getAnalyser || perfOff) {
-      if (logoRef.current) logoRef.current.style.cssText = "";
-      return;
-    }
-    const buf = new Uint8Array(128);
-    let logoFrameSkip = 0;
-    const tick = () => {
-      logoRafRef.current = requestAnimationFrame(tick);
-      if (++logoFrameSkip % 4 !== 0) return; // ~15fps for logo pulse
-      const analyser = getAnalyser();
-      if (!analyser || !logoRef.current) return;
-      analyser.getByteFrequencyData(buf);
-      // Low-freq energy (first 8 bins ~ sub/bass)
-      let bass = 0;
-      for (let i = 0; i < 8; i++) bass += buf[i];
-      bass = bass / 8 / 255;
-      // Overall level for transient detection
-      let total = 0;
-      for (let i = 0; i < buf.length; i++) total += buf[i];
-      total = total / buf.length / 255;
-      const delta = total - logoPrevLevel.current;
-      logoPrevLevel.current = total;
-      if (delta > 0.08) logoTransientRef.current = true;
-      // Ignore low-level noise, fast attack / faster decay
-      const target = bass > 0.05 ? bass : 0;
-      const speed = target > logoGlowRef.current ? 0.4 : 0.15;
-      logoGlowRef.current += (target - logoGlowRef.current) * speed;
-      if (logoGlowRef.current < 0.02) logoGlowRef.current = 0;
-      const glow = logoGlowRef.current;
-      const flash = logoTransientRef.current && total > 0.1;
-      const active = glow > 0 || flash;
-      const scale = 1 + glow * 0.08 + (flash ? 0.06 : 0);
-      const shadowSize = Math.round(glow * 24 + (flash ? 14 : 0));
-      const el = logoRef.current;
-      el.style.transform = active ? `scale(${scale.toFixed(3)})` : "";
-      el.style.textShadow = shadowSize > 0 ? `0 0 ${shadowSize}px var(--preview)` : "none";
-      el.style.color = flash ? "#fff" : "";
-      el.style.opacity = active ? String((0.7 + glow * 0.3).toFixed(2)) : "";
-      if (flash) logoTransientRef.current = false;
-    };
-    logoRafRef.current = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(logoRafRef.current);
-  }, [logoPulseMode, getAnalyser]);
+  // Logo audio pulse removed — kick mode is zero-cost and syncs better with the beat
 
   // Logo kick pulse — flash on actual kick hits (note 36)
   const drumsDevice2 = connectedDevices.find(d => d.id === "preview_drums");

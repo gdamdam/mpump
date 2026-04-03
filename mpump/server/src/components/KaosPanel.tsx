@@ -261,7 +261,7 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
     const draw = () => {
       waveRafRef.current = requestAnimationFrame(draw);
       if (perfMode !== "normal") return; // lite/eco: no visualizer
-      if (++vizFrameSkip % 2 !== 0) return; // ~30fps
+      if (++vizFrameSkip % 6 !== 0) return; // ~10fps — reduce analyser pressure
       const mode = getMode();
       const rect = canvas.getBoundingClientRect();
       const w = rect.width, h = rect.height;
@@ -612,16 +612,15 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
   }, [applyXY, gestureRec, onJamXY]);
 
   const onMouseDown = (e: React.MouseEvent) => {
-    snapshotXY();
     handlePadMove(e.clientX, e.clientY);
     const onMove = (ev: MouseEvent) => handlePadMove(ev.clientX, ev.clientY);
-    const onUp = () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); setPos(null); posRef.current = null; restoreXY(); };
+    const onUp = () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
   };
-  const onTouchStart = (e: React.TouchEvent) => { e.preventDefault(); snapshotXY(); handlePadMove(e.touches[0].clientX, e.touches[0].clientY); };
+  const onTouchStart = (e: React.TouchEvent) => { e.preventDefault(); handlePadMove(e.touches[0].clientX, e.touches[0].clientY); };
   const onTouchMove = (e: React.TouchEvent) => { e.preventDefault(); handlePadMove(e.touches[0].clientX, e.touches[0].clientY); };
-  const onTouchEnd = () => { setPos(null); posRef.current = null; restoreXY(); };
+  const onTouchEnd = () => { /* keep position visible */ };
 
   // Trail decay + longPress cleanup
   useEffect(() => {
@@ -974,6 +973,23 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
             CLR
           </button>
         </div>}
+        <button
+          className="kaos-gesture-btn"
+          style={{ position: "absolute", bottom: 6, right: 6 }}
+          onClick={(e) => {
+            e.stopPropagation();
+            // Restore sound presets and clear position
+            if (presetState) {
+              presetState.onSynthChange(presetState.activeSynth);
+              presetState.onBassChange(presetState.activeBass);
+            }
+            for (const fx of ["distortion", "highpass"] as const) {
+              command({ type: "set_effect", name: fx, params: { on: false } });
+            }
+            setPos(null); posRef.current = null;
+          }}
+          title="Reset XY pad — restore preset sounds and clear position"
+        >RST</button>
       </div>
 
       {/* Step indicator ring */}

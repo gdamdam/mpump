@@ -65,107 +65,6 @@ function panLabel(v: number): string {
   return v < 0 ? `L${pct}` : `R${pct}`;
 }
 
-// ── Channel VU Bar ──────────────────────────────────────────────────────
-
-function VuBar({ getAnalyser }: { getAnalyser: () => AnalyserNode | null }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const rafRef = useRef(0);
-  const smoothed = useRef(0);
-  const bufRef = useRef<Uint8Array | null>(null);
-  const accentRef = useRef("#b388ff");
-  const frameRef = useRef(0);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    const resize = () => {
-      const rect = canvas.getBoundingClientRect();
-      const dpr = window.devicePixelRatio || 1;
-      canvas.width = rect.width * dpr;
-      canvas.height = rect.height * dpr;
-      ctx.scale(dpr, dpr);
-    };
-    resize();
-    const ro = new ResizeObserver(resize);
-    ro.observe(canvas);
-
-    let frameSkip2 = 0;
-    const draw = () => {
-      rafRef.current = requestAnimationFrame(draw);
-      if (++frameSkip2 % 3 !== 0) return; // ~20fps
-      const analyser = getAnalyser();
-      const rect = canvas.getBoundingClientRect();
-      const w = rect.width;
-      const h = rect.height;
-      ctx.clearRect(0, 0, w, h);
-
-      if (analyser) {
-        const size = analyser.fftSize;
-        if (!bufRef.current || bufRef.current.length !== size) bufRef.current = new Uint8Array(size);
-        analyser.getByteTimeDomainData(bufRef.current);
-        let sumSq = 0;
-        for (let i = 0; i < size; i++) {
-          const sample = (bufRef.current[i] - 128) / 128;
-          sumSq += sample * sample;
-        }
-        const rms = Math.sqrt(sumSq / size);
-        if (rms > smoothed.current) {
-          smoothed.current = ATTACK_COEFF * smoothed.current + (1 - ATTACK_COEFF) * rms;
-        } else {
-          smoothed.current = RELEASE_COEFF * smoothed.current + (1 - RELEASE_COEFF) * rms;
-        }
-      } else {
-        smoothed.current *= 0.95;
-      }
-
-      frameRef.current++;
-      if (frameRef.current > 60) {
-        frameRef.current = 0;
-        accentRef.current = getComputedStyle(document.documentElement).getPropertyValue("--preview").trim() || "#b388ff";
-      }
-
-      const db = toDB(smoothed.current);
-      // Map dB to 0..1 for bar height
-      const level = Math.max(0, Math.min(1, (db - DB_FLOOR) / DB_RANGE));
-      const barH = level * h;
-
-      // Draw segmented bar from bottom
-      const segH = Math.max(2, h / 24);
-      const gap = 1;
-      const barW = Math.min(w - 4, 14);
-      const x = (w - barW) / 2;
-
-      for (let y = h; y > h - barH; y -= segH + gap) {
-        const segLevel = 1 - (y / h);
-        let color: string;
-        if (segLevel > 0.88) color = "#ff4444"; // red zone (> -5dB)
-        else if (segLevel > 0.7) color = "#ffaa00"; // yellow zone (-12 to -5dB)
-        else color = accentRef.current; // green zone
-
-        ctx.fillStyle = color;
-        ctx.globalAlpha = 0.8;
-        ctx.fillRect(x, y - segH, barW, segH);
-      }
-
-      // Draw dim background segments
-      ctx.globalAlpha = 0.06;
-      ctx.fillStyle = "#fff";
-      for (let y = h; y > 0; y -= segH + gap) {
-        ctx.fillRect(x, y - segH, barW, segH);
-      }
-      ctx.globalAlpha = 1;
-    };
-
-    draw();
-    return () => { cancelAnimationFrame(rafRef.current); ro.disconnect(); };
-  }, [getAnalyser]);
-
-  return <canvas ref={canvasRef} className="mx-vu-bar" />;
-}
-
 // ── Effects bar constants ───────────────────────────────────────────────
 
 const EFFECT_LABELS: Record<EffectName, string> = {
@@ -203,7 +102,7 @@ function MasterModal({ title, onClose, getAnalyser, children }: {
     let frameSkip3 = 0;
     const tick = () => {
       rafRef.current = requestAnimationFrame(tick);
-      if (++frameSkip3 % 3 !== 0) return; // ~20fps
+      if (++frameSkip3 % 6 !== 0) return; // ~10fps — reduce analyser pressure
       const analyser = getAnalyser();
       if (analyser) {
         const size = analyser.fftSize;

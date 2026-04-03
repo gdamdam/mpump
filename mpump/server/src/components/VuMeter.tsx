@@ -53,7 +53,7 @@ export function VuMeter({ getAnalyser }: Props) {
     const smoothed = new Float32Array(BARS); // smoothed bar values for decay
     const draw = () => {
       rafRef.current = requestAnimationFrame(draw);
-      if (++frameSkip % 2 !== 0) return; // ~30fps
+      if (++frameSkip % 6 !== 0) return; // ~10fps
       const analyser = getAnalyser();
       if (!analyser) return;
 
