@@ -303,6 +303,10 @@ export function Settings({ volume, onVolumeChange, onClose, swing, onSwingChange
                   onClick={() => { const next = !getBool("mpump-mixer-advanced"); setBool("mpump-mixer-advanced", next); window.dispatchEvent(new Event("mpump-settings-changed")); refreshToggles(); }}>
                   <span className="settings-toggle-dot" />Mixer Pro Controls
                 </button>
+                <button className={`settings-toggle ${getBool("mpump-gesture-rec", true) ? "on" : ""}`} title="Show gesture record/loop buttons on XY pad"
+                  onClick={() => { const next = !getBool("mpump-gesture-rec", true); setBool("mpump-gesture-rec", next); window.dispatchEvent(new Event("mpump-settings-changed")); refreshToggles(); }}>
+                  <span className="settings-toggle-dot" />Gesture Recording
+                </button>
               </div>
               <div className="settings-hint" style={{ marginTop: 8 }}>
                 ←→ focus · ↑↓ sound · Shift+←→ pattern · Shift+↑↓ genre · M mute · S solo · L lock · Tab view

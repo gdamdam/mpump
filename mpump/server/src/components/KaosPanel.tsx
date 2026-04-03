@@ -948,14 +948,14 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
           {XY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
         {step >= 0 && step % 4 === 0 && <div className="kaos-pulse" />}
-        {/* Gesture REC / LOOP / CLEAR — inside pad, top-right (disabled during jam) */}
-        {!inJam && <div className="kaos-gesture">
+        {/* Gesture REC / LOOP / CLEAR — inside pad, top-right (hidden unless enabled in settings, disabled during jam) */}
+        {!inJam && getBool("mpump-gesture-rec", true) && <div className="kaos-gesture">
           <button
             className={`kaos-gesture-btn ${gestureRec ? "active" : ""}`}
             onClick={(e) => { e.stopPropagation(); gestureRec ? stopGestureRec() : startGestureRec(); }}
             title={gestureRec ? "Stop recording gesture" : "Record XY gesture"}
           >
-            {gestureRec ? "⏹" : "⏺"}
+            {gestureRec ? "STOP" : "REC"}
           </button>
           <button
             className={`kaos-gesture-btn ${gestureLoop ? "active" : ""}`}
@@ -963,7 +963,7 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
             disabled={gesturePoints.current.length < 2 && !gestureLoop}
             title={gestureLoop ? "Stop gesture loop" : "Loop recorded gesture"}
           >
-            {gestureLoop ? "⏹" : "↻"}
+            {gestureLoop ? "STOP" : "PLAY"}
           </button>
           <button
             className="kaos-gesture-btn"
@@ -971,7 +971,7 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
             disabled={gesturePoints.current.length === 0 && !gestureLoop}
             title="Clear recorded gesture"
           >
-            ✕
+            CLR
           </button>
         </div>}
       </div>
