@@ -75,6 +75,11 @@ export class AudioPort {
   /** Pooled drum Gain+Panner pairs — avoids per-hit node creation (GC pressure). */
   private drumNodePool: { gain: GainNode; pan: StereoPannerNode }[] = [];
   private drumNodePoolMax = 24;
+  /** Pooled synth GainNodes (envelope) — reused across voice lifecycles. */
+  private synthGainPool: GainNode[] = [];
+  /** Pooled BiquadFilterNodes (digital filter) — reused across voice lifecycles. */
+  private synthFilterPool: BiquadFilterNode[] = [];
+  private synthPoolMax = 16;
   /** Current BPM for tempo-synced LFO. */
   private bpm = 120;
   /** Sidechain duck: duck non-drum channels on kick hits. */
@@ -1415,6 +1420,29 @@ export class AudioPort {
     return { gain: this.ctx.createGain(), pan: this.ctx.createStereoPanner() };
   }
 
+  /** Borrow a GainNode from synth pool, or create new. */
+  private borrowSynthGain(): GainNode {
+    return this.synthGainPool.pop() ?? this.ctx.createGain();
+  }
+  /** Borrow a BiquadFilterNode from synth pool, or create new. */
+  private borrowSynthFilter(): BiquadFilterNode {
+    return this.synthFilterPool.pop() ?? this.ctx.createBiquadFilter();
+  }
+  /** Return synth nodes to pool after voice cleanup. */
+  private returnSynthGain(g: GainNode): void {
+    if (this.synthGainPool.length < this.synthPoolMax) {
+      // Reset automation timeline so pooled node starts clean
+      try { g.gain.cancelScheduledValues(0); g.gain.value = 0; } catch { /* */ }
+      this.synthGainPool.push(g);
+    }
+  }
+  private returnSynthFilter(f: BiquadFilterNode): void {
+    if (this.synthFilterPool.length < this.synthPoolMax) {
+      try { f.frequency.cancelScheduledValues(0); f.Q.cancelScheduledValues(0); } catch { /* */ }
+      this.synthFilterPool.push(f);
+    }
+  }
+
   /** Return a Gain+Panner pair to the pool (disconnect src, keep gain→pan→bus wired). */
   private returnDrumNodes(pair: { gain: GainNode; pan: StereoPannerNode }): void {
     if (this.drumNodePool.length < this.drumNodePoolMax) {
@@ -1429,6 +1457,20 @@ export class AudioPort {
   private static readonly FM_GAIN: Record<number, number> = {
     36: 1.6, 38: 1.1, 42: 1.3, 46: 1.2, 47: 1.0,
     49: 1.1, 50: 0.9, 51: 1.0, 37: 1.0, 56: 0.9,
+  };
+
+  /** Shared onended handler — bound once, avoids per-hit closure allocation.
+   *  Maps BufferSourceNode → pooled nodes via WeakMap (no leak). */
+  private drumSrcNodes = new WeakMap<AudioBufferSourceNode, { gain: GainNode; pan: StereoPannerNode }>();
+  private readonly drumOnEnded = (e: Event) => {
+    const src = e.target as AudioBufferSourceNode;
+    this.activeDrumSrcs.delete(src);
+    try { src.disconnect(); } catch { /* */ }
+    const nodes = this.drumSrcNodes.get(src);
+    if (nodes) {
+      try { nodes.gain.disconnect(); nodes.pan.disconnect(); } catch { /* */ }
+      this.returnDrumNodes(nodes);
+    }
   };
 
   private playDrum(note: number, vel: number, time?: number): void {
@@ -1458,14 +1500,8 @@ export class AudioPort {
 
     // Track active drum sources and return nodes to pool when done
     this.activeDrumSrcs.add(src);
-    const nodes = { gain, pan };
-    src.onended = () => {
-      this.activeDrumSrcs.delete(src);
-      try { src.disconnect(); } catch { /* */ }
-      // Disconnect gain→pan→bus before returning to pool (clean slate)
-      try { gain.disconnect(); pan.disconnect(); } catch { /* */ }
-      this.returnDrumNodes(nodes);
-    };
+    this.drumSrcNodes.set(src, { gain, pan });
+    src.onended = this.drumOnEnded;
 
     // Safety: if too many drum sources active, kill oldest ones
     if (this.activeDrumSrcs.size > 16) {
@@ -1486,19 +1522,30 @@ export class AudioPort {
     // scheduled automation causes undefined behavior in the Web Audio spec.
     // Recovery uses setTimeout instead of setTargetAtTime for the same reason.
     if (this.sidechainDuck && note === 36) {
-      const duckTo = 1 - this.duckDepth;
-      const relMs = this.duckRelease * 1000;
-      for (const [ch, bus] of this.channelBuses) {
-        if (ch === DRUM_CH) continue;
-        const vol = this.channelVolumes.get(ch) ?? 1;
-        if (vol <= 0) continue;
-        bus.gain.value = vol * duckTo;
-        clearTimeout((bus as unknown as Record<string, number>).__duckTimer);
-        (bus as unknown as Record<string, number>).__duckTimer = window.setTimeout(() => {
-          bus.gain.value = vol;
-        }, relMs + 20) as unknown as number; // +20ms padding for audio thread scheduling jitter
-      }
+      this.applyDuck();
     }
+  }
+
+  // ── Sidechain duck (single timer, no per-kick allocation) ────────────
+
+  private duckTimer = 0;
+  private readonly duckRecover = () => {
+    for (const [ch, bus] of this.channelBuses) {
+      if (ch === DRUM_CH) continue;
+      bus.gain.value = this.channelVolumes.get(ch) ?? 1;
+    }
+  };
+  private applyDuck(): void {
+    const duckTo = 1 - this.duckDepth;
+    for (const [ch, bus] of this.channelBuses) {
+      if (ch === DRUM_CH) continue;
+      const vol = this.channelVolumes.get(ch) ?? 1;
+      if (vol <= 0) continue;
+      bus.gain.value = vol * duckTo;
+    }
+    // Single timer for all channels — re-kicks just reset it
+    clearTimeout(this.duckTimer);
+    this.duckTimer = window.setTimeout(this.duckRecover, this.duckRelease * 1000 + 20);
   }
 
   // ── Synth playback ───────────────────────────────────────────────────
@@ -1566,8 +1613,8 @@ export class AudioPort {
           cutoffParam.setValueAtTime(cutoffBase, when);
         }
       } else {
-        // Standard BiquadFilterNode
-        const bqFilter = this.ctx.createBiquadFilter();
+        // Standard BiquadFilterNode (pooled)
+        const bqFilter = this.borrowSynthFilter();
         bqFilter.type = p.filterType;
         bqFilter.Q.setValueAtTime(p.resonance, when);
         if (envDepth > 0) {
@@ -1582,7 +1629,7 @@ export class AudioPort {
     }
 
     // ADSR gain envelope — anchor at 0 before ramp (Chrome linearRamp fix)
-    const gain = this.ctx.createGain();
+    const gain = this.borrowSynthGain();
     gain.gain.value = 0;
     gain.gain.setValueAtTime(0, Math.max(0, when - 0.002));
     gain.gain.setValueAtTime(0, when);
@@ -1891,13 +1938,18 @@ export class AudioPort {
     }
   }
 
-  /** Disconnect all nodes in a voice from the audio graph to free memory. */
+  /** Disconnect all nodes in a voice from the audio graph to free memory.
+   *  Returns poolable nodes (gain, digital filter) to their pools. */
   private disconnectVoice(voice: SynthVoice): void {
     try {
       for (const o of voice.oscs) o.disconnect();
       for (const p of voice.panNodes) p.disconnect();
       voice.gain.disconnect();
-      if (voice.filter) voice.filter.disconnect();
+      this.returnSynthGain(voice.gain);
+      if (voice.filter) {
+        voice.filter.disconnect();
+        if (voice.filter instanceof BiquadFilterNode) this.returnSynthFilter(voice.filter);
+      }
       if (voice.subOsc) voice.subOsc.disconnect();
       if (voice.subGain) voice.subGain.disconnect();
       if (voice.lfo) voice.lfo.disconnect();
