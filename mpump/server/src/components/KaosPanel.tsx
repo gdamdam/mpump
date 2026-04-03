@@ -261,7 +261,7 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
     const draw = () => {
       waveRafRef.current = requestAnimationFrame(draw);
       if (perfMode !== "normal") return; // lite/eco: no visualizer
-      if (++vizFrameSkip % 6 !== 0) return; // ~10fps — reduce analyser pressure
+      if (++vizFrameSkip % 2 !== 0) return; // ~30fps (desktop only, skipped in lite/eco)
       const mode = getMode();
       const rect = canvas.getBoundingClientRect();
       const w = rect.width, h = rect.height;

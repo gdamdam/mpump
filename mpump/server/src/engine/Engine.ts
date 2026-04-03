@@ -1005,8 +1005,8 @@ export class Engine {
         (seq as T8Sequencer).setBassPattern(bassPattern);
       }
     }
-    // Notify UI so grid shows the active pattern
-    this.emitState();
+    // Notify UI so grid shows the active pattern — must be immediate
+    this.emitStateNow();
   }
 
   toggleChain(device: string, chainIdx: number): void {
