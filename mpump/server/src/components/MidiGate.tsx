@@ -53,6 +53,7 @@ export function MidiGate({ midiState, onConnectMidi, onPreview, midiSupported }:
         <div className="mg-seq-grid" ref={seqGridRef} />
       </div>
       <div className="midi-gate-inner">
+      <div style={{ position: "relative", display: "inline-block" }}>
       <pre className="midi-gate-logo" key={logoKey} style={{ cursor: "pointer" }} onClick={() => {
         logoClickCount.current++;
         setLogoKey(k => k + 1);
@@ -65,6 +66,8 @@ export function MidiGate({ midiState, onConnectMidi, onPreview, midiSupported }:
           logoClickCount.current = 0;
         }, 400);
       }}>{"█▀▄▀█ █▀█ █ █ █▀▄▀█ █▀█\n█ ▀ █ █▀▀ ▀▄▀ █ ▀ █ █▀▀"}</pre>
+      <span className="beta-badge">BETA</span>
+      </div>
 
       <div className="midi-gate-subtitle">Make a beat. Send it as a link.</div>
 
