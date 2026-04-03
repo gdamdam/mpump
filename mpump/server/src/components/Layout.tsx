@@ -1844,6 +1844,8 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
             getChannelAnalyser={getChannelAnalyser}
             pendingMutes={pendingMutes}
             onShowDrumKit={() => setShowDrumKitFromMixer(true)}
+            soloChannel={soloChannel}
+            onSoloChange={setSoloChannel}
           />
         ) : (
           connectedDevices.map(ds =>

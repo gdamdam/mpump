@@ -37,6 +37,8 @@ interface Props {
   getChannelAnalyser?: (ch: number) => AnalyserNode | null;
   pendingMutes?: Record<string, Set<string>>;
   onShowDrumKit?: () => void;
+  soloChannel?: "drums" | "bass" | "synth" | null;
+  onSoloChange?: (ch: "drums" | "bass" | "synth" | null) => void;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────
@@ -157,6 +159,7 @@ function MasterModal({ title, onClose, getAnalyser, children }: {
 export function MixerPanel({
   volume, onVolumeChange, channelVolumes, onChannelVolumeChange,
   devices, command, antiClipMode, getAnalyser, getChannelAnalyser, pendingMutes, onShowDrumKit,
+  soloChannel: soloProp, onSoloChange,
 }: Props) {
 
   // Pro controls visibility (LIMIT, MB, MS, DRV)
@@ -186,8 +189,10 @@ export function MixerPanel({
     return dev ? dev[def.muteField] : false;
   };
 
-  // Solo
-  const [soloChannel, setSoloChannel] = useState<"drums" | "bass" | "synth" | null>(null);
+  // Solo — use prop from Layout if available, otherwise local state
+  const [localSolo, setLocalSolo] = useState<"drums" | "bass" | "synth" | null>(null);
+  const soloChannel = soloProp !== undefined ? soloProp : localSolo;
+  const setSoloChannel = (v: "drums" | "bass" | "synth" | null) => { setLocalSolo(v); onSoloChange?.(v); };
   const toggleSolo = (key: "drums" | "bass" | "synth") => {
     const unsolo = soloChannel === key;
     command({ type: "set_drums_mute", device: "preview_drums", muted: unsolo ? false : key !== "drums" });

@@ -611,14 +611,33 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
     }
   }, [applyXY, gestureRec, onJamXY]);
 
+  const lastTapTime = useRef(0);
+  const resetXY = () => {
+    if (presetState) {
+      presetState.onSynthChange(presetState.activeSynth);
+      presetState.onBassChange(presetState.activeBass);
+    }
+    for (const fx of ["distortion", "highpass"] as const) {
+      command({ type: "set_effect", name: fx, params: { on: false } });
+    }
+    setPos(null); posRef.current = null;
+  };
+  const checkDoubleTap = () => {
+    const now = performance.now();
+    if (now - lastTapTime.current < 300) { resetXY(); lastTapTime.current = 0; return true; }
+    lastTapTime.current = now;
+    return false;
+  };
+
   const onMouseDown = (e: React.MouseEvent) => {
+    if (checkDoubleTap()) return;
     handlePadMove(e.clientX, e.clientY);
     const onMove = (ev: MouseEvent) => handlePadMove(ev.clientX, ev.clientY);
     const onUp = () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); };
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
   };
-  const onTouchStart = (e: React.TouchEvent) => { e.preventDefault(); handlePadMove(e.touches[0].clientX, e.touches[0].clientY); };
+  const onTouchStart = (e: React.TouchEvent) => { e.preventDefault(); if (checkDoubleTap()) return; handlePadMove(e.touches[0].clientX, e.touches[0].clientY); };
   const onTouchMove = (e: React.TouchEvent) => { e.preventDefault(); handlePadMove(e.touches[0].clientX, e.touches[0].clientY); };
   const onTouchEnd = () => { /* keep position visible */ };
 
@@ -973,22 +992,6 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
             CLR
           </button>
         </div>}
-        <span
-          className="mx-modal-reset"
-          style={{ position: "absolute", bottom: 6, right: 6 }}
-          onClick={(e) => {
-            e.stopPropagation();
-            if (presetState) {
-              presetState.onSynthChange(presetState.activeSynth);
-              presetState.onBassChange(presetState.activeBass);
-            }
-            for (const fx of ["distortion", "highpass"] as const) {
-              command({ type: "set_effect", name: fx, params: { on: false } });
-            }
-            setPos(null); posRef.current = null;
-          }}
-          title="Reset XY pad — restore preset sounds and clear position"
-        >reset</span>
       </div>
 
       {/* Step indicator ring */}
