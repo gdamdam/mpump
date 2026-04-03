@@ -993,7 +993,7 @@ export class AudioPort {
           scheduleBar(nextBar);
           nextBar += barDur;
         }
-      }, Math.max(50, barDur * 500)); // check frequently enough
+      }, Math.max(500, barDur * 500)); // reschedule once per half-bar minimum
 
       this.channelGates.set(ch, { lfo: null, depth: null, gate, on, timerId });
     } else {
@@ -1444,12 +1444,16 @@ export class AudioPort {
     this.activeDrumSrcs.add(src);
     src.onended = () => { this.activeDrumSrcs.delete(src); try { src.disconnect(); gain.disconnect(); pan.disconnect(); } catch { /* */ } };
 
-    // Safety: if too many drum sources active, kill oldest ones
+    // Safety: if too many drum sources active, kill oldest ones and clean up immediately
     if (this.activeDrumSrcs.size > 16) {
       const iter = this.activeDrumSrcs.values();
-      for (let i = 0; i < 4; i++) {
+      for (let i = 0; i < 8; i++) {
         const old = iter.next().value;
-        if (old) { try { old.stop(); } catch { /* */ } }
+        if (old) {
+          try { old.stop(); } catch { /* */ }
+          try { old.disconnect(); } catch { /* */ }
+          this.activeDrumSrcs.delete(old);
+        }
       }
     }
 
