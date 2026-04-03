@@ -230,9 +230,6 @@ export function useEngine() {
       case "set_channel_hpf":
         engine.setChannelHPF(msg.channel, msg.freq);
         break;
-      case "set_mid_side_eq":
-        engine.setMidSideEQ(msg.on);
-        break;
       case "set_channel_gate":
         engine.setChannelGate(msg.channel, msg.on, msg.rate, msg.depth, msg.shape, msg.mode, msg.pattern);
         break;

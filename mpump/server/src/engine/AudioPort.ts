@@ -59,15 +59,6 @@ export class AudioPort {
   private _driftBuf = new Float32Array(64);
   private _driftIdx = 0;
   private _driftCount = 0;
-  /** Mid-side EQ: cut low-mids on side channel for spatial mud reduction. */
-  private msEnabled = false;
-  private msSplitL: GainNode | null = null;
-  private msSplitR: GainNode | null = null;
-  private msMidGain: GainNode | null = null;
-  private msSideGain: GainNode | null = null;
-  private msSideEQ: BiquadFilterNode | null = null;
-  private msMerger: ChannelMergerNode | null = null;
-  private msSplitter: ChannelSplitterNode | null = null;
   /** Muted drum voice notes. */
   private mutedDrumNotes: Set<number> = new Set();
   /** Active drum sources — tracked to prevent accumulation. */
@@ -1289,10 +1280,7 @@ export class AudioPort {
 
   private applyWidth(): void {
     if (!this.widthGain) return;
-    const w = this._userWidth;
-    // If MS EQ is active, reduce width by 30% for low-mid side cut
-    const factor = this.msEnabled ? 0.7 : 1;
-    this.widthGain.gain.value = w * factor * 0.7;
+    this.widthGain.gain.value = this._userWidth * 0.7;
   }
 
   getWidth(): number {
@@ -1349,44 +1337,6 @@ export class AudioPort {
   private _lastCtxTime?: number;
   private _frozenCount?: number;
 
-  /** Enable/disable mid-side EQ (cuts low-mids on side channel). */
-  setMidSideEQ(on: boolean, freq = 300, gain = -4): void {
-    this.msEnabled = on;
-    if (!on) {
-      // Bypass: disconnect MS chain, reconnect direct
-      if (this.msSplitter) {
-        try { this.masterBoost.disconnect(this.msSplitter); } catch { /* */ }
-        if (this.msMerger) try { this.msMerger.disconnect(); } catch { /* */ }
-      }
-      this.applyWidth(); // restore width to user's setting (undo MS reduction)
-      return;
-    }
-    // Create MS chain if needed
-    if (!this.msSplitter) {
-      this.msSplitter = this.ctx.createChannelSplitter(2);
-      this.msMerger = this.ctx.createChannelMerger(2);
-      // Mid = (L+R)/2, Side = (L-R)/2
-      // Encode: midL = L, midR = R (keep original for mid)
-      // For side EQ: create sum/difference network
-      this.msMidGain = this.ctx.createGain();
-      this.msSideGain = this.ctx.createGain();
-      this.msSideEQ = this.ctx.createBiquadFilter();
-      this.msSideEQ.type = "peaking";
-      this.msSideEQ.Q.value = 1.0;
-    }
-    // Update EQ params
-    this.msSideEQ!.frequency.value = freq;
-    this.msSideEQ!.gain.value = gain;
-    // Wire: masterBoost → splitter → [L/R separate processing] → merger
-    // Simplified approach: apply side EQ as a stereo width reduction in the mud zone
-    // Use the existing stereo widening (Haas) path — adjust its gain based on frequency
-    // Actually simplest: just apply a mid-frequency cut on the stereo difference
-    // by reducing width at low-mids. This is effectively what MS EQ does.
-    // For browser: reduce Haas effect amount at low-mids = less side energy there
-    this.applyWidth();
-  }
-
-  getMidSideEQ(): boolean { return this.msEnabled; }
 
   /** Enable/disable metronome click. */
   setMetronome(on: boolean): void {

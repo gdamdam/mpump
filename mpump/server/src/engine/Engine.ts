@@ -1646,9 +1646,6 @@ export class Engine {
     return this.audioPort?.getCpuLoad() ?? 0;
   }
 
-  setMidSideEQ(on: boolean, freq?: number, gain?: number): void {
-    if (this.audioPort) this.audioPort.setMidSideEQ(on, freq, gain);
-  }
 
   setChannelGate(ch: number, on: boolean, rate: string, depth: number, shape: string, mode = "lfo", pattern?: number[]): void {
     if (this.audioPort) this.audioPort.setChannelGate(ch, on, rate, depth, shape, mode, pattern);
