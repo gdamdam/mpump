@@ -559,6 +559,31 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
   // Gesture recording/playback
   const { gestureRec, gestureLoop, gesturePoints, gestureStart, startGestureRec, stopGestureRec, startGestureLoop, stopGestureLoop, clearGesture } = useGestureRecorder({ allPaused, allPausedRef, applyXYRef, posRef, trailsRef, setPos, setTrails });
 
+  // Snapshot synth params + effect states on pad touch, restore on release
+  const xySnapshot = useRef<{ synth: Record<string, { cutoff: number; resonance: number }>; effects: Record<string, boolean> } | null>(null);
+  const snapshotXY = useCallback(() => {
+    const synth: Record<string, { cutoff: number; resonance: number }> = {};
+    for (const d of devices) {
+      if (d.mode === "synth" || d.mode === "bass") {
+        synth[d.id] = { cutoff: d.synthParams?.cutoff ?? 1800, resonance: d.synthParams?.resonance ?? 4 };
+      }
+    }
+    xySnapshot.current = { synth, effects: {} };
+  }, [devices]);
+  const restoreXY = useCallback(() => {
+    const snap = xySnapshot.current;
+    if (!snap) return;
+    // Restore synth params
+    for (const [id, params] of Object.entries(snap.synth)) {
+      command({ type: "set_synth_params", device: id, params });
+    }
+    // Turn off effects that XY may have enabled
+    for (const fx of ["distortion", "highpass"] as const) {
+      command({ type: "set_effect", name: fx, params: { on: false } });
+    }
+    xySnapshot.current = null;
+  }, [command]);
+
   const lastXYTime = useRef(0);
   const handlePadMove = useCallback((clientX: number, clientY: number) => {
     const pad = padRef.current;
@@ -587,15 +612,16 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
   }, [applyXY, gestureRec, onJamXY]);
 
   const onMouseDown = (e: React.MouseEvent) => {
+    snapshotXY();
     handlePadMove(e.clientX, e.clientY);
     const onMove = (ev: MouseEvent) => handlePadMove(ev.clientX, ev.clientY);
-    const onUp = () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); setPos(null); posRef.current = null; };
+    const onUp = () => { window.removeEventListener("mousemove", onMove); window.removeEventListener("mouseup", onUp); setPos(null); posRef.current = null; restoreXY(); };
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
   };
-  const onTouchStart = (e: React.TouchEvent) => { e.preventDefault(); handlePadMove(e.touches[0].clientX, e.touches[0].clientY); };
+  const onTouchStart = (e: React.TouchEvent) => { e.preventDefault(); snapshotXY(); handlePadMove(e.touches[0].clientX, e.touches[0].clientY); };
   const onTouchMove = (e: React.TouchEvent) => { e.preventDefault(); handlePadMove(e.touches[0].clientX, e.touches[0].clientY); };
-  const onTouchEnd = () => { setPos(null); posRef.current = null; };
+  const onTouchEnd = () => { setPos(null); posRef.current = null; restoreXY(); };
 
   // Trail decay + longPress cleanup
   useEffect(() => {
