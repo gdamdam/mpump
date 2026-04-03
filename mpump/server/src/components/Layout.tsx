@@ -1203,8 +1203,13 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
 
   useEffect(() => {
     // Save frequently (3s) so autosave is always fresh — don't save on
-    // beforeunload as it can overwrite with teardown state on Cmd+R
-    const id = setInterval(doAutoSave, 3_000);
+    // beforeunload as it can overwrite with teardown state on Cmd+R.
+    // Use requestIdleCallback when available to avoid blocking audio thread.
+    const ric = typeof requestIdleCallback === "function";
+    const id = setInterval(() => {
+      if (ric) requestIdleCallback(() => doAutoSave(), { timeout: 2000 });
+      else doAutoSave();
+    }, 3_000);
     // Save when tab becomes hidden (switching tabs, closing)
     const onHide = () => { if (document.visibilityState === "hidden") doAutoSave(); };
     document.addEventListener("visibilitychange", onHide);
