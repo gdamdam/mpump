@@ -260,7 +260,7 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
     let vizFrameSkip = 0;
     const draw = () => {
       waveRafRef.current = requestAnimationFrame(draw);
-      if (perfMode !== "normal") return; // lite/eco: no visualizer
+      if (perfMode !== "normal" || window.innerWidth < 600) return; // lite/eco/mobile: no visualizer
       if (++vizFrameSkip % 2 !== 0) return; // ~30fps (desktop only, skipped in lite/eco)
       const mode = getMode();
       const rect = canvas.getBoundingClientRect();
@@ -973,12 +973,11 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
             CLR
           </button>
         </div>}
-        <button
-          className="kaos-gesture-btn"
+        <span
+          className="mx-modal-reset"
           style={{ position: "absolute", bottom: 6, right: 6 }}
           onClick={(e) => {
             e.stopPropagation();
-            // Restore sound presets and clear position
             if (presetState) {
               presetState.onSynthChange(presetState.activeSynth);
               presetState.onBassChange(presetState.activeBass);
@@ -989,7 +988,7 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
             setPos(null); posRef.current = null;
           }}
           title="Reset XY pad — restore preset sounds and clear position"
-        >RST</button>
+        >reset</span>
       </div>
 
       {/* Step indicator ring */}
