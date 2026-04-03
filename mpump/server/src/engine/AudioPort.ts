@@ -1311,6 +1311,35 @@ export class AudioPort {
     return this.lowCutFilter.frequency.value;
   }
 
+  /** Apply a full mixer scene atomically — cheap .value mutations first,
+   *  then defer the expensive MB graph rebuild to the next frame. */
+  loadScene(scene: {
+    volumes: Record<number, number>;
+    pans: Record<number, number>;
+    chEQ: Record<number, { low: number; mid: number; high: number }>;
+    masterEQ: { low: number; mid: number; high: number };
+    drive: number; width: number; lowCut: number;
+    mbOn: boolean; mbAmount: number;
+  }): void {
+    // Batch 1: cheap .value assignments (no graph changes)
+    for (const [ch, v] of Object.entries(scene.volumes)) this.setChannelVolume(Number(ch), v);
+    for (const [ch, v] of Object.entries(scene.pans)) this.setChannelPan(Number(ch), v);
+    for (const [ch, eq] of Object.entries(scene.chEQ)) this.setChannelEQ(Number(ch), eq.low, eq.mid, eq.high);
+    this.setEQ(scene.masterEQ.low, scene.masterEQ.mid, scene.masterEQ.high);
+    this.setDrive(scene.drive);
+    this.setWidth(scene.width);
+    this.setLowCut(scene.lowCut);
+    // Batch 2: defer MB (triggers rebuildAntiClipChain) to next frame
+    if (this.mbEnabled !== scene.mbOn) {
+      setTimeout(() => {
+        this.setMultibandEnabled(scene.mbOn);
+        this.setMultibandAmount(scene.mbAmount);
+      }, 0);
+    } else {
+      this.setMultibandAmount(scene.mbAmount);
+    }
+  }
+
   /** Report scheduling drift from sequencer (ms). Called per step. */
   reportDrift(driftMs: number): void {
     this._driftBuf[this._driftIdx] = Math.abs(driftMs);

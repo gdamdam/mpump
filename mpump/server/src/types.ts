@@ -311,7 +311,8 @@ export type ClientMessage =
   | { type: "set_multiband"; on: boolean }
   | { type: "set_multiband_amount"; amount: number }
   | { type: "set_width"; width: number }
-  | { type: "set_low_cut"; freq: number };
+  | { type: "set_low_cut"; freq: number }
+  | { type: "load_scene"; volumes: Record<number, number>; pans: Record<number, number>; chEQ: Record<number, { low: number; mid: number; high: number }>; masterEQ: { low: number; mid: number; high: number }; drive: number; width: number; lowCut: number; mbOn: boolean; mbAmount: number };
 
 export type ArpMode = "up" | "down" | "up-down" | "random";
 export type ArpRate = "1/4" | "1/8" | "1/16";

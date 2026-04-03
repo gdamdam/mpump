@@ -1647,6 +1647,10 @@ export class Engine {
   }
 
 
+  loadScene(scene: Parameters<AudioPort["loadScene"]>[0]): void {
+    if (this.audioPort) this.audioPort.loadScene(scene);
+  }
+
   setChannelGate(ch: number, on: boolean, rate: string, depth: number, shape: string, mode = "lfo", pattern?: number[]): void {
     if (this.audioPort) this.audioPort.setChannelGate(ch, on, rate, depth, shape, mode, pattern);
   }

@@ -233,6 +233,9 @@ export function useEngine() {
       case "set_channel_gate":
         engine.setChannelGate(msg.channel, msg.on, msg.rate, msg.depth, msg.shape, msg.mode, msg.pattern);
         break;
+      case "load_scene":
+        engine.loadScene(msg);
+        break;
       case "set_channel_pan":
         engine.setChannelPan(msg.channel, msg.pan);
         break;
