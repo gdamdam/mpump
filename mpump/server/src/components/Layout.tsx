@@ -10,7 +10,6 @@ import { DevicePanel } from "./DevicePanel";
 import { JadePanel } from "./JadePanel";
 import { KaosPanel } from "./KaosPanel";
 import { BpmControl } from "./BpmControl";
-import { VuMeter } from "./VuMeter";
 import { TapTempo } from "./TapTempo";
 import { Recorder } from "./Recorder";
 import { PresetManager, type SavedPreset } from "./PresetManager";
@@ -1450,11 +1449,33 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
           <div className="track-title-row track-title-header track-style-a" title="Session info" style={{ cursor: "pointer" }}
             onClick={() => setShowSessionModal(true)}>
             <div className="track-title-marquee">
-              <span key={trackName} className="track-title-text">{trackName}</span>
+              <span key={trackName} className="track-title-text" style={{ animationDuration: `${Math.max(4, 240 / state.bpm)}s`, animationPlayState: allPaused ? "paused" : "running" }}>
+                {trackName} <span className="track-sep" style={{ animationDuration: `${60 / state.bpm}s`, animationPlayState: allPaused ? "paused" : "running" }}>●</span> {trackName} <span className="track-sep" style={{ animationDuration: `${60 / state.bpm}s`, animationPlayState: allPaused ? "paused" : "running" }}>●</span> {trackName} <span className="track-sep" style={{ animationDuration: `${60 / state.bpm}s`, animationPlayState: allPaused ? "paused" : "running" }}>●</span>
+              </span>
             </div>
           </div>
         )}
-        {isPreview && getAnalyser && !(localStorage.getItem("mpump-perf-mode") === "lite" || localStorage.getItem("mpump-perf-mode") === "eco") && <VuMeter getAnalyser={getAnalyser} />}
+        {isPreview && drumsStep >= 0 && (() => {
+          const step = drumsStep % 16;
+          const drums = connectedDevices.find(d => d.id === "preview_drums");
+          const bass = connectedDevices.find(d => d.id === "preview_bass");
+          const synth = connectedDevices.find(d => d.id === "preview_synth");
+          const dd = drums?.drum_data;
+          const bd = bass?.pattern_data;
+          const sd = synth?.pattern_data;
+          return <div className="header-step-bar">
+            <div style={{ display: "flex", flexDirection: "column", gap: 1, flex: 1 }}>
+              {[{ data: dd, type: "drum" }, { data: bd, type: "mel" }, { data: sd, type: "mel" }].map((row, r) => (
+                <div key={r} style={{ display: "flex", gap: 1 }}>
+                  {Array.from({ length: 16 }, (_, i) => {
+                    const has = row.type === "drum" ? (row.data as typeof dd)?.[i]?.length : (row.data as typeof bd)?.[i] != null;
+                    return <div key={i} className={`mg-seq-step${i === step ? " on" : has ? " dim-on" : ""}`} style={{ height: 5 }} />;
+                  })}
+                </div>
+              ))}
+            </div>
+          </div>;
+        })()}
         <div className="header-controls">
           {/* Row 1: BPM, mode switcher, MIX, undo, play, rec */}
           <div className="header-row header-row-transport">

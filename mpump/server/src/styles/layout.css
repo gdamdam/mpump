@@ -32,6 +32,9 @@
 .mg-seq-step.on { background: var(--preview); border-color: var(--preview); box-shadow: 0 0 6px rgba(102,255,153,0.5); }
 .mg-seq-step.dim-on { background: rgba(102,255,153,0.2); border-color: rgba(102,255,153,0.2); }
 
+.header-step-bar { display: flex; gap: 2px; flex: 1; min-width: 0; max-width: 560px; align-items: center; }
+.header-step-bar .mg-seq-step { height: 8px; }
+
 .midi-gate-inner {
   flex: 1;
   display: flex;
@@ -197,7 +200,7 @@
   cursor: pointer;
 }
 .track-title-marquee {
-  max-width: 280px;
+  max-width: 560px;
   overflow: hidden;
   background: color-mix(in srgb, var(--preview) 6%, transparent);
   border: 1px solid color-mix(in srgb, var(--preview) 20%, transparent);
@@ -208,7 +211,7 @@
 .track-title-text {
   display: inline-block;
   font-family: monospace;
-  font-size: 10px;
+  font-size: 13px;
   font-weight: 900;
   letter-spacing: 3px;
   text-transform: uppercase;
@@ -221,17 +224,29 @@
   opacity: 1;
 }
 
-/* Style A: scrolling marquee (Winamp) */
+/* Style A: scrolling marquee (Winamp) — continuous repeat */
 .track-style-a .track-title-text {
-  animation: marquee-scroll 12s linear infinite;
-  padding-right: 60px;
+  animation: marquee-scroll 16s linear infinite;
+  white-space: nowrap;
 }
 .track-style-a:hover .track-title-text {
   animation-play-state: paused;
 }
 @keyframes marquee-scroll {
-  0% { transform: translateX(100%); }
-  100% { transform: translateX(-100%); }
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-33.33%); }
+}
+.track-sep {
+  display: inline-block;
+  animation: sep-pulse linear infinite;
+  opacity: 0.4;
+  margin: 0 4px;
+  font-size: 0.7em;
+}
+@keyframes sep-pulse {
+  0%, 100% { opacity: 0.2; transform: scale(0.8); }
+  15% { opacity: 1; transform: scale(1.2); }
+  40% { opacity: 0.4; transform: scale(1); }
 }
 
 /* Style B: static centered (used in continue modal) */
@@ -250,9 +265,9 @@
   min-width: 0;
 }
 .track-title-header .track-title-marquee {
-  max-width: 180px;
+  max-width: 400px;
   padding: 1px 8px;
-  font-size: 9px;
+  font-size: 11px;
 }
 
 .midi-gate-btn-midi {
