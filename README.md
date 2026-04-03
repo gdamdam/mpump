@@ -8,7 +8,7 @@
 ---
 
 <p align="center">
-  <img src="mpump-demo.gif?v=1.5.6" width="600" alt="mpump demo">
+  <img src="mpump-demo.gif?v=1.5.7" width="600" alt="mpump demo">
 </p>
 
 You make a groove, send the link, and the other person opens it in their browser — same beat, same sounds. They change it and send it back different. Or they join live and you play together.
@@ -18,7 +18,7 @@ It starts fast, sounds good, and stays out of the way.
 No install, no account, no personal data. Your stuff stays in your browser. Free forever.
 
 <p align="center">
-  <a href="https://github.com/gdamdam/mpump"><img src="https://img.shields.io/badge/version-1.5.6-blue" alt="Version"></a>
+  <a href="https://github.com/gdamdam/mpump"><img src="https://img.shields.io/badge/version-1.5.7-blue" alt="Version"></a>
   <a href="https://github.com/gdamdam/mpump/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue" alt="License"></a>
   <img src="https://img.shields.io/badge/Web%20Audio-API-FF6600" alt="Web Audio API">
   <img src="https://img.shields.io/badge/AudioWorklet-DSP-FF6600" alt="AudioWorklet">
