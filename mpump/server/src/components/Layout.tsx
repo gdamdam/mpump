@@ -186,6 +186,7 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
   const [soloChannel, setSoloChannel] = useState<"drums" | "bass" | "synth" | null>(null);
   const [kbdFocusDevice, setKbdFocusDevice] = useState<string | null>(null);
   const [showBpmModal, setShowBpmModal] = useState(false);
+  const [showSessionModal, setShowSessionModal] = useState(false);
   const [showDrumKitFromMixer, setShowDrumKitFromMixer] = useState(false);
   const [keyLocked, setKeyLocked] = useState(false);
   const [channelVolumes, setChannelVolumes] = useState<Record<number, number>>({ 9: 0.7, 0: 0.45, 1: 0.53 });
@@ -1491,29 +1492,9 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
         </div>
         {/* Track title: between logo and VU */}
         {isPreview && (
-          <div className="track-title-row track-title-header track-style-a" title="Click to rename">
-            <div className="track-title-marquee" onClick={(e) => {
-              const span = e.currentTarget.querySelector('.track-title-text') as HTMLElement;
-              if (!span || span.contentEditable === "true") return;
-              span.contentEditable = "true";
-              span.style.animation = "none";
-              span.style.cursor = "text";
-              span.focus();
-              const range = document.createRange();
-              range.selectNodeContents(span);
-              window.getSelection()?.removeAllRanges();
-              window.getSelection()?.addRange(range);
-              const done = () => {
-                span.contentEditable = "false";
-                span.style.animation = "";
-                span.style.cursor = "";
-                const text = span.textContent?.trim();
-                if (text) setTrackName(text);
-                else span.textContent = trackName;
-              };
-              span.onblur = done;
-              span.onkeydown = (ev) => { if (ev.key === "Enter") { ev.preventDefault(); span.blur(); } if (ev.key === "Escape") { span.textContent = trackName; span.blur(); } };
-            }}>
+          <div className="track-title-row track-title-header track-style-a" title="Session info" style={{ cursor: "pointer" }}
+            onClick={() => setShowSessionModal(true)}>
+            <div className="track-title-marquee">
               <span key={trackName} className="track-title-text">{trackName}</span>
             </div>
           </div>
@@ -1647,7 +1628,7 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
             <div className="header-transport-group">
               <button
                 className={`shuffle-btn ${isPreview ? "shuffle-btn-preview" : ""}`}
-                title={`Randomize genre & pattern on all devices (R)\n${mixCountRef.current} mix${mixCountRef.current !== 1 ? "es" : ""} · ${sessionMin < 1 ? "<1m" : sessionMin < 60 ? `${sessionMin}m` : `${Math.floor(sessionMin / 60)}h${sessionMin % 60 > 0 ? ` ${sessionMin % 60}m` : ""}`}`}
+                title={`MIX — ${mixCountRef.current} mix${mixCountRef.current !== 1 ? "es" : ""} in ${sessionMin < 1 ? "<1 min" : sessionMin < 60 ? `${sessionMin} min` : `${Math.floor(sessionMin / 60)}h ${sessionMin % 60 > 0 ? `${sessionMin % 60}m` : ""}`} session`}
                 onClick={doMix}
                 disabled={isListenerMode}
                 style={isListenerMode ? { opacity: 0.3, pointerEvents: "none" } : undefined}
@@ -1949,6 +1930,33 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
           )
         )}
       </main>
+
+      {showSessionModal && (() => {
+        const sessionDur = sessionMin < 1 ? "<1 min" : sessionMin < 60 ? `${sessionMin} min` : `${Math.floor(sessionMin / 60)}h ${sessionMin % 60 > 0 ? `${sessionMin % 60}m` : ""}`;
+        return (
+          <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 9999, display: "flex", justifyContent: "center", paddingTop: 60 }} onClick={() => setShowSessionModal(false)}>
+            <div style={{ background: "var(--bg)", border: "1px solid var(--border)", borderRadius: 8, maxWidth: 340, width: "90%", padding: 20, height: "fit-content" }} onClick={(e) => e.stopPropagation()}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                <span style={{ fontWeight: 700, fontSize: 14, letterSpacing: 1 }}>SESSION INFO</span>
+                <button className="mx-btn" onClick={() => setShowSessionModal(false)} style={{ fontSize: 12 }}>✕</button>
+              </div>
+              <div style={{ marginBottom: 12 }}>
+                <label style={{ fontSize: 10, opacity: 0.6, display: "block", marginBottom: 2 }}>TRACK PLAYING NOW</label>
+                <input type="text" defaultValue={trackName} style={{
+                  width: "100%", background: "rgba(255,255,255,0.05)", border: "1px solid var(--border)",
+                  color: "var(--text)", padding: "6px 8px", borderRadius: 4, fontSize: 14, fontFamily: "var(--mono)",
+                  boxSizing: "border-box",
+                }} onBlur={(e) => { const t = e.target.value.trim(); if (t) setTrackName(t); }}
+                  onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} />
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, fontSize: 12, opacity: 0.8, marginTop: 8 }}>
+                <div><span style={{ opacity: 0.5 }}>Session duration</span><br />{sessionDur}</div>
+                <div><span style={{ opacity: 0.5 }}>MIX count</span><br />{mixCountRef.current}</div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {showSettings && (
         <Settings

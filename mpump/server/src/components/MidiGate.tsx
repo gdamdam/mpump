@@ -54,22 +54,22 @@ export function MidiGate({ midiState, onConnectMidi, onPreview, midiSupported }:
       </div>
       <div className="midi-gate-inner">
       <div style={{ position: "relative", display: "inline-block" }}>
-      <pre className="midi-gate-logo" key={logoKey} style={{ cursor: "pointer" }} onClick={() => {
-        logoClickCount.current++;
-        setLogoKey(k => k + 1);
-        clearTimeout(logoClickTimer.current);
-        logoClickTimer.current = window.setTimeout(() => {
-          if (logoClickCount.current >= 2) {
-            const p = PALETTES[Math.floor(Math.random() * PALETTES.length)];
-            applyPalette(p);
-          }
-          logoClickCount.current = 0;
-        }, 400);
-      }}>{"█▀▄▀█ █▀█ █ █ █▀▄▀█ █▀█\n█ ▀ █ █▀▀ ▀▄▀ █ ▀ █ █▀▀"}</pre>
-      <span className="beta-badge">BETA</span>
+        <pre className="midi-gate-logo" key={logoKey} style={{ cursor: "pointer", marginBottom: 0 }} onClick={() => {
+          logoClickCount.current++;
+          setLogoKey(k => k + 1);
+          clearTimeout(logoClickTimer.current);
+          logoClickTimer.current = window.setTimeout(() => {
+            if (logoClickCount.current >= 2) {
+              const p = PALETTES[Math.floor(Math.random() * PALETTES.length)];
+              applyPalette(p);
+            }
+            logoClickCount.current = 0;
+          }, 400);
+        }}>{"█▀▄▀█ █▀█ █ █ █▀▄▀█ █▀█\n█ ▀ █ █▀▀ ▀▄▀ █ ▀ █ █▀▀"}</pre>
+        <span className="beta-badge" style={{ position: "absolute", bottom: 2, right: -34 }}>BETA</span>
       </div>
 
-      <div className="midi-gate-subtitle">Make a beat. Send it as a link.</div>
+      <div className="midi-gate-subtitle">Make a beat. Share it as a link.</div>
 
       <button className="midi-gate-btn-preview" title="Start playing with browser audio"
         onClick={() => { trackEvent("play-start"); setLogoKey(k => k + 1); clearTimeout(flashTimer.current); flashTimer.current = window.setTimeout(() => onPreview(), 450); }}>
