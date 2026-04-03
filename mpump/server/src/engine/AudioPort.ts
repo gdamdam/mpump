@@ -75,10 +75,12 @@ export class AudioPort {
   /** Pooled drum Gain+Panner pairs — avoids per-hit node creation (GC pressure). */
   private drumNodePool: { gain: GainNode; pan: StereoPannerNode }[] = [];
   private drumNodePoolMax = 24;
-  /** Pooled synth GainNodes (envelope) — reused across voice lifecycles. */
+  /** Pooled synth GainNodes (envelope + drift) — reused across voice lifecycles. */
   private synthGainPool: GainNode[] = [];
   /** Pooled BiquadFilterNodes (digital filter) — reused across voice lifecycles. */
   private synthFilterPool: BiquadFilterNode[] = [];
+  /** Pooled StereoPannerNodes (unison/detune panning) — reused across voices. */
+  private synthPannerPool: StereoPannerNode[] = [];
   private synthPoolMax = 16;
   /** Current BPM for tempo-synced LFO. */
   private bpm = 120;
@@ -1492,6 +1494,16 @@ export class AudioPort {
       this.synthFilterPool.push(f);
     }
   }
+  /** Borrow a StereoPannerNode from synth pool, or create new. */
+  private borrowSynthPanner(): StereoPannerNode {
+    return this.synthPannerPool.pop() ?? this.ctx.createStereoPanner();
+  }
+  private returnSynthPanner(p: StereoPannerNode): void {
+    if (this.synthPannerPool.length < this.synthPoolMax) {
+      try { p.pan.cancelScheduledValues(0); p.pan.value = 0; } catch { /* */ }
+      this.synthPannerPool.push(p);
+    }
+  }
 
   /** Return a Gain+Panner pair to the pool (disconnect src, keep gain→pan→bus wired). */
   private returnDrumNodes(pair: { gain: GainNode; pan: StereoPannerNode }): void {
@@ -1693,11 +1705,11 @@ export class AudioPort {
     let driveCompNode: GainNode | null = null;
     const filterDriveAmt = p.filterDrive ?? 0;
     if (filter && filterDriveAmt > 0) {
-      filterDriveNode = this.ctx.createGain();
+      filterDriveNode = this.borrowSynthGain();
       // Drive range: 1x (clean) to 8x (heavy overdrive into filter)
       filterDriveNode.gain.value = 1 + filterDriveAmt * 7;
       // Compensate output volume
-      driveCompNode = this.ctx.createGain();
+      driveCompNode = this.borrowSynthGain();
       driveCompNode.gain.value = 1 / (1 + filterDriveAmt * 3);
       // Wire: oscs → filterDriveNode → filter → driveComp → gain
       filterDriveNode.connect(filter);
@@ -1725,7 +1737,7 @@ export class AudioPort {
       const driftLfo = this.ctx.createOscillator();
       driftLfo.type = "sine";
       driftLfo.frequency.value = 0.15 + Math.random() * 0.2;
-      const driftGain = this.ctx.createGain();
+      const driftGain = this.borrowSynthGain();
       driftGain.gain.value = freq * driftAmount;
       driftLfo.connect(driftGain);
       driftGain.connect(osc.frequency);
@@ -1842,9 +1854,9 @@ export class AudioPort {
         const detuneCents = t * unisonSpread + (p.detune ?? 0);
         const panVal = t * 0.8;
 
-        const voiceAmp = this.ctx.createGain();
+        const voiceAmp = this.borrowSynthGain();
         voiceAmp.gain.value = voiceGain;
-        const pan = this.ctx.createStereoPanner();
+        const pan = this.borrowSynthPanner();
         pan.pan.value = panVal;
         voiceAmp.connect(pan);
         pan.connect(filterInput);
@@ -1856,9 +1868,9 @@ export class AudioPort {
       }
     } else if (p.detune && p.detune > 0) {
       // Stereo detune: 2 oscillators panned L/R
-      const panL = this.ctx.createStereoPanner();
+      const panL = this.borrowSynthPanner();
       panL.pan.value = -0.7;
-      const panR = this.ctx.createStereoPanner();
+      const panR = this.borrowSynthPanner();
       panR.pan.value = 0.7;
       panL.connect(filterInput);
       panR.connect(filterInput);
@@ -1993,7 +2005,7 @@ export class AudioPort {
   private disconnectVoice(voice: SynthVoice): void {
     try {
       for (const o of voice.oscs) o.disconnect();
-      for (const p of voice.panNodes) p.disconnect();
+      for (const p of voice.panNodes) { p.disconnect(); this.returnSynthPanner(p); }
       voice.gain.disconnect();
       this.returnSynthGain(voice.gain);
       if (voice.filter) {
@@ -2003,9 +2015,12 @@ export class AudioPort {
       if (voice.subOsc) voice.subOsc.disconnect();
       if (voice.subGain) voice.subGain.disconnect();
       if (voice.lfo) voice.lfo.disconnect();
-      for (const g of voice.lfoGains) g.disconnect();
+      for (const g of voice.lfoGains) { g.disconnect(); this.returnSynthGain(g); }
       for (const d of voice.driftLFOs) { try { d.stop(); d.disconnect(); } catch { /* */ } }
-      for (const n of voice.pwmExtras) { try { n.disconnect(); } catch { /* */ } }
+      for (const n of voice.pwmExtras) {
+        try { n.disconnect(); } catch { /* */ }
+        if (n instanceof GainNode) this.returnSynthGain(n);
+      }
       for (const w of voice.workletOscs) { try { w.disconnect(); } catch { /* */ } }
     } catch { /* already disconnected */ }
   }

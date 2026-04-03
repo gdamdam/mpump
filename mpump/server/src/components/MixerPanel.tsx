@@ -365,32 +365,29 @@ export function MixerPanel({
 
   const loadProfile = (p: MixProfile) => {
     setActiveScene(p.name);
-    // Apply volumes
+    // Batch 1: cheap .value mutations (volumes, pans, EQ params, drive, width, low cut)
     for (const [ch, v] of Object.entries(p.volumes)) onChannelVolumeChange(Number(ch), v);
-    // Pans
     for (const [ch, v] of Object.entries(p.pans)) setPan(Number(ch), v);
-    // Mono
     for (const [ch, v] of Object.entries(p.chMono)) {
       const n = Number(ch);
       if ((chMono[n] ?? false) !== v) toggleChMono(n);
     }
-    // Channel EQ
     setChEQ(p.chEQ);
     for (const [ch, eq] of Object.entries(p.chEQ)) {
       command({ type: "set_channel_eq", channel: Number(ch), ...eq } as ClientMessage);
     }
-    // Master EQ
     setEqLow(p.masterEQ.low); setEqMid(p.masterEQ.mid); setEqHigh(p.masterEQ.high);
     command({ type: "set_eq", ...p.masterEQ } as ClientMessage);
-    // Drive
     setDrive(p.drive); command({ type: "set_drive", db: p.drive });
-    // Width
     setWidth(p.width); command({ type: "set_width", width: p.width } as ClientMessage);
-    // Low cut
     setLowCut(p.lowCut); command({ type: "set_low_cut", freq: p.lowCut } as ClientMessage);
-    // MB
-    setMbOn(p.mbOn); command({ type: "set_multiband", on: p.mbOn } as ClientMessage);
-    setMbAmount(p.mbAmount); command({ type: "set_multiband_amount", amount: p.mbAmount } as ClientMessage);
+    // Batch 2: defer expensive graph rebuild (MB on/off triggers rebuildAntiClipChain)
+    // to next frame so cheap mutations settle first
+    setMbOn(p.mbOn); setMbAmount(p.mbAmount);
+    requestAnimationFrame(() => {
+      command({ type: "set_multiband", on: p.mbOn } as ClientMessage);
+      command({ type: "set_multiband_amount", amount: p.mbAmount } as ClientMessage);
+    });
   };
 
   const deleteProfile = (name: string) => {
