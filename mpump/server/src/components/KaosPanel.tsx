@@ -577,9 +577,9 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
       if (gestureStart.current === 0) gestureStart.current = performance.now();
       gesturePoints.current.push({ t: performance.now() - gestureStart.current, x: nx, y: ny });
     }
-    // Throttle commands to every 50ms (~20fps — enough for smooth control, light on audio thread)
+    // Throttle commands to every 80ms (~12fps — smooth enough for control, reduces audio thread pressure)
     const now = performance.now();
-    if (now - lastXYTime.current > 50) {
+    if (now - lastXYTime.current > 80) {
       lastXYTime.current = now;
       applyXY(nx, ny);
       onJamXY?.(nx, ny);

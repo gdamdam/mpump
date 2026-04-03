@@ -230,6 +230,21 @@ export class AudioPort {
           this.voices.delete(key);
         }
       }
+      // Flush automation timelines on persistent nodes to prevent buildup.
+      // cancelScheduledValues(0) clears ALL events (past + future), then we
+      // re-set the current value so the node continues at the right level.
+      const ct = this.ctx.currentTime;
+      try {
+        this.master.gain.cancelScheduledValues(0);
+        this.master.gain.setValueAtTime(this.master.gain.value, ct);
+      } catch { /* */ }
+      for (const [, bus] of this.channelBuses) {
+        try {
+          bus.gain.cancelScheduledValues(0);
+          bus.gain.setValueAtTime(bus.gain.value, ct);
+        } catch { /* */ }
+      }
+
       // CPU drift: compute average from samples, reset
       if (this._driftSamples.length > 0) {
         this._maxDrift = Math.max(...this._driftSamples);
@@ -969,8 +984,8 @@ export class AudioPort {
       let nextBar = now + barDur * 2;
       const timerId = window.setInterval(() => {
         const ct = this.ctx.currentTime;
-        // Clear past automation to prevent timeline buildup
-        gate.gain.cancelScheduledValues(ct);
+        // Clear ALL automation to prevent timeline buildup (past events accumulate)
+        gate.gain.cancelScheduledValues(0);
         gate.gain.setValueAtTime(gate.gain.value, ct);
         // Schedule bars until we're 2 bars ahead
         while (nextBar < ct + barDur * 2) {
