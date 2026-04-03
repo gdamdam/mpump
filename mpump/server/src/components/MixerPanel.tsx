@@ -268,6 +268,19 @@ export function MixerPanel({
     return () => window.removeEventListener("mpump-settings-changed", h);
   }, []);
 
+  // Throttled command for continuous controls (sliders) — prevents audio thread overload
+  const pendingCmd = useRef<ClientMessage | null>(null);
+  const cmdTimer = useRef(0);
+  const throttledCmd = useCallback((msg: ClientMessage) => {
+    pendingCmd.current = msg;
+    if (cmdTimer.current) return; // already scheduled
+    command(msg); // send first one immediately
+    cmdTimer.current = window.setTimeout(() => {
+      cmdTimer.current = 0;
+      if (pendingCmd.current) command(pendingCmd.current);
+    }, 60);
+  }, [command]);
+
   const getDevice = (id: string) => devices.find(d => d.id === id);
   const isMuted = (def: ChannelDef) => {
     const dev = getDevice(def.muteDevice);
@@ -347,11 +360,15 @@ export function MixerPanel({
   const [chHPF, setChHPF] = useState<Record<number, number>>({ 1: 50, 0: 40 });
   const [showChEQ, setShowChEQ] = useState<number | null>(null);
   const getChEQ = (ch: number) => chEQ[ch] ?? { low: 0, mid: 0, high: 0 };
+  const chEQUndoTimer = useRef(0);
   const updateChEQ = (ch: number, band: "low" | "mid" | "high", v: number) => {
-    pushMixerUndo();
+    // Debounce undo: only push once per drag gesture (300ms gap)
+    if (!chEQUndoTimer.current) pushMixerUndo();
+    clearTimeout(chEQUndoTimer.current);
+    chEQUndoTimer.current = window.setTimeout(() => { chEQUndoTimer.current = 0; }, 300);
     const eq = { ...getChEQ(ch), [band]: v };
     setChEQ(prev => ({ ...prev, [ch]: eq }));
-    command({ type: "set_channel_eq", channel: ch, low: eq.low, mid: eq.mid, high: eq.high } as ClientMessage);
+    throttledCmd({ type: "set_channel_eq", channel: ch, low: eq.low, mid: eq.mid, high: eq.high } as ClientMessage);
     setActiveScene(null);
   };
   const [showEqModal, setShowEqModal] = useState(false);
@@ -711,9 +728,9 @@ export function MixerPanel({
             </svg>;
           })()}
           {[
-            { label: "LOW", value: eqLow, onChange: (v: number) => { setEqLow(v); command({ type: "set_eq", low: v, mid: eqMid, high: eqHigh } as ClientMessage); }, min: -12, max: 12, step: 1 },
-            { label: "MID", value: eqMid, onChange: (v: number) => { setEqMid(v); command({ type: "set_eq", low: eqLow, mid: v, high: eqHigh } as ClientMessage); }, min: -12, max: 12, step: 1 },
-            { label: "HIGH", value: eqHigh, onChange: (v: number) => { setEqHigh(v); command({ type: "set_eq", low: eqLow, mid: eqMid, high: v } as ClientMessage); }, min: -12, max: 12, step: 1 },
+            { label: "LOW", value: eqLow, onChange: (v: number) => { setEqLow(v); throttledCmd({ type: "set_eq", low: v, mid: eqMid, high: eqHigh } as ClientMessage); }, min: -12, max: 12, step: 1 },
+            { label: "MID", value: eqMid, onChange: (v: number) => { setEqMid(v); throttledCmd({ type: "set_eq", low: eqLow, mid: v, high: eqHigh } as ClientMessage); }, min: -12, max: 12, step: 1 },
+            { label: "HIGH", value: eqHigh, onChange: (v: number) => { setEqHigh(v); throttledCmd({ type: "set_eq", low: eqLow, mid: eqMid, high: v } as ClientMessage); }, min: -12, max: 12, step: 1 },
           ].map(({ label, value, onChange, min, max, step }) => (
             <div className="fx-editor-row" key={label}>
               <span className="fx-editor-label">{label}</span>
@@ -725,13 +742,13 @@ export function MixerPanel({
           <div className="fx-editor-row">
             <span className="fx-editor-label">WIDTH</span>
             <input type="range" min={0} max={1} step={0.05} value={width} className="fx-editor-slider"
-              onChange={(e) => { const v = parseFloat(e.target.value); setWidth(v); command({ type: "set_width", width: v } as ClientMessage); }} />
+              onChange={(e) => { const v = parseFloat(e.target.value); setWidth(v); throttledCmd({ type: "set_width", width: v } as ClientMessage); }} />
             <span className="fx-editor-value">{Math.round(width * 100)}%</span>
           </div>
           <div className="fx-editor-row">
             <span className="fx-editor-label">LO CUT</span>
             <input type="range" min={0} max={200} step={5} value={lowCut} className="fx-editor-slider"
-              onChange={(e) => { const v = parseFloat(e.target.value); setLowCut(v); command({ type: "set_low_cut", freq: v } as ClientMessage); }} />
+              onChange={(e) => { const v = parseFloat(e.target.value); setLowCut(v); throttledCmd({ type: "set_low_cut", freq: v } as ClientMessage); }} />
             <span className="fx-editor-value">{lowCut === 0 ? "OFF" : `${lowCut} Hz`}</span>
           </div>
           <span className="mx-modal-reset" onClick={() => {
@@ -789,7 +806,7 @@ export function MixerPanel({
             {(ch === 1 || ch === 0) && <div className="fx-editor-row">
               <span className="fx-editor-label">Low Cut</span>
               <input type="range" min={20} max={200} step={5} value={chHPF[ch] ?? 0} className="fx-editor-slider"
-                onChange={(e) => { const f = parseFloat(e.target.value); setChHPF(prev => ({ ...prev, [ch]: f })); command({ type: "set_channel_hpf", channel: ch, freq: f } as ClientMessage); }} />
+                onChange={(e) => { const f = parseFloat(e.target.value); setChHPF(prev => ({ ...prev, [ch]: f })); throttledCmd({ type: "set_channel_hpf", channel: ch, freq: f } as ClientMessage); }} />
               <span className="fx-editor-value">{chHPF[ch] ?? 0} Hz</span>
             </div>}
             <span className="mx-modal-reset" onClick={() => {
@@ -916,7 +933,7 @@ export function MixerPanel({
           <div className="fx-editor-row">
             <span className="fx-editor-label">DRIVE</span>
             <input type="range" min={-6} max={12} step={0.5} value={drive} className="fx-editor-slider"
-              onChange={(e) => { const v = parseFloat(e.target.value); setDrive(v); command({ type: "set_drive", db: v }); }} />
+              onChange={(e) => { const v = parseFloat(e.target.value); setDrive(v); throttledCmd({ type: "set_drive", db: v }); }} />
             <span className="fx-editor-value">{drive > 0 ? "+" : ""}{drive.toFixed(1)} dB</span>
           </div>
           <span className="mx-modal-reset" onClick={() => {
@@ -967,7 +984,7 @@ export function MixerPanel({
           <div className="fx-editor-row">
             <span className="fx-editor-label">AMOUNT</span>
             <input type="range" min={0} max={1} step={0.05} value={mbAmount} className="fx-editor-slider"
-              onChange={(e) => { const v = parseFloat(e.target.value); setMbAmount(v); command({ type: "set_multiband_amount", amount: v } as ClientMessage); }} />
+              onChange={(e) => { const v = parseFloat(e.target.value); setMbAmount(v); throttledCmd({ type: "set_multiband_amount", amount: v } as ClientMessage); }} />
             <span className="fx-editor-value">{Math.round(mbAmount * 100)}%</span>
           </div>
           <span className="mx-modal-reset" onClick={() => {
