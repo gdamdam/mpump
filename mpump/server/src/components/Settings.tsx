@@ -299,6 +299,10 @@ export function Settings({ volume, onVolumeChange, onClose, swing, onSwingChange
                   onClick={() => { const next = !getBool("mpump-wave-tap"); setBool("mpump-wave-tap", next); window.dispatchEvent(new Event("mpump-settings-changed")); refreshToggles(); }}>
                   <span className="settings-toggle-dot" />Wave Tap Tempo
                 </button>
+                <button className={`settings-toggle ${getBool("mpump-mixer-advanced") ? "on" : ""}`} title="Show LIMIT, MB, MS, DRV controls in mixer"
+                  onClick={() => { const next = !getBool("mpump-mixer-advanced"); setBool("mpump-mixer-advanced", next); window.dispatchEvent(new Event("mpump-settings-changed")); refreshToggles(); }}>
+                  <span className="settings-toggle-dot" />Mixer Pro Controls
+                </button>
               </div>
               <div className="settings-hint" style={{ marginTop: 8 }}>
                 ←→ focus · ↑↓ sound · Shift+←→ pattern · Shift+↑↓ genre · M mute · S solo · L lock · Tab view

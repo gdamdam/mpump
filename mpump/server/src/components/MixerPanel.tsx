@@ -2,7 +2,7 @@ import { useRef, useEffect, useState, useCallback } from "react";
 import type { ClientMessage, DeviceState, EffectParams, EffectName } from "../types";
 import { DEFAULT_EFFECTS } from "../types";
 import { tapVibrate } from "../utils/haptic";
-import { getJSON, setJSON } from "../utils/storage";
+import { getJSON, setJSON, getBool } from "../utils/storage";
 import { EffectEditor } from "./EffectEditor";
 import { ClipIndicator } from "./VuMeter";
 
@@ -259,6 +259,14 @@ export function MixerPanel({
   volume, onVolumeChange, channelVolumes, onChannelVolumeChange,
   devices, command, antiClipMode, getAnalyser, getChannelAnalyser, pendingMutes, onShowDrumKit,
 }: Props) {
+
+  // Pro controls visibility (LIMIT, MB, MS, DRV)
+  const [showPro, setShowPro] = useState(() => getBool("mpump-mixer-advanced"));
+  useEffect(() => {
+    const h = () => setShowPro(getBool("mpump-mixer-advanced"));
+    window.addEventListener("mpump-settings-changed", h);
+    return () => window.removeEventListener("mpump-settings-changed", h);
+  }, []);
 
   const getDevice = (id: string) => devices.find(d => d.id === id);
   const isMuted = (def: ChannelDef) => {
@@ -627,7 +635,7 @@ export function MixerPanel({
             title={`Master volume: ${volToDb(volume)} dB`}
           />
           <div className="mx-db-label">{volToDb(volume)} dB</div>
-          <div className="mx-btn-row">
+          {showPro && <div className="mx-btn-row">
             <button
               className={`mx-btn mx-btn-limit ${antiClipMode !== "off" ? "active" : ""}`}
               onClick={toggleAntiClip}
@@ -638,13 +646,13 @@ export function MixerPanel({
               onClick={() => setShowMbModal(true)}
               title={`Multiband compression: ${mbOn ? "on" : "off"}`}
             >MB</button>
-          </div>
+          </div>}
           <div className="mx-btn-row" style={{ marginTop: 4 }}>
-            <button
+            {showPro && <button
               className={`mx-btn ${drive !== 0 ? "active" : ""}`}
               onClick={() => setShowDrvModal(true)}
               title={`Drive: ${drive > 0 ? "+" : ""}${drive.toFixed(1)} dB`}
-            >DRV</button>
+            >DRV</button>}
             <button
               className={`mx-btn ${(eqLow !== 1 || eqMid !== 0 || eqHigh !== 0) ? "active" : ""}`}
               onClick={() => setShowEqModal(true)}
@@ -656,11 +664,11 @@ export function MixerPanel({
               title={activeScene ? `Scene: ${activeScene}` : "Mix scenes"}
               style={{ fontSize: 9, maxWidth: 44, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
             >{activeScene ? activeScene.slice(0, 4).toUpperCase() : "SCN"}</button>
-            <button
+            {showPro && <button
               className={`mx-btn ${msEqOn ? "active" : ""}`}
               onClick={() => { const next = !msEqOn; setMsEqOn(next); command({ type: "set_mid_side_eq", on: next } as ClientMessage); }}
               title={msEqOn ? "Mid-Side EQ: ON — cuts low-mids on side channel" : "Mid-Side EQ: OFF"}
-            >MS</button>
+            >MS</button>}
           </div>
         </div>
       </div>
