@@ -50,8 +50,8 @@ class DiodeFilterProcessor extends AudioWorkletProcessor {
 
       const mono = (inL[i] + (inR ? inR[i] : inL[i])) * 0.5;
 
-      // 10% extra feedback boost vs Moog — gives 303's sharper, squelchier resonance
-      const feedback = res * 1.1 * this.y[3];
+      // Feedback with input compensation for stability (matches Moog pattern)
+      const feedback = res * 1.1 * (this.y[3] - mono * 0.0005);
       const x = mono - feedback;
 
       // 4 stages with diode clipping instead of tanh
@@ -60,13 +60,14 @@ class DiodeFilterProcessor extends AudioWorkletProcessor {
       this.s[2] = this.y[2] + g * (this.diodeClip(this.s[1]) - this.diodeClip(this.y[2]));
       this.s[3] = this.y[3] + g * (this.diodeClip(this.s[2]) - this.diodeClip(this.y[3]));
 
-      this.y[0] = this.s[0];
-      this.y[1] = this.s[1];
-      this.y[2] = this.s[2];
-      this.y[3] = this.s[3];
+      // Flush denormals to prevent CPU spikes during silence
+      this.y[0] = Math.abs(this.s[0]) < 1e-15 ? 0 : this.s[0];
+      this.y[1] = Math.abs(this.s[1]) < 1e-15 ? 0 : this.s[1];
+      this.y[2] = Math.abs(this.s[2]) < 1e-15 ? 0 : this.s[2];
+      this.y[3] = Math.abs(this.s[3]) < 1e-15 ? 0 : this.s[3];
 
       // Gain-compensated for diode clipping compression
-      const out = this.s[3] * 3.5;
+      const out = this.s[3] * 3.0;
       outL[i] = out;
       if (outR) outR[i] = out;
     }

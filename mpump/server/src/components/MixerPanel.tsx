@@ -600,6 +600,14 @@ export function MixerPanel({
                   >GATE</button>
                 )}
               </div>
+              <span className="mx-modal-reset" onClick={() => {
+                const defVol = def.ch === 9 ? 0.7 : def.ch === 1 ? 0.53 : 0.45;
+                onChannelVolumeChange(def.ch, defVol);
+                setPan(def.ch, 0);
+                setChEQ(prev => ({ ...prev, [def.ch]: { low: 0, mid: 0, high: 0 } }));
+                command({ type: "set_channel_eq", channel: def.ch, low: 0, mid: 0, high: 0 } as ClientMessage);
+                if (chMono[def.ch]) toggleChMono(def.ch);
+              }}>RST</span>
             </div>
           );
         })}
