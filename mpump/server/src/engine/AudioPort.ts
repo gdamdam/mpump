@@ -463,31 +463,61 @@ export class AudioPort {
     return this.effectOrder;
   }
 
-  /** Rebuild the audio effects chain based on current fx state and effectOrder.
-   *  Disconnects old nodes first, then builds new chain. Master stays connected
-   *  to fxOutput as fallback during the brief rebuild window. */
+  /** Rebuild the audio effects chain with crossfade to avoid signal gaps.
+   *  Keeps direct master→fxOutput path live during rebuild, uses a fade-in
+   *  gain on the new chain, then removes the direct path once faded in. */
+  private fxCleanupTimer = 0;
   private rebuildFxChain(): void {
-    // Ensure master → fxOutput direct path exists as fallback
+    const ct = this.ctx.currentTime;
+    const FADE = 0.015; // 15ms crossfade
+
+    // Ensure direct master→fxOutput path is live (carries signal during rebuild)
     try { this.master.connect(this.fxOutput); } catch { /* already connected */ }
 
-    // Disconnect old effect nodes (master → fxOutput stays as fallback)
-    for (const n of this.fxNodes) { try { n.disconnect(); } catch { /* */ } }
-    for (const lfo of this.fxLFOs) { try { lfo.stop(); lfo.disconnect(); } catch { /* */ } }
+    // Tear down old effect nodes
+    const oldNodes = this.fxNodes;
+    const oldLFOs = this.fxLFOs;
+    // Defer disconnect so old chain finishes any in-flight audio buffers
+    clearTimeout(this.fxCleanupTimer);
+    this.fxCleanupTimer = window.setTimeout(() => {
+      for (const n of oldNodes) { try { n.disconnect(); } catch { /* */ } }
+      for (const lfo of oldLFOs) { try { lfo.stop(); lfo.disconnect(); } catch { /* */ } }
+    }, FADE * 1000 + 30);
+
+    // Build new chain
     this.fxNodes = [];
     this.fxLFOs = [];
 
-    // Build new chain: master → [active effects] → fxOutput
     let prev: AudioNode = this.master;
     for (const name of this.effectOrder) {
       if (!this.fx[name].on) continue;
       prev = this.buildEffect(name, prev);
     }
-    prev.connect(this.fxOutput);
 
-    // Remove direct master → fxOutput if effects are active (avoid double signal)
     if (this.fxNodes.length > 0) {
+      // Equal-power crossfade: direct path fades out while new chain fades in.
+      // Insert a crossfade gain on the direct bypass path.
+      const xfadeOut = this.ctx.createGain();
+      xfadeOut.gain.setValueAtTime(1, ct);
+      xfadeOut.gain.linearRampToValueAtTime(0, ct + FADE);
       try { this.master.disconnect(this.fxOutput); } catch { /* */ }
+      this.master.connect(xfadeOut);
+      xfadeOut.connect(this.fxOutput);
+
+      const fadeIn = this.ctx.createGain();
+      fadeIn.gain.setValueAtTime(0, ct);
+      fadeIn.gain.linearRampToValueAtTime(1, ct + FADE);
+      prev.connect(fadeIn);
+      fadeIn.connect(this.fxOutput);
+      this.fxNodes.push(fadeIn);
+
+      // After crossfade: remove bypass, clean up xfade node
+      setTimeout(() => {
+        try { this.master.disconnect(xfadeOut); } catch { /* */ }
+        try { xfadeOut.disconnect(); } catch { /* */ }
+      }, FADE * 1000 + 5);
     }
+    // If no effects active, direct path stays (already connected above)
   }
 
   /** Build a single effect and connect it to the chain. Returns the new tail node. */
@@ -1139,55 +1169,75 @@ export class AudioPort {
     this.rebuildAntiClipChain();
   }
 
-  /** Rebuild the fxOutput → ... → analyser chain based on current anti-clip mode. */
+  /** Rebuild the fxOutput → ... → analyser chain based on current anti-clip mode.
+   *  Uses quick fade-out/fade-in on fxOutput to avoid routing discontinuity. */
   private rebuildAntiClipChain(): void {
+    const ct = this.ctx.currentTime;
+    const FADE = 0.008; // 8ms fade — shorter than FX crossfade since rewire is fast
+
+    // Fade out fxOutput before rewiring (prevents click from broken routing)
+    this.fxOutput.gain.cancelScheduledValues(0);
+    this.fxOutput.gain.setValueAtTime(this.fxOutput.gain.value, ct);
+    this.fxOutput.gain.linearRampToValueAtTime(0, ct + FADE);
+
     // Disconnect all paths from fxOutput to analyser
-    try { this.fxOutput.disconnect(); } catch { /* */ }
-    if (this.lowCutFilter) try { this.lowCutFilter.disconnect(); } catch { /* */ }
-    try { this.eqLow.disconnect(); } catch { /* */ }
-    try { this.eqMid.disconnect(); } catch { /* */ }
-    try { this.eqHigh.disconnect(); } catch { /* */ }
-    try { this.masterBoost.disconnect(); } catch { /* */ }
-    try { this.driveGain.disconnect(); } catch { /* */ }
-    try { this.softClip.disconnect(); } catch { /* */ }
-    try { this.limiter.disconnect(); } catch { /* */ }
-    if (this.mbMerge) try { this.mbMerge.disconnect(); } catch { /* */ }
+    // (scheduled slightly after fade completes to let audio thread process the ramp)
+    const rewire = () => {
+      try { this.fxOutput.disconnect(); } catch { /* */ }
+      if (this.lowCutFilter) try { this.lowCutFilter.disconnect(); } catch { /* */ }
+      try { this.eqLow.disconnect(); } catch { /* */ }
+      try { this.eqMid.disconnect(); } catch { /* */ }
+      try { this.eqHigh.disconnect(); } catch { /* */ }
+      try { this.masterBoost.disconnect(); } catch { /* */ }
+      try { this.driveGain.disconnect(); } catch { /* */ }
+      try { this.softClip.disconnect(); } catch { /* */ }
+      try { this.limiter.disconnect(); } catch { /* */ }
+      if (this.mbMerge) try { this.mbMerge.disconnect(); } catch { /* */ }
 
-    // Common: fxOutput → [lowCut if active] → EQ (low→mid→high) → masterBoost
-    if (this.lowCutFilter && this.lowCutFilter.type === "highpass") {
-      this.fxOutput.connect(this.lowCutFilter);
-      this.lowCutFilter.connect(this.eqLow);
-    } else {
-      this.fxOutput.connect(this.eqLow);
-    }
-    this.eqLow.connect(this.eqMid);
-    this.eqMid.connect(this.eqHigh);
-    this.eqHigh.connect(this.masterBoost);
+      // Common: fxOutput → [lowCut if active] → EQ (low→mid→high) → masterBoost
+      if (this.lowCutFilter && this.lowCutFilter.type === "highpass") {
+        this.fxOutput.connect(this.lowCutFilter);
+        this.lowCutFilter.connect(this.eqLow);
+      } else {
+        this.fxOutput.connect(this.eqLow);
+      }
+      this.eqLow.connect(this.eqMid);
+      this.eqMid.connect(this.eqHigh);
+      this.eqHigh.connect(this.masterBoost);
 
-    // After masterBoost, optionally insert multiband compressor
-    let postEQ: AudioNode = this.masterBoost;
-    if (this.mbEnabled && this.mbLowLP && this.mbMidBP && this.mbHighHP && this.mbMerge) {
-      this.masterBoost.connect(this.mbLowLP);
-      this.masterBoost.connect(this.mbMidBP[0]);
-      this.masterBoost.connect(this.mbHighHP);
-      postEQ = this.mbMerge;
-    }
+      // After masterBoost, optionally insert multiband compressor
+      let postEQ: AudioNode = this.masterBoost;
+      if (this.mbEnabled && this.mbLowLP && this.mbMidBP && this.mbHighHP && this.mbMerge) {
+        this.masterBoost.connect(this.mbLowLP);
+        this.masterBoost.connect(this.mbMidBP[0]);
+        this.masterBoost.connect(this.mbHighHP);
+        postEQ = this.mbMerge;
+      }
 
-    if (this.antiClipMode === "off") {
-      postEQ.connect(this.driveGain);
-      this.driveGain.connect(this.analyser);
-    } else if (this.antiClipMode === "limiter") {
-      postEQ.connect(this.driveGain);
-      this.driveGain.connect(this.limiter);
-      this.limiter.connect(this.analyser);
-    } else {
-      this.softClip.curve = makeSoftClipCurve(true);
-      this.softClip.oversample = "2x";
-      postEQ.connect(this.driveGain);
-      this.driveGain.connect(this.softClip);
-      this.softClip.connect(this.limiter);
-      this.limiter.connect(this.analyser);
-    }
+      if (this.antiClipMode === "off") {
+        postEQ.connect(this.driveGain);
+        this.driveGain.connect(this.analyser);
+      } else if (this.antiClipMode === "limiter") {
+        postEQ.connect(this.driveGain);
+        this.driveGain.connect(this.limiter);
+        this.limiter.connect(this.analyser);
+      } else {
+        this.softClip.curve = makeSoftClipCurve(true);
+        this.softClip.oversample = "2x";
+        postEQ.connect(this.driveGain);
+        this.driveGain.connect(this.softClip);
+        this.softClip.connect(this.limiter);
+        this.limiter.connect(this.analyser);
+      }
+
+      // Fade back in
+      const now = this.ctx.currentTime;
+      this.fxOutput.gain.setValueAtTime(0, now);
+      this.fxOutput.gain.linearRampToValueAtTime(1, now + FADE);
+    };
+
+    // Schedule rewire after fade-out completes
+    setTimeout(rewire, FADE * 1000 + 2);
   }
 
   getAntiClipMode(): "off" | "limiter" | "hybrid" {

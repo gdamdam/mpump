@@ -136,6 +136,7 @@ export function MegaKaos({ devices, command, getAnalyser, onClose }: Props) {
     if (!ctx) return;
 
     const buf = new Uint8Array(128);
+    let freqBuf: Uint8Array | null = null;
     let accentCache = "#66ff99";
     let accentAge = 0;
     let frame = 0;
@@ -199,7 +200,8 @@ export function MegaKaos({ devices, command, getAnalyser, onClose }: Props) {
 
       // Audio-reactive bars at bottom
       if (analyser) {
-        const freqData = new Uint8Array(analyser.frequencyBinCount);
+        if (!freqBuf || freqBuf.length !== analyser.frequencyBinCount) freqBuf = new Uint8Array(analyser.frequencyBinCount);
+        const freqData = freqBuf;
         analyser.getByteFrequencyData(freqData);
         const bars = 64;
         const step = Math.floor(freqData.length / bars);

@@ -243,6 +243,9 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
     };
     let accentCache = "#66ff99";
     let accentAge = 0;
+    // Pre-allocated buffers for analyser data — avoids per-frame Uint8Array allocation
+    let timeBuf: Uint8Array | null = null;
+    let freqBuf: Uint8Array | null = null;
 
     const resize = () => {
       const rect = canvas.getBoundingClientRect();
@@ -281,7 +284,8 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
 
       if (mode === "wave-glow") {
         // Option A: Mirrored waveform + glow
-        const data = new Uint8Array(analyser.fftSize);
+        if (!timeBuf || timeBuf.length !== analyser.fftSize) timeBuf = new Uint8Array(analyser.fftSize);
+        const data = timeBuf;
         analyser.getByteTimeDomainData(data);
         const sliceW = w / data.length;
         const mid = h / 2;
@@ -310,7 +314,8 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
 
       } else if (mode === "circular") {
         // Option B: Circular oscilloscope
-        const data = new Uint8Array(analyser.fftSize);
+        if (!timeBuf || timeBuf.length !== analyser.fftSize) timeBuf = new Uint8Array(analyser.fftSize);
+        const data = timeBuf;
         analyser.getByteTimeDomainData(data);
         const cx = w / 2, cy = h / 2;
         const radius = Math.min(w, h) * 0.35;
@@ -336,7 +341,8 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
 
       } else if (mode === "spectrum") {
         // Option C: Frequency bars
-        const freqData = new Uint8Array(analyser.frequencyBinCount);
+        if (!freqBuf || freqBuf.length !== analyser.frequencyBinCount) freqBuf = new Uint8Array(analyser.frequencyBinCount);
+        const freqData = freqBuf;
         analyser.getByteFrequencyData(freqData);
         const bars = 32;
         const step = Math.floor(freqData.length / bars);
@@ -354,7 +360,8 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
 
       } else {
         // Option D (default): Mirrored frequency bars + glow
-        const freqData = new Uint8Array(analyser.frequencyBinCount);
+        if (!freqBuf || freqBuf.length !== analyser.frequencyBinCount) freqBuf = new Uint8Array(analyser.frequencyBinCount);
+        const freqData = freqBuf;
         analyser.getByteFrequencyData(freqData);
         const bars = 32;
         const step = Math.floor(freqData.length / bars);
