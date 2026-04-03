@@ -109,6 +109,7 @@ export class AudioPort {
   private workletsLoaded = false;
   /** Stereo width gain (Haas effect level on high band). */
   private widthGain: GainNode | null = null;
+  private _userWidth = 0.5; // logical width set by user (0–1)
   /** Low cut filter on master output. */
   private lowCutFilter: BiquadFilterNode | null = null;
   /** Performance mode: "normal" | "lite" (no viz) | "eco" (lite + reduced audio). */
@@ -1214,13 +1215,20 @@ export class AudioPort {
 
   /** Set stereo width (0 = mono-compatible, 1 = full width). Controls Haas effect level. */
   setWidth(width: number): void {
-    if (this.widthGain) {
-      this.widthGain.gain.value = Math.max(0, Math.min(1, width)) * 0.7;
-    }
+    this._userWidth = Math.max(0, Math.min(1, width));
+    this.applyWidth();
+  }
+
+  private applyWidth(): void {
+    if (!this.widthGain) return;
+    const w = this._userWidth;
+    // If MS EQ is active, reduce width by 30% for low-mid side cut
+    const factor = this.msEnabled ? 0.7 : 1;
+    this.widthGain.gain.value = w * factor * 0.7;
   }
 
   getWidth(): number {
-    return this.widthGain ? this.widthGain.gain.value / 0.7 : 1;
+    return this._userWidth;
   }
 
   /** Set low cut (high-pass) frequency on master output. 0 = off. */
@@ -1280,6 +1288,7 @@ export class AudioPort {
         try { this.masterBoost.disconnect(this.msSplitter); } catch { /* */ }
         if (this.msMerger) try { this.msMerger.disconnect(); } catch { /* */ }
       }
+      this.applyWidth(); // restore width to user's setting (undo MS reduction)
       return;
     }
     // Create MS chain if needed
@@ -1304,12 +1313,7 @@ export class AudioPort {
     // Actually simplest: just apply a mid-frequency cut on the stereo difference
     // by reducing width at low-mids. This is effectively what MS EQ does.
     // For browser: reduce Haas effect amount at low-mids = less side energy there
-    if (this.widthGain) {
-      // Widen highs but narrow lows — achieved by the existing Haas on high band only
-      // The MS EQ effect is already partially achieved by our crossover-based widening
-      // Apply additional side cut via the widthGain
-      this.widthGain.gain.value = Math.max(0, this.widthGain.gain.value * 0.7);
-    }
+    this.applyWidth();
   }
 
   getMidSideEQ(): boolean { return this.msEnabled; }
