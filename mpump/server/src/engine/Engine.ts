@@ -97,16 +97,24 @@ export class Engine {
   // Throttled state emission — collapses rapid parameter changes into one React update
   private stateTimer = 0;
   private stateScheduled = false;
+  private readonly _ric = typeof requestIdleCallback === "function";
   private emitState(): void {
+    this.markDirty();
     if (this.stateScheduled) return;
     this.stateScheduled = true;
+    // Defer to idle callback when available — avoids competing with audio scheduler
     this.stateTimer = window.setTimeout(() => {
       this.stateScheduled = false;
-      this.cb.onStateChange(this.getState());
-    }, 60); // 60ms debounce — imperceptible, prevents scheduler starvation
+      if (this._ric) {
+        requestIdleCallback(() => this.cb.onStateChange(this.getState()), { timeout: 200 });
+      } else {
+        this.cb.onStateChange(this.getState());
+      }
+    }, 100); // 100ms debounce — imperceptible, reduces GC pressure
   }
   /** Emit state immediately (for actions that need instant UI feedback). */
   private emitStateNow(): void {
+    this.markDirty();
     if (this.stateScheduled) {
       clearTimeout(this.stateTimer);
       this.stateScheduled = false;
@@ -845,11 +853,9 @@ export class Engine {
       this.randomizeDevice(id, sharedGenreIdx, true);
       toRestart.push(id);
     }
-    toRestart.forEach((id, i) => {
-      if (i === 0) this.restartDevice(id);
-      else setTimeout(() => this.restartDevice(id), i * 80);
-    });
-    this.emitState();
+    // Restart all devices at once (no staggering — avoids multiple timer callbacks)
+    for (const id of toRestart) this.restartDevice(id);
+    this.emitStateNow();
   }
 
   randomizeSingle(device: string): void {
@@ -1284,7 +1290,13 @@ export class Engine {
 
   // ── State serialization ──────────────────────────────────────────────
 
+  private _cachedState: EngineState | null = null;
+  private _stateDirty = true;
+  /** Mark state as dirty — next getState() will rebuild. Called by emitState/emitStateNow. */
+  private markDirty(): void { this._stateDirty = true; }
+
   getState(): EngineState {
+    if (this._cachedState && !this._stateDirty) return this._cachedState;
     const devices: Record<string, DeviceState> = {};
 
     for (const [id, ds] of this.deviceStates) {
@@ -1358,7 +1370,9 @@ export class Engine {
       };
     }
 
-    return { bpm: this.bpm, swing: this.swing, devices };
+    this._cachedState = { bpm: this.bpm, swing: this.swing, devices };
+    this._stateDirty = false;
+    return this._cachedState;
   }
 
   /** Update a drum voice's tune/decay/level (preview mode only). */
