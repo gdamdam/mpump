@@ -4,9 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>mpump — browser groovebox where grooves live in links</title>
-  <meta name="description" content="Make a groove. Send a link. Open, change, and resend. A minimal instrument for evolving sound." />
+  <meta name="description" content="Make a groove. Share a link. Open, change, and resend. A minimal instrument for evolving sound." />
   <meta property="og:title" content="mpump — A groove you can resend" />
-  <meta property="og:description" content="Make a groove. Send a link. Open, change, and resend. A browser instrument for making and sharing electronic music. No install. No account." />
+  <meta property="og:description" content="Make a groove. Share a link. Open, change, and resend. A browser instrument for making and sharing electronic music. No install. No account." />
   <meta property="og:url" content="https://mpump.live/" />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="mpump" />
@@ -15,7 +15,7 @@
   <meta property="og:image:height" content="630" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="mpump — A groove you can resend" />
-  <meta name="twitter:description" content="Make a groove. Send a link. Open, change, and resend. No install. No account." />
+  <meta name="twitter:description" content="Make a groove. Share a link. Open, change, and resend. No install. No account." />
   <meta name="twitter:image" content="https://mpump.live/og-image.png" />
   <meta name="keywords" content="drum machine, synth sequencer, browser sequencer, online beat maker, MIDI controller, Web Audio, techno, IDM, house, trance, free, electronic music, groove sketching" />
   <link rel="canonical" href="https://mpump.live/" />
@@ -38,7 +38,7 @@
     "@type": "WebApplication",
     "name": "mpump",
     "url": "https://mpump.live/",
-    "description": "Make a groove. Send a link. Open, change, and resend. A minimal instrument for evolving sound. No install. No account. No personal data.",
+    "description": "Make a groove. Share a link. Open, change, and resend. A minimal instrument for evolving sound. No install. No account. No personal data.",
     "applicationCategory": "MultimediaApplication",
     "operatingSystem": "Any",
     "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
@@ -159,6 +159,8 @@
       padding: 48px 56px;
     }
     @media (max-width: 600px) { .row-content { padding: 28px 20px; } }
+
+    .hero-beta { font-size: 8px; font-weight: 700; letter-spacing: 1px; color: var(--bg); background: var(--accent); opacity: 0.7; padding: 1px 4px; border-radius: 3px; vertical-align: middle; margin-left: 4px; }
 
     /* ── pulsing logo ── */
     .hero-logo {
@@ -380,8 +382,8 @@
     </div>
     <div class="row-content">
       <pre class="hero-logo" id="heroLogo">█▀▄▀█ █▀█ █ █ █▀▄▀█ █▀█
-█ ▀ █ █▀▀ ▀▄▀ █ ▀ █ █▀▀</pre>
-      <h1 class="hero-h1">Make a beat.<br>Send a link.<br>Let them <em>change it.</em></h1>
+█ ▀ █ █▀▀ ▀▄▀ █ ▀ █ █▀▀ <span class="hero-beta">BETA</span></pre>
+      <h1 class="hero-h1">Make a beat.<br>Share a link.<br>Let them <em>change it.</em></h1>
       <p class="hero-p">A browser drum machine and synth where the beat lives in the link. Open it, change it, send it back different.</p>
       <p style="margin-top: 12px; font-size: 16px; color: var(--accent); opacity: 0.8; letter-spacing: 0.5px;">no install &nbsp;·&nbsp; no account &nbsp;·&nbsp; free and open source</p>
       <div class="cta-btn-row" style="margin-top: 36px;">
@@ -390,7 +392,7 @@
       </div>
       <div class="hero-mockup">
         <video autoplay muted loop playsinline class="hero-video">
-          <source src="./hero-demo.mp4" type="video/mp4">
+          <source src="./mpump-demo.mp4" type="video/mp4">
         </video>
       </div>
     </div>
@@ -553,7 +555,7 @@ Free forever.</p>
 
 <footer>
   <span>Built by <a href="https://github.com/gdamdam/mpump">gdamdam</a> &nbsp;·&nbsp; <a href="https://github.com/gdamdam/mpump">Source Code (AGPL-3.0)</a></span>
-  <span>mpump v1.5.5</span>
+  <span>mpump v1.6.5</span>
 </footer>
 
 

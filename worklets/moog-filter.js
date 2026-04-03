@@ -58,11 +58,11 @@ class MoogFilterProcessor extends AudioWorkletProcessor {
       this.s[2] = this.y[2] + g * (Math.tanh(this.s[1]) - Math.tanh(this.y[2]));
       this.s[3] = this.y[3] + g * (Math.tanh(this.s[2]) - Math.tanh(this.y[3]));
 
-      // Update delays
-      this.y[0] = this.s[0];
-      this.y[1] = this.s[1];
-      this.y[2] = this.s[2];
-      this.y[3] = this.s[3];
+      // Update delays (flush denormals to prevent CPU spikes during silence)
+      this.y[0] = Math.abs(this.s[0]) < 1e-15 ? 0 : this.s[0];
+      this.y[1] = Math.abs(this.s[1]) < 1e-15 ? 0 : this.s[1];
+      this.y[2] = Math.abs(this.s[2]) < 1e-15 ? 0 : this.s[2];
+      this.y[3] = Math.abs(this.s[3]) < 1e-15 ? 0 : this.s[3];
 
       // Output: 4-pole lowpass, gain-compensated for tanh compression
       const out = this.s[3] * 3.0;
