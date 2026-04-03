@@ -823,7 +823,8 @@ export class Engine {
     }
 
     // Full restart to ensure clean state (hot-swap left scheduled notes in the look-ahead buffer)
-    if (!skipRestart) this.restartDevice(id);
+    // Randomize is user-initiated — use immediate restart, don't defer to loop boundary
+    if (!skipRestart) this.restartDevice(id, true);
     /* ---- hot-swap removed: caused overlapping patterns due to look-ahead ----
     const seq = this.sequencers.get(id);
     const port = this.ports[id];
@@ -869,13 +870,13 @@ export class Engine {
       this.randomizeDevice(id, sharedGenreIdx, true);
       toRestart.push(id);
     }
-    // Restart all devices at once (no staggering — avoids multiple timer callbacks)
-    for (const id of toRestart) this.restartDevice(id);
+    // Restart all devices immediately — user expects instant switch on MIX
+    for (const id of toRestart) this.restartDevice(id, true);
     this.emitStateNow();
   }
 
   randomizeSingle(device: string): void {
-    this.randomizeDevice(device);
+    this.randomizeDevice(device, undefined, false);
     this.emitState();
   }
 
@@ -891,7 +892,7 @@ export class Engine {
     ds.bassPatternIdx = Math.floor(Math.random() * pick.g.patterns.length);
     ds.bassEdit = null;
 
-    this.restartDevice(device);
+    this.restartDevice(device, true);
     this.emitState();
   }
 
@@ -921,7 +922,7 @@ export class Engine {
     // For lengths ≤ 16 (1,2,3,4,8,16), the sequencer uses stepIndex % patternLength
 
     ds.patternLength = length;
-    this.restartDevice(device);
+    this.restartDevice(device, true);
     this.emitState();
   }
 
