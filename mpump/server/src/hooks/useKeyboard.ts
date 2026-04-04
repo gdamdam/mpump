@@ -21,6 +21,7 @@ export function useKeyboard(
   command: (msg: ClientMessage) => void,
   enabled: boolean,
   onToggleAllPause?: () => void,
+  keyboardCapture = false,
   focusDevice?: string | null,
   presetNav?: { cycleSynth: (dir: number) => void; cycleBass: (dir: number) => void; cycleDrumKit: (dir: number) => void },
   onFocusChange?: (deviceId: string) => void,
@@ -34,6 +35,11 @@ export function useKeyboard(
 
     const handler = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return;
+      // While live keyboard play / step-record is active, suppress all non-modifier
+      // app shortcuts so note keys do not also trigger pattern/sound actions.
+      if (keyboardCapture && !e.metaKey && !e.ctrlKey) {
+        return;
+      }
 
       const devices = Object.values(state.devices).filter(d => d.connected);
       const drumsDevice = devices.find(d => d.id === "preview_drums");
@@ -186,5 +192,5 @@ export function useKeyboard(
 
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [state, command, enabled, focusDevice, presetNav, onFocusChange, keyActions]);
+  }, [state, command, enabled, onToggleAllPause, keyboardCapture, focusDevice, presetNav, onFocusChange, keyActions]);
 }

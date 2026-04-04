@@ -163,9 +163,9 @@ export function MixerPanel({
 }: Props) {
 
   // Pro controls visibility (LIMIT, MB, MS, DRV)
-  const [showPro, setShowPro] = useState(() => getBool("mpump-mixer-advanced"));
+  const [showPro, setShowPro] = useState(() => getBool("mpump-mixer-advanced", true));
   useEffect(() => {
-    const h = () => setShowPro(getBool("mpump-mixer-advanced"));
+    const h = () => setShowPro(getBool("mpump-mixer-advanced", true));
     window.addEventListener("mpump-settings-changed", h);
     return () => window.removeEventListener("mpump-settings-changed", h);
   }, []);

@@ -730,7 +730,8 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
     toggleSolo: (ch: "drums" | "bass" | "synth") => keyActionsRef.current.toggleSolo(ch),
     openBpm: () => keyActionsRef.current.openBpm(),
   }), []);
-  useKeyboard(state, command, !!isPreview && !isListener, isListener ? undefined : () => toggleAllPauseRef.current(), kbdFocusDevice, presetNav, setKbdFocusDevice, keyActions);
+  const keyboardCapture = !!kbdFocusDevice && /:(play|rec)$/.test(kbdFocusDevice);
+  useKeyboard(state, command, !!isPreview && !isListener, isListener ? undefined : () => toggleAllPauseRef.current(), keyboardCapture, kbdFocusDevice, presetNav, setKbdFocusDevice, keyActions);
 
   // Session timer — update every minute
   useEffect(() => {
@@ -743,6 +744,7 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
     if (!isPreview) return;
     const handler = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement || e.target instanceof HTMLTextAreaElement) return;
+      if (keyboardCapture && !e.metaKey && !e.ctrlKey) return;
       if ((e.metaKey || e.ctrlKey) && e.key === "s") {
         e.preventDefault();
         saveToLibrary();
@@ -765,7 +767,7 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [isPreview]);
+  }, [isPreview, keyboardCapture]);
 
   // Load state from URL query (?b=) or legacy hash (#) on mount
   useEffect(() => {

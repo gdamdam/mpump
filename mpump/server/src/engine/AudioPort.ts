@@ -6,13 +6,13 @@
  * - All other channels: configurable synth with ADSR + filter envelope
  */
 
-import type { SynthParams, EffectParams, EffectName, DrumVoiceParams, FilterModel } from "../types";
+import type { SynthParams, EffectParams, EffectName, DrumVoiceParams } from "../types";
 import { DEFAULT_SYNTH_PARAMS, DEFAULT_EFFECTS, DEFAULT_DRUM_VOICE, lfoDivisionToHz, delayDivisionToSeconds } from "../types";
 import { CVOutput } from "./CVOutput";
 import {
-  midiToFreq, perfToCtx,
-  buildKit, DrumKit, DRUM_SYNTHS, applyFilter, applyFadeOut, SynthFn,
-  SynthVoice, DRUM_PAN, envValueAt,
+  perfToCtx,
+  buildKit, DrumKit, DRUM_SYNTHS, applyFilter, applyFadeOut,
+  DRUM_PAN, envValueAt,
   makeDistortionCurve, makeBitcrushCurve, makeSoftClipCurve, generateImpulseResponse, ReverbType,
 } from "./drumSynth";
 
@@ -30,8 +30,6 @@ const DRUM_CH = 9;
 export class AudioPort {
   private ctx: AudioContext;
   private kit: DrumKit;
-  /** Active synth voices keyed by "ch:note" for noteOff lookup. */
-  private voices: Map<string, SynthVoice> = new Map();
   /** Per-channel synth params (falls back to DEFAULT_SYNTH_PARAMS). */
   private channelParams: Map<number, SynthParams> = new Map();
   /** Per-channel volume (0–1). */
@@ -66,13 +64,6 @@ export class AudioPort {
   /** Pooled drum Gain+Panner pairs — avoids per-hit node creation (GC pressure). */
   private drumNodePool: { gain: GainNode; pan: StereoPannerNode }[] = [];
   private drumNodePoolMax = 24;
-  /** Pooled synth GainNodes (envelope + drift) — reused across voice lifecycles. */
-  private synthGainPool: GainNode[] = [];
-  /** Pooled BiquadFilterNodes (digital filter) — reused across voice lifecycles. */
-  private synthFilterPool: BiquadFilterNode[] = [];
-  /** Pooled StereoPannerNodes (unison/detune panning) — reused across voices. */
-  private synthPannerPool: StereoPannerNode[] = [];
-  private synthPoolMax = 16;
   /** Current BPM for tempo-synced LFO. */
   private bpm = 120;
   /** Sidechain duck: duck non-drum channels on kick hits. */
@@ -111,6 +102,16 @@ export class AudioPort {
   private driveGain: GainNode;
   /** AudioWorklet availability flag. */
   private workletsLoaded = false;
+  /** Poly-synth AudioWorklet node (persistent, zero-allocation voices). */
+  private polySynth: AudioWorkletNode | null = null;
+  /** Per-channel gate fractions for poly-synth (set by Engine from device config). */
+  private polySynthGateFractions = new Map<number, number>();
+  private polySynthGateFractionDefault = 0.8;
+  /** Drums bypass FX chain: when true, drums connect directly to fxOutput (skip reverb/delay/etc). */
+  private drumsDirectOut: GainNode | null = null;
+  private drumsBypassFx = false;
+  /** Synth/bass bypass FX chain (shared node — worklet mixes both channels). */
+  private synthBassDirectOut: GainNode | null = null;
   /** Stereo width gain (Haas effect level on high band). */
   private widthGain: GainNode | null = null;
   private _userWidth = 0.5; // logical width set by user (0–1)
@@ -131,10 +132,13 @@ export class AudioPort {
   constructor() {
     // Safari uses webkitAudioContext
     const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    this.ctx = new AC();
     // Performance mode from App-level detection
     const params = new URLSearchParams(window.location.search);
     this.perfMode = params.get("eco") === "true" ? "eco" : params.get("lite") === "true" ? "lite" : (localStorage.getItem("mpump-perf-mode") as "normal" | "lite" | "eco") ?? "normal";
+    // Larger buffer prevents crackling under heavy effects chains (convolver, chorus, etc.).
+    // The sequencer lookahead absorbs the extra latency.
+    const hint = this.perfMode === "eco" ? "playback" : "balanced";
+    this.ctx = new AC({ latencyHint: hint });
     (window as unknown as Record<string, unknown>).__audioCtx = this.ctx;
     (window as unknown as Record<string, unknown>).__audioPort = this;
     this.kit = buildKit(this.ctx);
@@ -200,6 +204,16 @@ export class AudioPort {
     // Initial chain: master → fxOutput (no effects)
     this.master.connect(this.fxOutput);
 
+    // Drums bypass node: connects directly to fxOutput, skipping all effects
+    this.drumsDirectOut = this.ctx.createGain();
+    this.drumsDirectOut.gain.value = 1;
+    this.drumsDirectOut.connect(this.fxOutput);
+
+    // Synth/bass bypass node (worklet mixes both channels into one output)
+    this.synthBassDirectOut = this.ctx.createGain();
+    this.synthBassDirectOut.gain.value = 1;
+    this.synthBassDirectOut.connect(this.fxOutput);
+
     // Load AudioWorklet modules (skip in eco mode — fallback to standard biquad filters)
     if (this.perfMode !== "eco") this.loadWorklets();
 
@@ -225,15 +239,6 @@ export class AudioPort {
     this.heartbeatId = window.setInterval(() => {
       if (needsResume()) {
         this.ctx.resume().catch(() => {});
-      }
-      // Safety: kill stale voices older than 5s (stuck notes)
-      // Uses wall-clock time so cleanup works even when AudioContext is suspended
-      const wallNow = performance.now();
-      for (const [key, voice] of this.voices) {
-        if (wallNow - (voice.wallClock ?? 0) > 5000) {
-          this.stopVoice(voice);
-          this.voices.delete(key);
-        }
       }
       // Flush automation timelines on persistent nodes to prevent buildup.
       // cancelScheduledValues(0) clears ALL events (past + future), then we
@@ -303,12 +308,77 @@ export class AudioPort {
         this.ctx.audioWorklet.addModule("./worklets/sync-osc.js"),
         this.ctx.audioWorklet.addModule("./worklets/fm-osc.js"),
         this.ctx.audioWorklet.addModule("./worklets/wavetable-osc.js"),
+        this.ctx.audioWorklet.addModule("./worklets/poly-synth.js"),
       ]);
       this.workletsLoaded = true;
+      // Create persistent poly-synth node (output channels = 2 for stereo)
+      this.polySynth = new AudioWorkletNode(this.ctx, "poly-synth", {
+        numberOfInputs: 0,
+        numberOfOutputs: 1,
+        outputChannelCount: [2],
+      });
+      // Connect poly-synth to master and sync params
+      this.polySynth.connect(this.master);
+      for (const [ch, params] of this.channelParams) {
+        if (ch !== 9) this.sendPolySynthParams(params, ch);
+      }
+      for (const [ch, vol] of this.channelVolumes) {
+        if (ch !== 9) this.polySynth.port.postMessage({ type: "volume", channel: ch, volume: vol });
+      }
+      for (const [ch, panner] of this.channelPanners) {
+        if (ch !== 9) this.polySynth.port.postMessage({ type: "pan", channel: ch, pan: panner.pan.value });
+      }
+      this.polySynth.port.postMessage({ type: "bpm", bpm: this.bpm });
+      this.polySynth.port.postMessage({ type: "duck_params", depth: this.duckDepth, release: this.duckRelease });
     } catch (e) {
       console.warn("AudioWorklet modules failed to load, using standard nodes:", e);
       this.workletsLoaded = false;
     }
+  }
+
+  /** Set gate fraction for poly-synth per channel (called by Engine with device config value). */
+  setPolySynthGate(ch: number, fraction: number): void {
+    this.polySynthGateFractions.set(ch, Math.max(0.1, Math.min(1, fraction)));
+  }
+
+  /** Send synth params to poly-synth worklet for a specific channel. */
+  sendPolySynthParams(p: SynthParams, ch?: number): void {
+    if (!this.polySynth) return;
+    this.polySynth.port.postMessage({
+      type: "params",
+      channel: ch,
+      oscType: p.oscType,
+      filterModel: p.filterModel ?? "digital",
+      filterType: p.filterType ?? "lowpass",
+      attack: p.attack,
+      decay: p.decay,
+      sustain: p.sustain,
+      release: p.release,
+      cutoff: p.cutoff,
+      resonance: p.resonance,
+      filterOn: p.filterOn,
+      filterEnvDepth: p.filterEnvDepth ?? 0,
+      filterDecay: p.filterDecay ?? 0,
+      filterDrive: p.filterDrive ?? 0,
+      subOsc: p.subOsc,
+      subLevel: p.subLevel,
+      detune: p.detune ?? 0,
+      unison: p.unison ?? 1,
+      unisonSpread: p.unisonSpread ?? 25,
+      syncRatio: p.syncRatio ?? 2,
+      fmRatio: p.fmRatio ?? 2,
+      fmIndex: p.fmIndex ?? 5,
+      wavetable: p.wavetable ?? "basic",
+      wavetablePos: p.wavetablePos ?? 0.5,
+      lfoOn: p.lfoOn,
+      lfoRate: p.lfoRate,
+      lfoDepth: p.lfoDepth,
+      lfoShape: p.lfoShape,
+      lfoTarget: p.lfoTarget,
+      lfoSync: p.lfoSync,
+      lfoSyncRate: p.lfoSync ? lfoDivisionToHz(p.lfoDivision, this.bpm) : undefined,
+      presetGain: p.gain ?? 1.0,
+    });
   }
 
   /** Check if worklets are available. */
@@ -356,17 +426,17 @@ export class AudioPort {
 
     this.mbMidComp = this.ctx.createDynamicsCompressor();
     this.mbMidComp.threshold.value = -15;
-    this.mbMidComp.ratio.value = 2.75;
+    this.mbMidComp.ratio.value = 2.5;
     this.mbMidComp.attack.value = 0.005;
     this.mbMidComp.release.value = 0.1;
     this.mbMidComp.knee.value = 8;
 
     this.mbHighComp = this.ctx.createDynamicsCompressor();
-    this.mbHighComp.threshold.value = -15;
-    this.mbHighComp.ratio.value = 3.75;
-    this.mbHighComp.attack.value = 0.001;
-    this.mbHighComp.release.value = 0.06;
-    this.mbHighComp.knee.value = 4;
+    this.mbHighComp.threshold.value = -12;
+    this.mbHighComp.ratio.value = 3.0;
+    this.mbHighComp.attack.value = 0.003;
+    this.mbHighComp.release.value = 0.08;
+    this.mbHighComp.knee.value = 8;
 
     // Wire: filters → compressors
     this.mbLowLP.connect(this.mbLowComp);
@@ -383,7 +453,7 @@ export class AudioPort {
     haasDirectPan.pan.value = -0.3;
     // Attenuate high band slightly — Haas sum adds ~3dB, compensate + pull hats back
     const haasGain = this.ctx.createGain();
-    haasGain.gain.value = 0.42; // "Punchy" default width 60% → 0.6 * 0.7
+    haasGain.gain.value = 0.32; // Pull back high-band stereo widening to reduce sharp top-end.
     this.widthGain = haasGain;
 
     // Merge: all 3 bands sum into one node
@@ -417,12 +487,12 @@ export class AudioPort {
       // Low: threshold -6 (gentle) to -18 (heavy), ratio 2 to 4
       this.mbLowComp.threshold.value = -6 - a * 12;
       this.mbLowComp.ratio.value = 2 + a * 2;
-      // Mid: threshold -12 to -24, ratio 2 to 5
+      // Mid: threshold -12 to -24, ratio 2 to 4.5
       this.mbMidComp.threshold.value = -12 - a * 12;
-      this.mbMidComp.ratio.value = 2 + a * 3;
-      // High: threshold -12 to -24, ratio 3 to 6
-      this.mbHighComp.threshold.value = -12 - a * 12;
-      this.mbHighComp.ratio.value = 3 + a * 3;
+      this.mbMidComp.ratio.value = 2 + a * 2.5;
+      // High: threshold -9 to -21, ratio 2.5 to 5
+      this.mbHighComp.threshold.value = -9 - a * 12;
+      this.mbHighComp.ratio.value = 2.5 + a * 2.5;
     }
   }
 
@@ -434,10 +504,61 @@ export class AudioPort {
     const prev = this.fx[name];
     const onChanged = "on" in params && (params as { on?: boolean }).on !== (prev as { on?: boolean }).on;
     this.fx[name] = { ...prev, ...params } as EffectParams[K];
+    if ("excludeDrums" in params) this.updateDrumsBypassFx();
+    if ("excludeBass" in params || "excludeSynth" in params) this.updateSynthBassBypassFx();
     // Debounce ALL rebuilds — multiple rapid toggles collapse into one.
     // 100ms delay is imperceptible; old chain plays through until rebuild.
     clearTimeout(this.fxRebuildTimer);
     this.fxRebuildTimer = window.setTimeout(() => this.rebuildFxChain(), onChanged ? 100 : 200);
+  }
+
+  /** Reroute synth (ch 0) and bass (ch 1) based on excludeSynth/excludeBass state.
+   *  In worklet mode both channels share one output node, so either flag bypasses both. */
+  private updateSynthBassBypassFx(): void {
+    if (!this.synthBassDirectOut) return;
+    const excludeSynth = !!(this.fx.reverb.excludeSynth || this.fx.delay.excludeSynth);
+    const excludeBass  = !!(this.fx.reverb.excludeBass  || this.fx.delay.excludeBass);
+
+    // Worklet mode: polySynth mixes ch0+ch1 — reroute entire worklet output
+    if (this.polySynth) {
+      const bypass = excludeSynth || excludeBass;
+      if (bypass) {
+        try { this.polySynth.disconnect(this.master); } catch { /* */ }
+        try { this.polySynth.connect(this.synthBassDirectOut); } catch { /* already connected */ }
+      } else {
+        try { this.polySynth.disconnect(this.synthBassDirectOut); } catch { /* */ }
+        try { this.polySynth.connect(this.master); } catch { /* already connected */ }
+      }
+    }
+
+    // Non-worklet: reroute individual channel panners
+    for (const [ch, shouldBypass] of [[0, excludeSynth], [1, excludeBass]] as [number, boolean][]) {
+      const panner = this.channelPanners.get(ch);
+      if (!panner) continue;
+      if (shouldBypass) {
+        try { panner.disconnect(this.master); } catch { /* */ }
+        try { panner.connect(this.synthBassDirectOut); } catch { /* already connected */ }
+      } else {
+        try { panner.disconnect(this.synthBassDirectOut); } catch { /* */ }
+        try { panner.connect(this.master); } catch { /* already connected */ }
+      }
+    }
+  }
+
+  /** Reroute drum channel based on excludeDrums state of reverb/delay effects. */
+  private updateDrumsBypassFx(): void {
+    const shouldBypass = !!(this.fx.reverb.excludeDrums || this.fx.delay.excludeDrums);
+    if (shouldBypass === this.drumsBypassFx) return;
+    this.drumsBypassFx = shouldBypass;
+    const panner = this.channelPanners.get(DRUM_CH);
+    if (!panner || !this.drumsDirectOut) return;
+    if (shouldBypass) {
+      try { panner.disconnect(this.master); } catch { /* */ }
+      panner.connect(this.drumsDirectOut);
+    } else {
+      try { panner.disconnect(this.drumsDirectOut); } catch { /* */ }
+      panner.connect(this.master);
+    }
   }
 
   /** Get current effects state. */
@@ -467,15 +588,12 @@ export class AudioPort {
     // Ensure direct master→fxOutput path is live (carries signal during rebuild)
     try { this.master.connect(this.fxOutput); } catch { /* already connected */ }
 
-    // Tear down old effect nodes
-    const oldNodes = this.fxNodes;
-    const oldLFOs = this.fxLFOs;
-    // Defer disconnect so old chain finishes any in-flight audio buffers
+    // Tear down old effect nodes immediately — the direct master→fxOutput path
+    // carries signal during rebuild, so no gap. Deferred cleanup was leaking nodes
+    // when rapid rebuilds cancelled the previous cleanup timer before it fired.
     clearTimeout(this.fxCleanupTimer);
-    this.fxCleanupTimer = window.setTimeout(() => {
-      for (const n of oldNodes) { try { n.disconnect(); } catch { /* */ } }
-      for (const lfo of oldLFOs) { try { lfo.stop(); lfo.disconnect(); } catch { /* */ } }
-    }, FADE * 1000 + 30);
+    for (const n of this.fxNodes) { try { n.disconnect(); } catch { /* */ } }
+    for (const lfo of this.fxLFOs) { try { lfo.stop(); lfo.disconnect(); } catch { /* */ } }
 
     // Build new chain
     this.fxNodes = [];
@@ -722,36 +840,16 @@ export class AudioPort {
   setSynthParams(ch: number, params: SynthParams): void {
     const prev = this.channelParams.get(ch);
     const filterModelChanged = prev && params.filterModel !== undefined && params.filterModel !== prev.filterModel;
+    const filterTypeChanged = prev && params.filterType !== undefined && params.filterType !== prev.filterType;
     const oscTypeChanged = prev && params.oscType !== undefined && params.oscType !== prev.oscType;
     this.channelParams.set(ch, params);
+    // Keep poly-synth worklet in sync with current params
+    if (this.polySynth) this.sendPolySynthParams(params, ch);
 
-    if (filterModelChanged || oscTypeChanged) {
-      // Kill all voices — incompatible node types can't be updated in-place
-      for (const [key, voice] of this.voices) {
-        if (key.startsWith(`${ch}:`)) {
-          this.stopVoice(voice);
-          this.voices.delete(key);
-        }
-      }
-      return;
-    }
-
-    // Fast path: skip voice updates if filter params haven't changed
-    if (prev && params.cutoff === prev.cutoff && params.resonance === prev.resonance && params.filterType === prev.filterType) return;
-
-    // Update filter on active voices — use direct .value (no automation timeline)
-    for (const [key, voice] of this.voices) {
-      if (key.startsWith(`${ch}:`) && voice.filter) {
-        if (voice.filter instanceof AudioWorkletNode) {
-          const cutoff = voice.filter.parameters.get("cutoff");
-          const res = voice.filter.parameters.get("resonance");
-          if (cutoff) cutoff.value = Math.min(params.cutoff, 12000);
-          if (res) res.value = Math.min(4, 4 * Math.pow(params.resonance / 20, 0.7));
-        } else {
-          voice.filter.frequency.value = Math.min(params.cutoff, 12000);
-          voice.filter.Q.value = params.resonance;
-          if (params.filterType) voice.filter.type = params.filterType;
-        }
+    if (filterModelChanged || filterTypeChanged || oscTypeChanged) {
+      // Kill all voices — incompatible filter/osc state can't carry over
+      if (this.polySynth) {
+        this.polySynth.port.postMessage({ type: "allNotesOff", channel: ch });
       }
     }
   }
@@ -786,14 +884,31 @@ export class AudioPort {
     this.cv.setGate(false, time);
   }
 
+  /** Live keyboard noteOn — gate:0 so worklet sustains until liveNoteOff rather than auto-releasing. */
+  liveNoteOn(ch: number, note: number, vel: number): void {
+    if (ch === DRUM_CH) {
+      this.playDrum(note, vel);
+      return;
+    }
+    if (this.polySynth) {
+      this.polySynth.port.postMessage({ type: "noteOn", channel: ch, note, vel, gate: 0 });
+      this.cv.setPitch(note);
+      this.cv.setGate(true);
+    }
+  }
+
+  liveNoteOff(ch: number, note: number): void {
+    if (ch === DRUM_CH) return;
+    if (this.polySynth) {
+      this.polySynth.port.postMessage({ type: "noteOff", channel: ch, note });
+      this.cv.setGate(false);
+    }
+  }
+
   allNotesOff(ch: number, _time?: number): void {
     if (ch === DRUM_CH) return;
-    // Release all voices on this channel
-    for (const [key, voice] of this.voices) {
-      if (key.startsWith(`${ch}:`)) {
-        this.stopVoice(voice);
-        this.voices.delete(key);
-      }
+    if (this.polySynth) {
+      this.polySynth.port.postMessage({ type: "allNotesOff", channel: ch });
     }
   }
 
@@ -840,6 +955,15 @@ export class AudioPort {
   /** Update BPM for tempo-synced LFO and delay. */
   setBpm(bpm: number): void {
     this.bpm = bpm;
+    if (this.polySynth) {
+      this.polySynth.port.postMessage({ type: "bpm", bpm });
+      // Re-sync LFO rates for tempo-synced channels
+      for (const [ch, params] of this.channelParams) {
+        if (ch !== 9 && params.lfoSync) {
+          this.polySynth.port.postMessage({ type: "params", channel: ch, lfoSyncRate: lfoDivisionToHz(params.lfoDivision, bpm) });
+        }
+      }
+    }
     // Update delay time in-place if synced — no chain rebuild needed
     if (this.fx.delay.on && this.fx.delay.sync) {
       clearTimeout(this.fxRebuildTimer);
@@ -911,7 +1035,13 @@ export class AudioPort {
       eqLow.connect(eqMid);
       eqMid.connect(eqHigh);
       eqHigh.connect(panner);
-      panner.connect(this.master);
+      // Channel may bypass effects chain depending on exclude flags
+      const excludeSynth = !!(this.fx.reverb.excludeSynth || this.fx.delay.excludeSynth);
+      const excludeBass  = !!(this.fx.reverb.excludeBass  || this.fx.delay.excludeBass);
+      const drumsBypass = ch === DRUM_CH && this.drumsBypassFx && this.drumsDirectOut;
+      const synthBass = (ch === 0 && excludeSynth) || (ch === 1 && excludeBass);
+      const nonDrumBypass = synthBass && this.synthBassDirectOut;
+      panner.connect(drumsBypass ? this.drumsDirectOut! : nonDrumBypass ? this.synthBassDirectOut! : this.master);
       this.channelPanners.set(ch, panner);
 
       const analyser = this.ctx.createAnalyser();
@@ -957,6 +1087,35 @@ export class AudioPort {
   /** Set per-channel gate. Supports LFO mode (regular) and pattern mode (step-sequenced).
    *  Pattern mode: 16-step array of 0/1 values synced to BPM for irregular stutter effects. */
   setChannelGate(ch: number, on: boolean, rate: string, depth: number, shape: string, mode = "lfo", pattern?: number[]): void {
+    // Worklet output bypasses channel buses — gate must run inside the worklet
+    if (this.polySynth && ch !== DRUM_CH) {
+      if (mode === "pattern" && pattern) {
+        this.polySynth.port.postMessage({ type: "gate_pattern", channel: ch, on, depth, mode: "pattern", pattern });
+      } else {
+        const lfoRate = 1 / delayDivisionToSeconds(rate, this.bpm);
+        this.polySynth.port.postMessage({ type: "gate_pattern", channel: ch, on, depth, mode: "lfo", lfoRate, lfoShape: shape });
+      }
+      // Clean up any stale Web Audio gate node for this channel
+      const existing = this.channelGates.get(ch);
+      if (existing) {
+        if (existing.lfo) try { existing.lfo.stop(); existing.lfo.disconnect(); } catch { /* */ }
+        if (existing.smoother) try { existing.smoother.disconnect(); } catch { /* */ }
+        if (existing.depth) try { existing.depth.disconnect(); } catch { /* */ }
+        if (existing.timerId) clearInterval(existing.timerId);
+        const eq = this.channelEQs.get(ch);
+        const eqOut = eq?.[2];
+        const monoNode = this.channelMonoState.get(ch) ? this.channelMonoNodes.get(ch) : null;
+        const nextNode = monoNode ?? this.channelPanners.get(ch);
+        if (eqOut && nextNode) {
+          try { eqOut.disconnect(existing.gate); } catch { /* */ }
+          try { existing.gate.disconnect(); } catch { /* */ }
+          eqOut.connect(nextNode);
+        }
+        this.channelGates.delete(ch);
+      }
+      return;
+    }
+
     const eq = this.channelEQs.get(ch);
     const panner = this.channelPanners.get(ch);
     if (!eq || !panner) { this.getChannelBus(ch); return this.setChannelGate(ch, on, rate, depth, shape, mode, pattern); }
@@ -1064,6 +1223,10 @@ export class AudioPort {
   setChannelVolume(ch: number, v: number): void {
     const vol = Math.max(0, Math.min(1, v));
     this.channelVolumes.set(ch, vol);
+    // Sync volume to poly-synth worklet
+    if (this.polySynth && ch !== 9) {
+      this.polySynth.port.postMessage({ type: "volume", channel: ch, volume: vol });
+    }
     const bus = this.channelBuses.get(ch);
     if (bus) {
       const now = this.ctx.currentTime;
@@ -1140,6 +1303,9 @@ export class AudioPort {
   setChannelPan(ch: number, pan: number): void {
     const panner = this.channelPanners.get(ch);
     if (panner) panner.pan.value = Math.max(-1, Math.min(1, pan));
+    if (this.polySynth && ch !== 9) {
+      this.polySynth.port.postMessage({ type: "pan", channel: ch, pan: Math.max(-1, Math.min(1, pan)) });
+    }
   }
 
   /** Get the AnalyserNode for a specific channel (for per-channel VU metering). */
@@ -1247,9 +1413,14 @@ export class AudioPort {
   }
 
   /** Set duck parameters: depth (0-1) and release (seconds). */
-  setDuckParams(depth: number, release: number): void {
+  setDuckParams(depth: number, release: number, excludeBass?: boolean, excludeSynth?: boolean): void {
     this.duckDepth = Math.max(0, Math.min(1, depth));
     this.duckRelease = Math.max(0.01, Math.min(0.5, release));
+    if (excludeBass !== undefined)  (this.fx.duck as { excludeBass?: boolean }).excludeBass  = excludeBass;
+    if (excludeSynth !== undefined) (this.fx.duck as { excludeSynth?: boolean }).excludeSynth = excludeSynth;
+    if (this.polySynth) {
+      this.polySynth.port.postMessage({ type: "duck_params", depth: this.duckDepth, release: this.duckRelease });
+    }
   }
 
   getDuckParams(): { depth: number; release: number } {
@@ -1415,9 +1586,6 @@ export class AudioPort {
   }
 
   close(): void {
-    // Stop all active voices
-    for (const voice of this.voices.values()) this.stopVoice(voice);
-    this.voices.clear();
     // Stop all active drum sources
     for (const src of this.activeDrumSrcs) { try { src.stop(); } catch { /* */ } }
     this.activeDrumSrcs.clear();
@@ -1449,39 +1617,6 @@ export class AudioPort {
     const pair = this.drumNodePool.pop();
     if (pair) return pair;
     return { gain: this.ctx.createGain(), pan: this.ctx.createStereoPanner() };
-  }
-
-  /** Borrow a GainNode from synth pool, or create new. */
-  private borrowSynthGain(): GainNode {
-    return this.synthGainPool.pop() ?? this.ctx.createGain();
-  }
-  /** Borrow a BiquadFilterNode from synth pool, or create new. */
-  private borrowSynthFilter(): BiquadFilterNode {
-    return this.synthFilterPool.pop() ?? this.ctx.createBiquadFilter();
-  }
-  /** Return synth nodes to pool after voice cleanup. */
-  private returnSynthGain(g: GainNode): void {
-    if (this.synthGainPool.length < this.synthPoolMax) {
-      // Reset automation timeline so pooled node starts clean
-      try { g.gain.cancelScheduledValues(0); g.gain.value = 0; } catch { /* */ }
-      this.synthGainPool.push(g);
-    }
-  }
-  private returnSynthFilter(f: BiquadFilterNode): void {
-    if (this.synthFilterPool.length < this.synthPoolMax) {
-      try { f.frequency.cancelScheduledValues(0); f.Q.cancelScheduledValues(0); } catch { /* */ }
-      this.synthFilterPool.push(f);
-    }
-  }
-  /** Borrow a StereoPannerNode from synth pool, or create new. */
-  private borrowSynthPanner(): StereoPannerNode {
-    return this.synthPannerPool.pop() ?? this.ctx.createStereoPanner();
-  }
-  private returnSynthPanner(p: StereoPannerNode): void {
-    if (this.synthPannerPool.length < this.synthPoolMax) {
-      try { p.pan.cancelScheduledValues(0); p.pan.value = 0; } catch { /* */ }
-      this.synthPannerPool.push(p);
-    }
   }
 
   /** Return a Gain+Panner pair to the pool (disconnect src, keep gain→pan→bus wired). */
@@ -1573,18 +1708,29 @@ export class AudioPort {
   private readonly duckRecover = () => {
     for (const [ch, bus] of this.channelBuses) {
       if (ch === DRUM_CH) continue;
+      if (this.polySynth && ch !== DRUM_CH) continue; // worklet recovers internally
       bus.gain.value = this.channelVolumes.get(ch) ?? 1;
     }
   };
   private applyDuck(): void {
+    const excludeBass  = !!(this.fx.duck as { excludeBass?: boolean }).excludeBass;
+    const excludeSynth = !!(this.fx.duck as { excludeSynth?: boolean }).excludeSynth;
+    // Worklet path: send duck message per non-excluded, non-drum channel
+    if (this.polySynth) {
+      if (!excludeSynth) this.polySynth.port.postMessage({ type: "duck", channel: 0, depth: this.duckDepth });
+      if (!excludeBass)  this.polySynth.port.postMessage({ type: "duck", channel: 1, depth: this.duckDepth });
+    }
+    // Web Audio path: set bus gain for non-worklet, non-excluded channels
     const duckTo = 1 - this.duckDepth;
     for (const [ch, bus] of this.channelBuses) {
       if (ch === DRUM_CH) continue;
+      if (this.polySynth) continue; // handled by worklet above
+      if (ch === 0 && excludeSynth) continue;
+      if (ch === 1 && excludeBass)  continue;
       const vol = this.channelVolumes.get(ch) ?? 1;
       if (vol <= 0) continue;
       bus.gain.value = vol * duckTo;
     }
-    // Single timer for all channels — re-kicks just reset it
     clearTimeout(this.duckTimer);
     this.duckTimer = window.setTimeout(this.duckRecover, this.duckRelease * 1000 + 20);
   }
@@ -1592,448 +1738,19 @@ export class AudioPort {
   // ── Synth playback ───────────────────────────────────────────────────
 
   private playSynth(ch: number, note: number, vel: number, time?: number): void {
-    // DEBUG: uncomment next line to silence all synth — test if click is from drums
-    // if (true) return;
-    const key = `${ch}:${note}`;
-    const p = this.getSynthParams(ch);
-    const freq = midiToFreq(note);
-
-    // Release any existing voice on this note (retrigger)
-    const prev = this.voices.get(key);
-    const isRetrigger = !!prev;
-    if (prev) {
-      // Gentle crossfade with cancelAndHoldAtTime to freeze at current value
-      const now = this.ctx.currentTime;
-      if (prev.gain.gain.cancelAndHoldAtTime) {
-        prev.gain.gain.cancelAndHoldAtTime(now);
-      } else {
-        prev.gain.gain.cancelScheduledValues(now);
-      }
-      const fadeTc = freq < 200 ? 0.015 : 0.008; // longer fade for bass to avoid mid-cycle click
-      prev.gain.gain.setTargetAtTime(0, now, fadeTc);
-      for (const o of prev.oscs) o.stop(now + 0.08);
-      if (prev.subOsc) prev.subOsc.stop(now + 0.08);
-      if (prev.lfo) prev.lfo.stop(now + 0.08);
-      // Clean up on first osc end (no setTimeout — Safari-safe)
-      if (prev.oscs[0]) prev.oscs[0].onended = () => this.disconnectVoice(prev);
-    }
-
-    const when = perfToCtx(this.ctx, time);
-    const amp = (vel / 127) * 0.2;
-
-    // Enforce minimum attack/release to prevent clicks
-    const atk = Math.max(0.008, p.attack);
-    const dec = Math.max(0.01, p.decay);
-    // Time constant for exponential attack (reaches ~95% in 3*tc)
-    const atkTc = atk / 3;
-
-    // Filter with envelope (bypass when filterOn is false)
-    let filter: BiquadFilterNode | AudioWorkletNode | null = null;
-    const filterModel = p.filterModel ?? "digital";
-    const useWorkletFilter = this.workletsLoaded && filterModel !== "digital";
-    if (p.filterOn !== false) {
-      const cutoffBase = Math.min(p.cutoff, 12000);
-      const envDepth = p.filterEnvDepth ?? 0;
-      const cutoffPeak = Math.min(cutoffBase + envDepth * 8000, 18000);
-
-      if (useWorkletFilter) {
-        // AudioWorklet filter (muug or 303)
-        const processorName = filterModel === "mog" ? "moog-filter" : "diode-filter";
-        filter = new AudioWorkletNode(this.ctx, processorName);
-        const cutoffParam = (filter as AudioWorkletNode).parameters.get("cutoff")!;
-        const resParam = (filter as AudioWorkletNode).parameters.get("resonance")!;
-        // Map BiquadFilter Q (0.5-20) to worklet resonance (0-4).
-        // Exponential curve: Q=1→0.5, Q=4→1.5, Q=10→3, Q=20→4 (self-oscillation)
-        const mappedRes = Math.min(4, 4 * Math.pow(p.resonance / 20, 0.7));
-        resParam.setValueAtTime(mappedRes, when);
-        if (envDepth > 0) {
-          cutoffParam.setValueAtTime(Math.max(cutoffBase * 0.5, 200), when);
-          cutoffParam.setTargetAtTime(cutoffPeak, when, atkTc);
-          cutoffParam.setTargetAtTime(Math.max(cutoffBase * p.sustain, 200), when + atk, dec / 3);
-        } else {
-          cutoffParam.setValueAtTime(cutoffBase, when);
-        }
-      } else {
-        // Standard BiquadFilterNode (pooled)
-        const bqFilter = this.borrowSynthFilter();
-        bqFilter.type = p.filterType;
-        bqFilter.Q.setValueAtTime(p.resonance, when);
-        if (envDepth > 0) {
-          bqFilter.frequency.setValueAtTime(Math.max(cutoffBase * 0.5, 200), when);
-          bqFilter.frequency.setTargetAtTime(cutoffPeak, when, atkTc);
-          bqFilter.frequency.setTargetAtTime(Math.max(cutoffBase * p.sustain, 200), when + atk, dec / 3);
-        } else {
-          bqFilter.frequency.setValueAtTime(cutoffBase, when);
-        }
-        filter = bqFilter;
-      }
-    }
-
-    // ADSR gain envelope — anchor at 0 before ramp (Chrome linearRamp fix)
-    const gain = this.borrowSynthGain();
-    gain.gain.value = 0;
-    gain.gain.setValueAtTime(0, Math.max(0, when - 0.002));
-    gain.gain.setValueAtTime(0, when);
-    gain.gain.linearRampToValueAtTime(amp, when + atk);
-    gain.gain.setTargetAtTime(amp * Math.max(p.sustain, 0.001), when + atk, dec / 3);
-
-    const chBus = this.getChannelBus(ch);
-
-    // ── Filter drive: gain stage before filter for resonance/self-oscillation ──
-    let filterDriveNode: GainNode | null = null;
-    let driveCompNode: GainNode | null = null;
-    const filterDriveAmt = p.filterDrive ?? 0;
-    if (filter && filterDriveAmt > 0) {
-      filterDriveNode = this.borrowSynthGain();
-      // Drive range: 1x (clean) to 8x (heavy overdrive into filter)
-      filterDriveNode.gain.value = 1 + filterDriveAmt * 7;
-      // Compensate output volume
-      driveCompNode = this.borrowSynthGain();
-      driveCompNode.gain.value = 1 / (1 + filterDriveAmt * 3);
-      // Wire: oscs → filterDriveNode → filter → driveComp → gain
-      filterDriveNode.connect(filter);
-      filter.connect(driveCompNode);
-      driveCompNode.connect(gain);
-    }
-
-    // ── Oscillator(s) — mono, stereo detune, or unison ──────────────
-    const oscs: OscillatorNode[] = [];
-    const panNodes: StereoPannerNode[] = [];
-    const workletOscs: AudioWorkletNode[] = [];
-    const unisonOverride = localStorage.getItem("mpump-unison") ?? "auto";
-    const unisonCount = unisonOverride === "auto" ? (p.unison ?? 1) : parseInt(unisonOverride) || 1;
-    const unisonSpread = unisonCount > 1 ? (p.unisonSpread ?? 25) : 0;
-    const filterInput = filterDriveNode ?? filter ?? gain; // connect oscs through drive if present
-    const isPWM = p.oscType === "pwm";
-    const isWorkletOsc = this.workletsLoaded && (p.oscType === "sync" || p.oscType === "fm" || p.oscType === "wavetable");
-    const oscTypeForNode = (isPWM || isWorkletOsc ? "sawtooth" : p.oscType) as OscillatorType;
-
-    // Analog drift: slow random pitch modulation per oscillator
-    // Skip on retrigger to avoid beating between old and new drift phases
-    const driftAmount = freq < 200 ? 0.0006 : 0.0017;
-    const addDrift = (osc: OscillatorNode, extras: AudioNode[]) => {
-      if (isRetrigger || this.perfMode === "eco") return null; // no drift on retrigger or eco mode
-      const driftLfo = this.ctx.createOscillator();
-      driftLfo.type = "sine";
-      driftLfo.frequency.value = 0.15 + Math.random() * 0.2;
-      const driftGain = this.borrowSynthGain();
-      driftGain.gain.value = freq * driftAmount;
-      driftLfo.connect(driftGain);
-      driftGain.connect(osc.frequency);
-      driftLfo.start(when);
-      extras.push(driftGain); // track for cleanup
-      return driftLfo;
-    };
-    const driftLFOs: OscillatorNode[] = [];
-    // Extra nodes for PWM (delays, inverters, LFOs) — tracked for cleanup
-    const pwmExtras: AudioNode[] = [];
-    // Track filter drive nodes for cleanup (created earlier in filter setup)
-    if (filterDriveNode) pwmExtras.push(filterDriveNode);
-    if (driveCompNode) pwmExtras.push(driveCompNode);
-
-    /** Create an oscillator (or PWM pair / worklet osc) and connect output to `target`.
-     *  Returns the primary osc (for pitch tracking / stop). */
-    const createOsc = (target: AudioNode, detuneCents: number): OscillatorNode => {
-      // Worklet oscillators: sync, fm, wavetable
-      if (isWorkletOsc) {
-        let workletNode: AudioWorkletNode;
-        const detuneRatio = Math.pow(2, detuneCents / 1200);
-        const detuned = freq * detuneRatio;
-        if (p.oscType === "sync") {
-          workletNode = new AudioWorkletNode(this.ctx, "sync-osc");
-          workletNode.parameters.get("frequency")!.setValueAtTime(detuned, when);
-          workletNode.parameters.get("slaveRatio")!.setValueAtTime(p.syncRatio ?? 2, when);
-        } else if (p.oscType === "fm") {
-          workletNode = new AudioWorkletNode(this.ctx, "fm-osc");
-          workletNode.parameters.get("frequency")!.setValueAtTime(detuned, when);
-          workletNode.parameters.get("modRatio")!.setValueAtTime(p.fmRatio ?? 2, when);
-          workletNode.parameters.get("modIndex")!.setValueAtTime(p.fmIndex ?? 5, when);
-        } else {
-          workletNode = new AudioWorkletNode(this.ctx, "wavetable-osc");
-          workletNode.parameters.get("frequency")!.setValueAtTime(detuned, when);
-          workletNode.parameters.get("tablePosition")!.setValueAtTime(p.wavetablePos ?? 0.5, when);
-          workletNode.port.postMessage({ table: p.wavetable ?? "basic" });
-        }
-        workletNode.connect(target);
-        workletOscs.push(workletNode);
-        // Create a silent dummy osc for voice lifecycle (stop/onended)
-        const dummy = this.ctx.createOscillator();
-        dummy.frequency.value = 0;
-        const silence = this.ctx.createGain();
-        silence.gain.value = 0;
-        dummy.connect(silence);
-        silence.connect(target);
-        dummy.start(when);
-        pwmExtras.push(silence);
-        return dummy;
-      }
-
-      const osc = this.ctx.createOscillator();
-      osc.type = oscTypeForNode;
-      osc.frequency.setValueAtTime(freq, when);
-      osc.detune.setValueAtTime(detuneCents, when);
-      const d1 = addDrift(osc, pwmExtras);
-      if (d1) driftLFOs.push(d1);
-      osc.start(when);
-
-      if (!isPWM) {
-        osc.connect(target);
-        return osc;
-      }
-
-      // PWM: two saws, one inverted + delayed. Delay = pulse width / frequency.
-      const osc2 = this.ctx.createOscillator();
-      osc2.type = "sawtooth";
-      osc2.frequency.setValueAtTime(freq, when);
-      osc2.detune.setValueAtTime(detuneCents, when);
-      const d2 = addDrift(osc2, pwmExtras);
-      if (d2) driftLFOs.push(d2);
-      osc2.start(when);
-
-      const inverter = this.ctx.createGain();
-      inverter.gain.value = -1;
-
-      // Delay controls pulse width (~0.5 duty cycle center)
-      const pwDelay = this.ctx.createDelay(0.05);
-      const basePW = 0.5 / Math.max(freq, 20); // 50% duty cycle
-      pwDelay.delayTime.value = basePW;
-
-      // Slow LFO sweeps pulse width for classic PWM movement
-      const pwmLfo = this.ctx.createOscillator();
-      pwmLfo.type = "triangle";
-      pwmLfo.frequency.value = 0.4 + Math.random() * 0.3; // 0.4-0.7 Hz
-      const pwmDepth = this.ctx.createGain();
-      pwmDepth.gain.value = basePW * 0.4; // sweep ±40% around center
-      pwmLfo.connect(pwmDepth);
-      pwmDepth.connect(pwDelay.delayTime);
-      pwmLfo.start(when);
-
-      // Saw1 direct + Saw2 inverted+delayed → sum = pulse wave
-      const sum = this.ctx.createGain();
-      sum.gain.value = 0.5; // normalize amplitude
-      osc.connect(sum);
-      osc2.connect(inverter);
-      inverter.connect(pwDelay);
-      pwDelay.connect(sum);
-      sum.connect(target);
-
-      oscs.push(osc2); // track for stop/cleanup
-      pwmExtras.push(inverter, pwDelay, pwmDepth, sum);
-      // pwmLfo tracked separately so it gets stopped
-      driftLFOs.push(pwmLfo);
-
-      return osc;
-    };
-
-    if (unisonCount > 1 && unisonSpread > 0) {
-      // Unison: N voices spread across stereo field
-      const voiceGain = 1 / Math.pow(unisonCount, 0.3);
-      for (let v = 0; v < unisonCount; v++) {
-        const t = unisonCount === 1 ? 0 : (v / (unisonCount - 1)) * 2 - 1; // -1 to +1
-        const detuneCents = t * unisonSpread + (p.detune ?? 0);
-        const panVal = t * 0.8;
-
-        const voiceAmp = this.borrowSynthGain();
-        voiceAmp.gain.value = voiceGain;
-        const pan = this.borrowSynthPanner();
-        pan.pan.value = panVal;
-        voiceAmp.connect(pan);
-        pan.connect(filterInput);
-
-        const osc = createOsc(voiceAmp, detuneCents);
-        oscs.push(osc);
-        panNodes.push(pan);
-        pwmExtras.push(voiceAmp); // track for cleanup
-      }
-    } else if (p.detune && p.detune > 0) {
-      // Stereo detune: 2 oscillators panned L/R
-      const panL = this.borrowSynthPanner();
-      panL.pan.value = -0.7;
-      const panR = this.borrowSynthPanner();
-      panR.pan.value = 0.7;
-      panL.connect(filterInput);
-      panR.connect(filterInput);
-
-      oscs.push(createOsc(panL, -p.detune / 2));
-      oscs.push(createOsc(panR, p.detune / 2));
-      panNodes.push(panL, panR);
-    } else {
-      // Single mono oscillator
-      oscs.push(createOsc(filterInput, p.detune ?? 0));
-    }
-
-    // Connect filter → gain → bus (skip if filterDrive already wired it)
-    if (filter && !filterDriveNode) {
-      filter.connect(gain);
-    }
-    gain.connect(chBus);
-
-    // Sub-bass oscillator (sine, -1 octave) — always mono center
-    let subOsc: OscillatorNode | null = null;
-    let subGain: GainNode | null = null;
-    if (p.subOsc) {
-      subOsc = this.ctx.createOscillator();
-      subOsc.type = "sine";
-      subOsc.frequency.setValueAtTime(freq / 2, when);
-      subGain = this.ctx.createGain();
-      subGain.gain.value = 0;
-      subGain.gain.setValueAtTime(0, Math.max(0, when - 0.002));
-      subGain.gain.setValueAtTime(0, when);
-      subGain.gain.linearRampToValueAtTime(amp * p.subLevel, when + atk);
-      subGain.gain.setTargetAtTime(amp * p.subLevel * Math.max(p.sustain, 0.001), when + atk, dec / 3);
-      subOsc.connect(subGain);
-      subGain.connect(chBus);
-      subOsc.start(when);
-    }
-
-    // LFO → cutoff / pitch / both
-    let lfo: OscillatorNode | null = null;
-    const lfoGains: GainNode[] = [];
-    if (p.lfoOn && p.lfoDepth > 0) {
-      lfo = this.ctx.createOscillator();
-      lfo.type = p.lfoShape;
-      const lfoHz = p.lfoSync ? lfoDivisionToHz(p.lfoDivision, this.bpm) : p.lfoRate;
-      lfo.frequency.setValueAtTime(lfoHz, when);
-      lfo.start(when);
-
-      if ((p.lfoTarget === "cutoff" || p.lfoTarget === "both") && filter) {
-        const lfoToCutoff = this.ctx.createGain();
-        const cutoffVal = Math.min(p.cutoff, 12000);
-        lfoToCutoff.gain.setValueAtTime(cutoffVal * p.lfoDepth * 0.8, when);
-        lfo.connect(lfoToCutoff);
-        // Connect LFO to filter cutoff — different API for worklet vs BiquadFilter
-        const cutoffTarget = filter instanceof AudioWorkletNode
-          ? filter.parameters.get("cutoff")!
-          : filter.frequency;
-        lfoToCutoff.connect(cutoffTarget);
-        lfoGains.push(lfoToCutoff);
-      }
-
-      if (p.lfoTarget === "pitch" || p.lfoTarget === "both") {
-        const lfoToPitch = this.ctx.createGain();
-        lfoToPitch.gain.setValueAtTime(freq * p.lfoDepth * 0.06, when);
-        lfo.connect(lfoToPitch);
-        for (const o of oscs) lfoToPitch.connect(o.frequency);
-        if (subOsc) lfoToPitch.connect(subOsc.frequency);
-        lfoGains.push(lfoToPitch);
-      }
-    }
-
-    this.voices.set(key, { oscs, panNodes, subOsc, subGain, gain, filter, lfo, lfoGains, driftLFOs, pwmExtras, workletOscs, env: { amp, atk, dec, sus: p.sustain, startTime: when }, wallClock: performance.now() });
-
-    // Voice limit: kill oldest voices to prevent audio thread overload
-    const voiceLimit = this.perfMode === "eco" ? 6 : parseInt(localStorage.getItem("mpump-voice-limit") ?? "12") || 12;
-    if (this.voices.size > voiceLimit) {
-      const oldest = this.voices.keys().next().value;
-      if (oldest) {
-        const v = this.voices.get(oldest);
-        if (v) this.stopVoice(v);
-        this.voices.delete(oldest);
-      }
+    // Poly-synth worklet path: zero native node allocation
+    // Send gate duration (seconds) so worklet handles its own release timing.
+    // This avoids the issue where look-ahead scheduling sends noteOn+noteOff
+    // back-to-back in the same tick, killing the voice before attack ramps up.
+    if (this.polySynth) {
+      const stepDur = 60 / (this.bpm * 4); // 16th note duration in seconds
+      const noteLen = this.channelParams.get(ch)?.noteLength ?? 1;
+      const gateSec = stepDur * noteLen * (this.polySynthGateFractions.get(ch) ?? this.polySynthGateFractionDefault);
+      this.polySynth.port.postMessage({ type: "noteOn", channel: ch, note, vel, gate: gateSec });
     }
   }
-
-  private releaseSynth(ch: number, note: number, time?: number): void {
-    const key = `${ch}:${note}`;
-    const voice = this.voices.get(key);
-    if (!voice) return;
-
-    const p = this.getSynthParams(ch);
-    const when = perfToCtx(this.ctx, time);
-    const rel = Math.max(0.01, p.release);
-
-    // cancelAndHoldAtTime freezes at interpolated value — no snap discontinuity
-    const tc = Math.max(0.003, rel / 5);
-    if (voice.gain.gain.cancelAndHoldAtTime) {
-      voice.gain.gain.cancelAndHoldAtTime(when);
-    } else {
-      voice.gain.gain.cancelScheduledValues(when);
-    }
-    voice.gain.gain.setTargetAtTime(0, when, tc);
-    // Hard zero just before osc stop — ensures no residual signal causes a click
-    const stopAt = when + rel + 0.1;
-    voice.gain.gain.setValueAtTime(0, stopAt - 0.002);
-    for (const o of voice.oscs) o.stop(stopAt);
-
-    if (voice.subOsc && voice.subGain) {
-      if (voice.subGain.gain.cancelAndHoldAtTime) {
-        voice.subGain.gain.cancelAndHoldAtTime(when);
-      } else {
-        voice.subGain.gain.cancelScheduledValues(when);
-      }
-      voice.subGain.gain.setTargetAtTime(0, when, tc);
-      voice.subGain.gain.setValueAtTime(0, stopAt - 0.002);
-      voice.subOsc.stop(stopAt);
-    }
-
-    if (voice.lfo) {
-      voice.lfo.stop(stopAt);
-    }
-
-    // Clean up when first osc ends (no setTimeout — Safari-safe)
-    if (voice.oscs[0]) {
-      voice.oscs[0].onended = () => {
-        this.disconnectVoice(voice);
-        if (this.voices.get(key) === voice) this.voices.delete(key);
-      };
-    }
-  }
-
-  /** Disconnect all nodes in a voice from the audio graph to free memory.
-   *  Returns poolable nodes (gain, digital filter) to their pools. */
-  private disconnectVoice(voice: SynthVoice): void {
-    try {
-      for (const o of voice.oscs) o.disconnect();
-      for (const p of voice.panNodes) { p.disconnect(); this.returnSynthPanner(p); }
-      voice.gain.disconnect();
-      this.returnSynthGain(voice.gain);
-      if (voice.filter) {
-        voice.filter.disconnect();
-        if (voice.filter instanceof BiquadFilterNode) this.returnSynthFilter(voice.filter);
-      }
-      if (voice.subOsc) voice.subOsc.disconnect();
-      if (voice.subGain) voice.subGain.disconnect();
-      if (voice.lfo) voice.lfo.disconnect();
-      for (const g of voice.lfoGains) { g.disconnect(); this.returnSynthGain(g); }
-      for (const d of voice.driftLFOs) { try { d.stop(); d.disconnect(); } catch { /* */ } }
-      for (const n of voice.pwmExtras) {
-        try { n.disconnect(); } catch { /* */ }
-        if (n instanceof GainNode) this.returnSynthGain(n);
-      }
-      for (const w of voice.workletOscs) { try { w.disconnect(); } catch { /* */ } }
-    } catch { /* already disconnected */ }
-  }
-
-  private stopVoice(voice: SynthVoice): void {
-    try {
-      const now = this.ctx.currentTime;
-      const fadeOut = 0.035;
-      if (voice.gain.gain.cancelAndHoldAtTime) {
-        voice.gain.gain.cancelAndHoldAtTime(now);
-      } else {
-        voice.gain.gain.cancelScheduledValues(now);
-      }
-      const stopAt = now + fadeOut + 0.05;
-      voice.gain.gain.setTargetAtTime(0, now, fadeOut / 4);
-      voice.gain.gain.setValueAtTime(0, stopAt - 0.002);
-      for (const o of voice.oscs) o.stop(stopAt);
-      if (voice.subOsc && voice.subGain) {
-        if (voice.subGain.gain.cancelAndHoldAtTime) {
-          voice.subGain.gain.cancelAndHoldAtTime(now);
-        } else {
-          voice.subGain.gain.cancelScheduledValues(now);
-        }
-        voice.subGain.gain.setTargetAtTime(0, now, fadeOut / 4);
-        voice.subGain.gain.setValueAtTime(0, stopAt - 0.002);
-        voice.subOsc.stop(stopAt);
-      }
-      if (voice.lfo) {
-        voice.lfo.stop(stopAt);
-      }
-      // Clean up when first osc ends (no setTimeout — Safari-safe)
-      if (voice.oscs[0]) voice.oscs[0].onended = () => this.disconnectVoice(voice);
-    } catch {
-      // Voice may already be stopped
-    }
+  private releaseSynth(_ch: number, _note: number, _time?: number): void {
+    // Poly-synth handles gate timing internally — skip external noteOff
+    if (this.polySynth) return;
   }
 }

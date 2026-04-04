@@ -108,6 +108,8 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
   const [duckOn, setDuckOn] = useState(() => getBool("mpump-sidechain", false));
   const [duckDepth, setDuckDepth] = useState(() => parseFloat(getItem("mpump-duck-depth", "0.5")));
   const [duckRelease, setDuckRelease] = useState(() => parseFloat(getItem("mpump-duck-release", "0.04")));
+  const [duckExcludeBass, setDuckExcludeBass] = useState(() => getBool("mpump-duck-excl-bass", false));
+  const [duckExcludeSynth, setDuckExcludeSynth] = useState(() => getBool("mpump-duck-excl-synth", false));
   const toggleSolo = (channel: "drums" | "bass" | "synth") => {
     const unsolo = soloChannel === channel;
     command({ type: "set_drums_mute", device: "preview_drums", muted: unsolo ? false : channel !== "drums" });
@@ -165,12 +167,24 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
     setChGate(prev => ({ ...prev, [ch]: g }));
     command({ type: "set_channel_gate", channel: ch, ...g } as ClientMessage);
   };
+  // Named stutter presets — 4-char labels to fit buttons
   const STUTTER_PRESETS: { name: string; pattern: number[] }[] = [
-    { name: "Buildup", pattern: [1,0,0,0, 1,0,0,0, 1,0,1,0, 1,1,1,1] },
-    { name: "Triplet", pattern: [1,1,0, 1,1,0, 1,1,0, 1,1,0, 1,0,0,0] },
-    { name: "Stutter", pattern: [1,1,1,0, 0,0,0,0, 1,1,1,1, 0,0,0,0] },
-    { name: "Breakbeat", pattern: [1,0,1,0, 0,0,1,0, 1,0,0,1, 0,1,0,0] },
-    { name: "Glitch", pattern: [1,0,1,1, 0,1,0,0, 1,1,0,1, 0,0,1,0] },
+    { name: "BDUP", pattern: [1,0,0,0, 1,0,0,0, 1,0,1,0, 1,1,1,1] },
+    { name: "TRIP", pattern: [1,1,0,1, 1,0,1,1, 0,1,1,0, 1,0,0,0] },
+    { name: "STUT", pattern: [1,1,1,0, 0,0,0,0, 1,1,1,1, 0,0,0,0] },
+    { name: "BKBT", pattern: [1,0,1,0, 0,0,1,0, 1,0,0,1, 0,1,0,0] },
+    { name: "GLTC", pattern: [1,0,1,1, 0,1,0,0, 1,1,0,1, 0,0,1,0] },
+  ];
+  // 8 trance gate presets (numbered 1–8), all 16 steps max
+  const GATE_PRESETS: { pattern: number[] }[] = [
+    { pattern: [0,1,1,0, 1,1,0,0, 0,1,1,0, 1,1,0,0] },
+    { pattern: [1,1,0,1, 1,0,1,1, 0,1,1,0, 1,1,0,1] },
+    { pattern: [1,0,1,0, 1,1,0,1, 0,1,0,1, 1,0,1,0] }, // truncated from 32
+    { pattern: [0,1,1,0, 1,0,0,1, 1,0,1,1, 0,0,1,1] },
+    { pattern: [1,0,1,0, 0,0,1,1, 1,0,1,1, 0,0,0,0] },
+    { pattern: [0,0,0,0, 0,0,0,1, 1,0,1,1, 0,0,0,0] },
+    { pattern: [0,0,0,0, 0,0,0,0, 1,1,1,1, 0,0,0,0] },
+    { pattern: [1,1,0,0, 1,1,0,0, 1,1,0,0, 1,1,0,0] },
   ];
   const chLabels: Record<number, string> = { 9: "DRUMS", 1: "BASS", 0: "SYNTH" };
   const [showDrumKit, setShowDrumKit] = useState(false);
@@ -704,9 +718,19 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
     command({ type: "set_sidechain_duck", on: next });
   };
 
+  // Heavy effects (convolver, multi-voice delays, allpass chains, oversampled waveshaper):
+  // max 2 simultaneous. Light effects (single-node or trivial): unlimited.
+  const HEAVY_FX: Set<EffectName> = new Set(["reverb", "chorus", "phaser", "distortion"]);
+  const MAX_HEAVY = 2;
+  const canActivate = (name: EffectName): boolean => {
+    if (!HEAVY_FX.has(name)) return true;
+    const activeHeavy = (Object.keys(fx) as EffectName[]).filter(n => fx[n].on && HEAVY_FX.has(n)).length;
+    return activeHeavy < MAX_HEAVY;
+  };
   const toggleFx = (name: EffectName) => {
     tapVibrate();
     const turningOn = !fx[name].on;
+    if (turningOn && !canActivate(name)) return;
     const updated = { ...fx, [name]: { ...fx[name], on: turningOn } };
     saveFx(updated);
     command({ type: "set_effect", name, params: { on: turningOn } });
@@ -747,13 +771,18 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
         setBool("mpump-sidechain", on);
         command({ type: "set_sidechain_duck", on });
       }
-      if (params.depth != null || params.release != null) {
-        const d = (params.depth as number) ?? duckDepth;
-        const r = (params.release as number) ?? duckRelease;
+      if (params.depth != null || params.release != null || params.excludeBass != null || params.excludeSynth != null) {
+        const d  = (params.depth  as number)  ?? duckDepth;
+        const r  = (params.release as number) ?? duckRelease;
+        const eb = (params.excludeBass  as boolean) ?? duckExcludeBass;
+        const es = (params.excludeSynth as boolean) ?? duckExcludeSynth;
         setDuckDepth(d); setDuckRelease(r);
+        setDuckExcludeBass(eb); setDuckExcludeSynth(es);
         setItem("mpump-duck-depth", String(d));
         setItem("mpump-duck-release", String(r));
-        command({ type: "set_duck_params", depth: d, release: r });
+        setBool("mpump-duck-excl-bass", eb);
+        setBool("mpump-duck-excl-synth", es);
+        command({ type: "set_duck_params", depth: d, release: r, excludeBass: eb, excludeSynth: es });
       }
       return;
     }
@@ -779,7 +808,7 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
     // Turn on new effect if it's an effect-type target and not already on
     if (EFFECT_TARGETS.includes(newTarget)) {
       const name = newTarget as EffectName;
-      if (!fx[name].on) {
+      if (!fx[name].on && canActivate(name)) {
         const updated = { ...fx, [name]: { ...fx[name], on: true } };
         saveFx(updated);
         command({ type: "set_effect", name, params: { on: true } });
@@ -858,7 +887,7 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
                 {volDropCh === 1 && <div className="kaos-vol-drop" onMouseEnter={volDropKeep} onMouseLeave={volDropHide}><input type="range" min={0} max={1} step={0.01} value={channelVolumes[1] ?? 0.7} onChange={e => onChannelVolumeChange(1, parseFloat(e.target.value))} className="kaos-vol-slider" /></div>}
               </div>
               <button className="ch-vol-inline" style={{ cursor: "pointer", background: "none", border: "1px solid var(--border)", borderRadius: 4, padding: "6px 10px", color: "var(--fg)", fontSize: 10, fontWeight: 600, fontFamily: "inherit", minHeight: 28 }} onClick={() => openMixModal(1, "eq")} title="Equalizer">EQ</button>
-              <button className="ch-vol-inline" style={{ cursor: "pointer", background: "none", border: "1px solid var(--border)", borderRadius: 4, padding: "6px 10px", color: "var(--fg)", fontSize: 10, fontWeight: 600, fontFamily: "inherit", minHeight: 28 }} onClick={() => openMixModal(1, "gate")} title="Trance gate">GATE</button>
+              <button className="ch-vol-inline" style={{ cursor: "pointer", background: getChGate(1).on ? "#66ff99" : "none", border: getChGate(1).on ? "1px solid #66ff99" : "1px solid var(--border)", borderRadius: 4, padding: "6px 10px", color: getChGate(1).on ? "#000" : "var(--fg)", fontSize: 10, fontWeight: 600, fontFamily: "inherit", minHeight: 28 }} onClick={() => openMixModal(1, "gate")} title="Trance gate">GATE</button>
             </div>
             <div className="kaos-sel-divider" />
             <div className="kaos-sel-row"><span className="kaos-sel-row-label">GENRE</span>
@@ -903,7 +932,7 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
                 {volDropCh === 0 && <div className="kaos-vol-drop" onMouseEnter={volDropKeep} onMouseLeave={volDropHide}><input type="range" min={0} max={1} step={0.01} value={channelVolumes[0] ?? 0.7} onChange={e => onChannelVolumeChange(0, parseFloat(e.target.value))} className="kaos-vol-slider" /></div>}
               </div>
               <button className="ch-vol-inline" style={{ cursor: "pointer", background: "none", border: "1px solid var(--border)", borderRadius: 4, padding: "6px 10px", color: "var(--fg)", fontSize: 10, fontWeight: 600, fontFamily: "inherit", minHeight: 28 }} onClick={() => openMixModal(0, "eq")} title="Equalizer">EQ</button>
-              <button className="ch-vol-inline" style={{ cursor: "pointer", background: "none", border: "1px solid var(--border)", borderRadius: 4, padding: "6px 10px", color: "var(--fg)", fontSize: 10, fontWeight: 600, fontFamily: "inherit", minHeight: 28 }} onClick={() => openMixModal(0, "gate")} title="Trance gate">GATE</button>
+              <button className="ch-vol-inline" style={{ cursor: "pointer", background: getChGate(0).on ? "#66ff99" : "none", border: getChGate(0).on ? "1px solid #66ff99" : "1px solid var(--border)", borderRadius: 4, padding: "6px 10px", color: getChGate(0).on ? "#000" : "var(--fg)", fontSize: 10, fontWeight: 600, fontFamily: "inherit", minHeight: 28 }} onClick={() => openMixModal(0, "gate")} title="Trance gate">GATE</button>
             </div>
             <div className="kaos-sel-divider" />
             <div className="kaos-sel-row"><span className="kaos-sel-row-label">GENRE</span>
@@ -1149,7 +1178,7 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
       {editingFx && (
         <EffectEditor
           name={editingFx}
-          params={editingFx === "duck" ? { on: duckOn, depth: duckDepth, release: duckRelease } : fx[editingFx]}
+          params={editingFx === "duck" ? { on: duckOn, depth: duckDepth, release: duckRelease, excludeBass: duckExcludeBass, excludeSynth: duckExcludeSynth } : fx[editingFx]}
           onUpdate={(p) => updateFxParam(editingFx, p)}
           onClose={() => setEditingFx(null)}
         />
@@ -1247,42 +1276,105 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
                   onClick={() => updateChGate(ch, { on: !gate.on })}
                 >{gate.on ? "ON" : "OFF"}</button>
               </div>
-              {/* Stutter pattern mode hidden — coming in next release */}
-              {window.innerWidth >= 700 && (() => {
-                const steps = 128;
-                const pts = Array.from({ length: steps + 1 }, (_, i) => {
-                  const t = i / steps;
-                  const angle = t * Math.PI * 2 - Math.PI / 2;
-                  const phase = (t * cycles) % 1;
-                  let env;
-                  if (gate.shape === "square") { env = phase < 0.5 ? 1 : 1 - gate.depth; }
-                  else { const tri = phase < 0.5 ? phase * 2 : 2 - phase * 2; env = 1 - gate.depth * (1 - tri); }
-                  const r = rMin + (rMax - rMin) * env;
-                  return `${cx + Math.cos(angle) * r},${cy + Math.sin(angle) * r}`;
-                }).join(" ");
-                return <svg className="fx-vis" viewBox={`0 0 ${size} ${size}`} style={{ marginBottom: 4, width: 100, height: 100 }}>
-                  <circle cx={cx} cy={cy} r={rMax} fill="none" stroke="rgba(102,255,153,0.1)" strokeWidth={0.5} />
-                  <circle cx={cx} cy={cy} r={rMin} fill="none" stroke="rgba(102,255,153,0.1)" strokeWidth={0.5} />
-                  <polygon points={pts} fill="rgba(102,255,153,0.08)" stroke={col} strokeWidth={1.5} />
-                  <circle cx={cx} cy={cy - rMax + 2} r={2} fill={col} />
-                </svg>;
-              })()}
-              <div className="fx-editor-row" style={{ gap: 4, marginBottom: 4 }}>
-                {(["1/4", "1/8", "1/16", "1/32"] as const).map(r => (
-                  <button key={r} className={`synth-osc-btn ${gate.rate === r ? "active" : ""}`}
-                    style={gate.rate === r ? { background: "#66ff99", color: "#000" } : undefined}
-                    onClick={() => updateChGate(ch, { rate: r })}
-                  >{r}</button>
+              {/* Mode toggle: LFO / PATTERN */}
+              <div className="fx-editor-row" style={{ gap: 6, marginBottom: 6 }}>
+                {(["lfo", "pattern"] as const).map(m => (
+                  <button key={m} className={`synth-osc-btn ${gate.mode === m ? "active" : ""}`}
+                    style={gate.mode === m ? { background: "#66ff99", color: "#000" } : undefined}
+                    onClick={() => updateChGate(ch, { mode: m })}
+                  >{m === "lfo" ? "LFO" : "PATTERN"}</button>
                 ))}
               </div>
-              <div className="fx-editor-row" style={{ gap: 4, marginBottom: 6 }}>
-                {(["square", "triangle"] as const).map(s => (
-                  <button key={s} className={`synth-osc-btn ${gate.shape === s ? "active" : ""}`}
-                    style={gate.shape === s ? { background: "#66ff99", color: "#000" } : undefined}
-                    onClick={() => updateChGate(ch, { shape: s })}
-                  >{s === "square" ? "HARD" : "SOFT"}</button>
-                ))}
-              </div>
+
+              {gate.mode !== "pattern" ? (
+                <>
+                  {window.innerWidth >= 700 && (() => {
+                    const steps = 128;
+                    const pts = Array.from({ length: steps + 1 }, (_, i) => {
+                      const t = i / steps;
+                      const angle = t * Math.PI * 2 - Math.PI / 2;
+                      const phase = (t * cycles) % 1;
+                      let env;
+                      if (gate.shape === "square") { env = phase < 0.5 ? 1 : 1 - gate.depth; }
+                      else { const tri = phase < 0.5 ? phase * 2 : 2 - phase * 2; env = 1 - gate.depth * (1 - tri); }
+                      const r = rMin + (rMax - rMin) * env;
+                      return `${cx + Math.cos(angle) * r},${cy + Math.sin(angle) * r}`;
+                    }).join(" ");
+                    return <svg className="fx-vis" viewBox={`0 0 ${size} ${size}`} style={{ marginBottom: 4, width: 100, height: 100 }}>
+                      <circle cx={cx} cy={cy} r={rMax} fill="none" stroke="rgba(102,255,153,0.1)" strokeWidth={0.5} />
+                      <circle cx={cx} cy={cy} r={rMin} fill="none" stroke="rgba(102,255,153,0.1)" strokeWidth={0.5} />
+                      <polygon points={pts} fill="rgba(102,255,153,0.08)" stroke={col} strokeWidth={1.5} />
+                      <circle cx={cx} cy={cy - rMax + 2} r={2} fill={col} />
+                    </svg>;
+                  })()}
+                  <div className="fx-editor-row" style={{ gap: 4, marginBottom: 4 }}>
+                    {(["1/4", "1/8", "1/16", "1/32"] as const).map(r => (
+                      <button key={r} className={`synth-osc-btn ${gate.rate === r ? "active" : ""}`}
+                        style={gate.rate === r ? { background: "#66ff99", color: "#000" } : undefined}
+                        onClick={() => updateChGate(ch, { rate: r })}
+                      >{r}</button>
+                    ))}
+                  </div>
+                  <div className="fx-editor-row" style={{ gap: 4, marginBottom: 6 }}>
+                    {(["square", "triangle"] as const).map(s => (
+                      <button key={s} className={`synth-osc-btn ${gate.shape === s ? "active" : ""}`}
+                        style={gate.shape === s ? { background: "#66ff99", color: "#000" } : undefined}
+                        onClick={() => updateChGate(ch, { shape: s })}
+                      >{s === "square" ? "HARD" : "SOFT"}</button>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* Numbered preset buttons 1–8 + E (custom) */}
+                  {(() => {
+                    const isCustom = !GATE_PRESETS.some(p => JSON.stringify(gate.pattern) === JSON.stringify(p.pattern)) &&
+                                     !STUTTER_PRESETS.some(p => JSON.stringify(gate.pattern) === JSON.stringify(p.pattern));
+                    return (
+                  <div className="fx-editor-row" style={{ gap: 4, marginBottom: 6 }}>
+                    {GATE_PRESETS.map((preset, idx) => {
+                      const isActive = JSON.stringify(gate.pattern) === JSON.stringify(preset.pattern);
+                      return (
+                        <button key={idx}
+                          className={`synth-osc-btn ${isActive ? "active" : ""}`}
+                          style={isActive ? { background: "#66ff99", color: "#000" } : undefined}
+                          onClick={() => updateChGate(ch, { pattern: preset.pattern })}
+                        >{idx + 1}</button>
+                      );
+                    })}
+                    <button
+                      className={`synth-osc-btn ${isCustom ? "active" : ""}`}
+                      style={isCustom ? { background: "#66ff99", color: "#000" } : undefined}
+                      onClick={() => updateChGate(ch, { pattern: Array(16).fill(0) })}
+                      title="Custom — click to clear, then tap steps to build your own"
+                    >E</button>
+                  </div>
+                    );
+                  })()}
+                  {/* Named stutter presets */}
+                  <div className="fx-editor-row" style={{ gap: 4, marginBottom: 6 }}>
+                    {STUTTER_PRESETS.map(preset => {
+                      const isActive = JSON.stringify(gate.pattern) === JSON.stringify(preset.pattern);
+                      return (
+                        <button key={preset.name}
+                          className={`synth-osc-btn ${isActive ? "active" : ""}`}
+                          style={{ fontFamily: "monospace", letterSpacing: 1, ...(isActive ? { background: "#66ff99", color: "#000" } : {}) }}
+                          onClick={() => updateChGate(ch, { pattern: preset.pattern })}
+                        >{preset.name}</button>
+                      );
+                    })}
+                  </div>
+                  {/* Pattern grid visualization — tappable 16-step cells */}
+                  <div style={{ display: "flex", gap: 3, marginBottom: 8 }}>
+                    {gate.pattern.slice(0, 16).map((v, i) => (
+                      <div key={i} onClick={() => {
+                        const p = [...gate.pattern]; p[i] = p[i] ? 0 : 1;
+                        updateChGate(ch, { pattern: p });
+                      }} style={{ width: 11, height: 28, background: v ? col : "rgba(102,255,153,0.1)", borderRadius: 2, cursor: "pointer", flexShrink: 0 }} />
+                    ))}
+                  </div>
+                </>
+              )}
               <div className="fx-editor-row">
                 <span className="fx-editor-label">DEPTH</span>
                 <input type="range" className="fx-editor-slider" min={0} max={1} step={0.05} value={gate.depth}

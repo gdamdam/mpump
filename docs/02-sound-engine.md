@@ -26,7 +26,7 @@ The engine has three layers:
 
 **Engine** (`Engine.ts`, ~1500 lines) is the orchestrator. It holds all device state, pattern data, and sequencer timing. It doesn't produce sound — it tells AudioPort what notes to play and when.
 
-**AudioPort** (`AudioPort.ts`, ~1000 lines) is the audio graph. It creates and manages Web Audio nodes, allocates synth voices, triggers drum sounds, and routes everything through effects to the output.
+**AudioPort** (`AudioPort.ts`, ~1200 lines) is the audio graph. It creates and manages Web Audio nodes, allocates synth voices, triggers drum sounds, and routes everything through effects to the output. It also manages per-channel FX exclusion routing and communicates gate/duck parameters to the poly-synth worklet.
 
 **drumSynth** (`drumSynth.ts`) generates drum sounds as AudioBuffers using additive/subtractive synthesis — no samples loaded from the network.
 
@@ -158,7 +158,23 @@ Both synth and bass use the same voice architecture with different default param
 └────────────────────────────────────────────────────────┘
 ```
 
-### Voice Allocation
+### AudioWorklet Poly-Synth
+
+When the browser supports AudioWorklet, synth and bass voices run entirely inside the `poly-synth.js` worklet processor — a zero-allocation voice engine on the audio thread. The worklet handles:
+
+- **Voice allocation**: up to 16 simultaneous voices with oldest-voice stealing
+- **Oscillators**: SAW, SQR, SIN, TRI with per-voice phase accumulators
+- **Unison**: up to 7 detuned voices with stereo spread
+- **PWM**: pulse width modulation via dual-saw subtraction
+- **Filter**: state-variable filter with LP/HP/BP/Notch modes, cutoff envelope, resonance, and drive
+- **ADSR**: per-voice amplitude envelope with attack/decay/sustain/release
+- **Trance gate**: BPM-synced 16-step pattern gating or LFO mode, pre-computed per block. Consecutive ON steps merge into sustained gates (no retrigger dip)
+- **Sidechain duck**: kick-triggered ducking with exponential recovery, configurable depth and release per channel
+- **Denormal flushing**: all filter state variables are flushed to prevent CPU spikes from denormalized floats
+
+The worklet receives note-on/off, parameter changes, gate patterns, and duck triggers via `port.postMessage()`. Because synthesis runs on the audio thread, gate and duck effects have sample-accurate timing rather than the ~3ms granularity of main-thread `setTargetAtTime()`.
+
+### Voice Allocation (Main Thread Fallback)
 
 Synth voices are polyphonic — each note-on creates a new voice, tracked in a `Map<"ch:note", SynthVoice>`. When a note-off arrives, the voice enters its release phase and is cleaned up after release completes.
 
@@ -179,27 +195,31 @@ Synth voices are polyphonic — each note-on creates a new voice, tracked in a `
          │                  AudioPort                       │
          │                                                  │
 ch 9 ──→ │ drumGain → drumPan ─┐                           │
-         │                      │                           │
-ch 1 ──→ │ bassGain → bassPan ──┤──→ fxInput               │
-         │                      │        │                  │
-ch 0 ──→ │ synthGain → synthPan─┘        ▼                  │
-         │                        ┌─────────────┐          │
+         │                      ├──→ fxInput                │
+ch 1 ──→ │ bassGain → bassPan ──┤        │                  │
+         │                      │        ▼                  │
+ch 0 ──→ │ synthGain → synthPan─┘ ┌─────────────┐          │
          │                        │ Effects     │          │
-         │                        │ Chain       │          │
-         │                        │ (8 nodes)   │          │
-         │                        └──────┬──────┘          │
-         │                               ▼                  │
-         │                        ┌─────────────┐          │
-         │                        │  Limiter    │          │
-         │                        │  -1dB, 4:1  │          │
-         │                        └──────┬──────┘          │
-         │                               ▼                  │
-         │                        ┌─────────────┐          │
-         │                        │  Analyser   │──→ VU    │
-         │                        └──────┬──────┘          │
-         │                               ▼                  │
-         │                        destination (speakers)    │
+         │  (FX exclusion)        │ Chain       │          │
+         │  drumsDirectOut ──┐    │ (10 nodes)  │          │
+         │  synthBassDirectOut┤   └──────┬──────┘          │
+         │                   │          │                   │
+         │                   └──→ fxOutput ←────┘          │
+         │                           │                      │
+         │                           ▼                      │
+         │                    ┌─────────────┐              │
+         │                    │  Limiter    │              │
+         │                    │  -1dB, 4:1  │              │
+         │                    └──────┬──────┘              │
+         │                           ▼                      │
+         │                    ┌─────────────┐              │
+         │                    │  Analyser   │──→ VU        │
+         │                    └──────┬──────┘              │
+         │                           ▼                      │
+         │                    destination (speakers)        │
          └─────────────────────────────────────────────────┘
+
+Channels with FX exclusion bypass the effects chain via `drumsDirectOut` or `synthBassDirectOut` GainNodes that connect directly to `fxOutput`, skipping all effects while still passing through master EQ and limiter.
 ```
 
 Each channel has its own `GainNode` (volume), 3-band EQ (low shelf/mid peak/high shelf), optional trance gate, `StereoPannerNode`, and `AnalyserNode` for per-channel metering.
@@ -220,8 +240,11 @@ The effects chain is a series of Web Audio nodes connected in sequence. Users ca
 | Bitcrusher | AudioWorklet (true sample-and-hold) | bits, crushRate (sample rate reduction) |
 | Chorus | 3-voice stereo delay + feedback + quadrature LFOs | rate, depth, mix |
 | Phaser | 6-stage allpass filters with LFO sweep (200–10kHz) | rate, depth |
-| Delay | Stereo ping-pong delay with tempo sync | time/division, feedback, mix |
-| Reverb | ConvolverNode with generated IR (4 types) | decay, mix, type (room/hall/plate/spring) |
+| Delay | Stereo ping-pong delay with tempo sync | time/division, feedback, mix, EXCL |
+| Reverb | ConvolverNode with generated IR (4 types) | decay, mix, type, EXCL |
+| Flanger | Through-zero flanger with feedback | rate, depth, mix |
+| Tremolo | Amplitude modulation via LFO | rate, depth |
+| Duck | Kick-triggered ducking (worklet for ch 0/1) | depth, release, EXCL |
 
 All effects use dry/wet mixing so you can blend the processed signal with the original.
 

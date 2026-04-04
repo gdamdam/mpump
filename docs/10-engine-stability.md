@@ -78,9 +78,31 @@ Missing any of these causes intervals to fire on a closed AudioContext.
 
 `restartDevice` is protected by a 50ms per-device throttle. If the same device is restarted within 50ms, the second call is ignored. This prevents cascading restarts from rapid UI clicks.
 
-### 12. Connect before disconnect (glitch-free topology changes)
+### 12. Flush denormals in worklet filters
 
-When rewiring the audio graph (e.g., toggling channel mono), connect the new path first, then disconnect the old path after a 5ms delay. This prevents momentary silence during the transition.
+The poly-synth worklet's state-variable filter can produce denormalized floats (values near zero that are expensive to process). All filter state variables (`_low`, `_high`, `_band`, `_notch`) are flushed each block:
+
+```javascript
+if (Math.abs(v) < 1e-15) v = 0;
+```
+
+Without this, a silent filter can consume 10–50× more CPU than an active one. The same flushing is applied to the filter envelope and the side-channel 1-pole lowpass filter.
+
+### 13. Voice steal click prevention
+
+When the worklet steals the oldest voice to make room for a new one, the stolen voice's gain is ramped to zero over ~2ms (64 samples at 48 kHz) before being reclaimed. Without this micro-fade, voice stealing produces audible clicks, especially on sustained pads.
+
+### 14. Effect node leak prevention
+
+Effect chain rebuilds (`rebuildFxChain`) must fully disconnect all nodes from the previous chain before creating new ones. Previously, rapid effect toggling could leave orphaned nodes connected to the audio graph. The rebuild now tracks all created nodes and disconnects them at the start of the next rebuild.
+
+### 15. Retrigger click fix
+
+When a note-on arrives for a note that is already sounding (same channel + same MIDI note), the worklet fades out the existing voice before starting the new one. This prevents the phase discontinuity click that occurs when an oscillator restarts at a different phase.
+
+### 16. Connect before disconnect (glitch-free topology changes)
+
+When rewiring the audio graph (e.g., toggling channel mono, switching FX exclusion routing), connect the new path first, then disconnect the old path after a 5ms delay. This prevents momentary silence during the transition.
 
 ## Audio Node Lifecycle Summary
 
@@ -90,7 +112,10 @@ When rewiring the audio graph (e.g., toggling channel mono), connect the new pat
 | Synth Oscillator + Gain + Filter | `playSynth` | `disconnectVoice` via `oscs[0].onended` |
 | Filter drive Gain (driveComp) | `playSynth` | Pushed to `pwmExtras`, cleaned by `disconnectVoice` |
 | Effect chain nodes | `rebuildFxChain` | Disconnected at start of next rebuild |
-| Trance gate LFO + smoother | `setChannelGate` | Teardown at start of next `setChannelGate` call |
+| Trance gate LFO + smoother | `setChannelGate` | Teardown at start of next `setChannelGate` call (Web Audio path) |
+| Trance gate (worklet) | `gate_pattern` message | Lives inside poly-synth worklet, no node cleanup needed |
+| Duck (worklet) | `duck` / `duck_params` message | Lives inside poly-synth worklet, no node cleanup needed |
+| FX bypass GainNodes | `updateDrumsBypassFx` / `updateSynthBassBypassFx` | Lives for AudioPort lifetime |
 | Channel bus + EQ + filters | `getChannelBus` (lazy) | Never — lives for AudioPort lifetime |
 | Master EQ + compressor + limiter | Constructor | Lives for AudioPort lifetime |
 

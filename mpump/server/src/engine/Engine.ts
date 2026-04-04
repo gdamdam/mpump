@@ -320,8 +320,10 @@ export class Engine {
       // Apply synth params to AudioPort channels
       const cfg = ds.config;
       this.audioPort!.setSynthParams(cfg.channels.main, ds.synthParams);
+      this.audioPort!.setPolySynthGate(cfg.channels.main, cfg.gateFraction);
       if (cfg.channels.bass !== undefined) {
         this.audioPort!.setSynthParams(cfg.channels.bass, ds.bassSynthParams);
+        this.audioPort!.setPolySynthGate(cfg.channels.bass, cfg.gateFraction);
       }
     }
 
@@ -1412,17 +1414,16 @@ export class Engine {
     if (this.audioPort) this.audioPort.setCVEnabled(on);
   }
 
-  /** Send a single C4 (MIDI 60) test note for 1 second (CV calibration). */
-  /** Play a note on a given channel (for keyboard input). */
+  /** Play a note on a given channel (for keyboard input — sustains until stopNote). */
   playNote(ch: number, note: number, vel = 100): void {
     if (!this.audioPort) return;
-    (this.audioPort as unknown as MidiPort).noteOn(ch, note, vel);
+    this.audioPort.liveNoteOn(ch, note, vel);
   }
 
   /** Stop a note on a given channel. */
   stopNote(ch: number, note: number): void {
     if (!this.audioPort) return;
-    (this.audioPort as unknown as MidiPort).noteOff(ch, note);
+    this.audioPort.liveNoteOff(ch, note);
   }
 
   cvTestNote(): void {
@@ -1577,8 +1578,8 @@ export class Engine {
     if (this.audioPort) this.audioPort.setSidechainDuck(on);
   }
 
-  setDuckParams(depth: number, release: number): void {
-    if (this.audioPort) this.audioPort.setDuckParams(depth, release);
+  setDuckParams(depth: number, release: number, excludeBass?: boolean, excludeSynth?: boolean): void {
+    if (this.audioPort) this.audioPort.setDuckParams(depth, release, excludeBass, excludeSynth);
   }
 
   setEQ(low: number, mid: number, high: number): void {

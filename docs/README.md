@@ -12,6 +12,6 @@ Technical guides for understanding how mpump works under the hood.
 6. **[Live Jam](06-live-jam.md)** — Real-time jam sessions, Live Set mode, WebSocket relay, bar-sync quantize, and listener reactions
 7. **[Drum Voice Tuning](07-drum-tuning.md)** — How drum voices were tuned against Roland TR-808/909 reference samples, Fletcher-Munson compensation, mix balance
 8. **[Pattern Generation](08-pattern-generation.md)** — How the 1210+ patterns across 20 genres were created, compiled, and structured
-9. **[Sound Library](09-sound-library.md)** — How 33 synth, 22 bass, 15 drum kit, and 7 machine presets were designed and matched to genres
+9. **[Sound Library](09-sound-library.md)** — How 33 synth, 23 bass, 15 drum kit, and 7 machine presets were designed and matched to genres
 10. **[Engine Stability](10-engine-stability.md)** — Audio node lifecycle, known pitfalls, and the stability rules that keep the audio thread healthy
 11. **[Genre Mix Profiles](genre-mix-profiles.md)** — Research-backed mix profiles for 13 genre families with EQ, sidechain, width, and level targets

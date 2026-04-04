@@ -298,8 +298,8 @@ export function Settings({ volume, onVolumeChange, onClose, swing, onSwingChange
                   onClick={() => { const next = !getBool("mpump-wave-tap"); setBool("mpump-wave-tap", next); window.dispatchEvent(new Event("mpump-settings-changed")); refreshToggles(); }}>
                   <span className="settings-toggle-dot" />Wave Tap Tempo
                 </button>
-                <button className={`settings-toggle ${getBool("mpump-mixer-advanced") ? "on" : ""}`} title="Show LIMIT, MB, MS, DRV controls in mixer"
-                  onClick={() => { const next = !getBool("mpump-mixer-advanced"); setBool("mpump-mixer-advanced", next); window.dispatchEvent(new Event("mpump-settings-changed")); refreshToggles(); }}>
+                <button className={`settings-toggle ${getBool("mpump-mixer-advanced", true) ? "on" : ""}`} title="Show LIMIT, MB, MS, DRV controls in mixer"
+                  onClick={() => { const next = !getBool("mpump-mixer-advanced", true); setBool("mpump-mixer-advanced", next); window.dispatchEvent(new Event("mpump-settings-changed")); refreshToggles(); }}>
                   <span className="settings-toggle-dot" />Mixer Pro Controls
                 </button>
                 <button className={`settings-toggle ${getBool("mpump-gesture-rec", true) ? "on" : ""}`} title="Show gesture record/loop buttons on XY pad"

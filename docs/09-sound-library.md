@@ -47,7 +47,7 @@ Each preset has a `genres` tag listing which electronic music genres it's design
 
 Synth/bass voices use `amp = (vel/127) * 0.2` — reduced from the typical 0.3 to prevent sustained tones from overwhelming transient drums in the mix. This is compensated by the master boost (+6 dB).
 
-## Bass Presets (22)
+## Bass Presets (23)
 
 ### Genre Matching
 
@@ -63,6 +63,7 @@ Synth/bass voices use `amp = (vel/127) * 0.2` — reduced from the typical 0.3 t
 | Jungle Bass | Jungle, Rave | PWM + detune + LFO — unstable, wild character |
 | Warm Bass | Lo-Fi, Downtempo | Triangle, low cutoff — mellow and rounded |
 | Garage Bass | UK Garage | Triangle + sub — smooth, not aggressive |
+| UK Sub | UK Garage, Bass Music | Warm raspy sub — triangle osc, MOG filter with moderate resonance and drive, short decay for rhythmic punch |
 
 ### Bass channel processing
 

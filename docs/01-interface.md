@@ -215,11 +215,12 @@ Activated in Settings. A single-column layout with 56px+ touch targets, designed
 
 ## Effects
 
-Eight effects in a configurable chain. Each can be toggled on/off with adjustable parameters. The default signal chain order:
+Ten effects in a configurable chain. Each can be toggled on/off with adjustable parameters. The default signal chain order:
 
 ```
 Input → [Compressor] → [Highpass] → [Distortion] → [Bitcrusher]
-      → [Chorus]     → [Phaser]  → [Delay]       → [Reverb] → Output
+      → [Chorus]     → [Phaser]  → [Delay]       → [Reverb]
+      → [Flanger]    → [Tremolo] → Output
 ```
 
 The chain order can be rearranged by the user.
@@ -230,8 +231,15 @@ The chain order can be rearranged by the user.
 - **Bitcrusher** — bit depth reduction (8 bits default)
 - **Chorus** — stereo chorus with quadrature LFOs (rate 1.5, depth 0.003, mix 0.3)
 - **Phaser** — allpass sweep with LFO (rate 0.5, depth 1000)
-- **Delay** — stereo ping-pong with tempo sync (1/16 default, feedback 0.4, mix 0.3)
-- **Reverb** — convolution reverb with adjustable decay (2s default, mix 0.3)
+- **Delay** — stereo ping-pong with tempo sync (1/16 default, feedback 0.4, mix 0.3). Supports per-channel exclusion (EXCL. DRUMS/BASS/SYNTH)
+- **Reverb** — convolution reverb with adjustable decay (2s default, mix 0.3). Supports per-channel exclusion (EXCL. DRUMS/BASS/SYNTH)
+- **Flanger** — through-zero flanger with rate and depth controls
+- **Tremolo** — amplitude modulation with rate and depth
+- **Duck** (sidechain) — kick-triggered ducking with depth and release controls. Runs inside the AudioWorklet for synth/bass channels. Supports per-channel exclusion (EXCL. BASS/SYNTH)
+
+### Per-Channel FX Exclusion
+
+Reverb, Delay, and Duck effect editors include **EXCL.** toggle buttons (DRUMS, BASS, SYNTH) that bypass specific channels from the effect. Excluded channels are routed directly to the master output via dedicated bypass nodes, skipping the effects chain while still passing through master EQ and limiter.
 
 ## Keyboard Shortcuts
 

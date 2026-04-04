@@ -70,7 +70,7 @@ Share payloads are validated on decode with strict rules:
 - Prototype pollution keys rejected (`__proto__`, `constructor`, `prototype`)
 - BPM required and clamped to 20–300
 - Genre indices clamped to 0–200
-- Effect names checked against a whitelist of 8 valid names
+- Effect names checked against a whitelist of 10 valid names
 - Synth params: only number, boolean, and short string values allowed
 - String values capped at 20 characters
 

@@ -111,25 +111,30 @@ export function DevicePanel({ state, catalog, command, onLoadSamples, bpm, prese
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       // Octave shift: [ = down, ] = up
-      if (e.code === "BracketLeft") { e.preventDefault(); setKbdOctaveShift(v => { const n = Math.max(v - 1, -3); kbdOctaveShiftRef.current = n; return n; }); return; }
-      if (e.code === "BracketRight") { e.preventDefault(); setKbdOctaveShift(v => { const n = Math.min(v + 1, 3); kbdOctaveShiftRef.current = n; return n; }); return; }
+      if (e.code === "BracketLeft") { e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation?.(); setKbdOctaveShift(v => { const n = Math.max(v - 1, -3); kbdOctaveShiftRef.current = n; return n; }); return; }
+      if (e.code === "BracketRight") { e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation?.(); setKbdOctaveShift(v => { const n = Math.min(v + 1, 3); kbdOctaveShiftRef.current = n; return n; }); return; }
       const note = getNoteForCode(e.code);
       if (note === null || activeKeysRef.current.has(e.code)) return;
       e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation?.();
       activeKeysRef.current.add(e.code);
       playNote(kbdChannel, note, 100);
     };
     const up = (e: KeyboardEvent) => {
       const note = getNoteForCode(e.code);
       if (note === null || !activeKeysRef.current.has(e.code)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation?.();
       activeKeysRef.current.delete(e.code);
       stopNote(kbdChannel, note);
     };
-    window.addEventListener("keydown", down);
-    window.addEventListener("keyup", up);
+    window.addEventListener("keydown", down, true);
+    window.addEventListener("keyup", up, true);
     return () => {
-      window.removeEventListener("keydown", down);
-      window.removeEventListener("keyup", up);
+      window.removeEventListener("keydown", down, true);
+      window.removeEventListener("keyup", up, true);
       for (const code of activeKeysRef.current) {
         const note = getNoteForCode(code);
         if (note !== null) stopNote(kbdChannel, note);
@@ -148,11 +153,13 @@ export function DevicePanel({ state, catalog, command, onLoadSamples, bpm, prese
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       // Octave shift
-      if (e.code === "BracketLeft") { e.preventDefault(); setKbdOctaveShift(v => { const n = Math.max(v - 1, -3); kbdOctaveShiftRef.current = n; return n; }); return; }
-      if (e.code === "BracketRight") { e.preventDefault(); setKbdOctaveShift(v => { const n = Math.min(v + 1, 3); kbdOctaveShiftRef.current = n; return n; }); return; }
+      if (e.code === "BracketLeft") { e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation?.(); setKbdOctaveShift(v => { const n = Math.max(v - 1, -3); kbdOctaveShiftRef.current = n; return n; }); return; }
+      if (e.code === "BracketRight") { e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation?.(); setKbdOctaveShift(v => { const n = Math.min(v + 1, 3); kbdOctaveShiftRef.current = n; return n; }); return; }
       // Backspace = clear step & go back
       if (e.code === "Backspace") {
         e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation?.();
         const prev = (stepRecCursorRef.current - 1 + patLen) % patLen;
         command({ type: "edit_step", device, step: prev, data: null });
         setStepRecCursor(prev);
@@ -161,6 +168,8 @@ export function DevicePanel({ state, catalog, command, onLoadSamples, bpm, prese
       // Space = rest (skip step)
       if (e.code === "Space") {
         e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation?.();
         command({ type: "edit_step", device, step: stepRecCursorRef.current, data: null });
         setStepRecCursor(v => (v + 1) % patLen);
         return;
@@ -168,6 +177,8 @@ export function DevicePanel({ state, catalog, command, onLoadSamples, bpm, prese
       const semi = QWERTY_MAP[e.code];
       if (semi === undefined) return;
       e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation?.();
       // Write note as semitone offset from root
       const data = { semi: semi + kbdOctaveShiftRef.current * 12, vel: 1, slide: false };
       command({ type: "edit_step", device, step: stepRecCursorRef.current, data });
@@ -179,8 +190,8 @@ export function DevicePanel({ state, catalog, command, onLoadSamples, bpm, prese
       }
       setStepRecCursor(v => (v + 1) % patLen);
     };
-    window.addEventListener("keydown", down);
-    return () => window.removeEventListener("keydown", down);
+    window.addEventListener("keydown", down, true);
+    return () => window.removeEventListener("keydown", down, true);
   }, [stepRecMode, mode, device, state.patternLength, command, playNote, stopNote, kbdChannel, kbdBaseOctave]);
 
   const toggleDrumVoiceMute = (note: number) => {

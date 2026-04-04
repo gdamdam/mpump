@@ -194,9 +194,11 @@ export function useEngine() {
       case "set_sidechain_duck":
         engine.setSidechainDuck(msg.on);
         break;
-      case "set_duck_params":
-        engine.setDuckParams((msg as Record<string, unknown>).depth as number, (msg as Record<string, unknown>).release as number);
+      case "set_duck_params": {
+        const dm = msg as { depth: number; release: number; excludeBass?: boolean; excludeSynth?: boolean };
+        engine.setDuckParams(dm.depth, dm.release, dm.excludeBass, dm.excludeSynth);
         break;
+      }
       case "set_mono":
         engine.setMono(msg.on);
         break;

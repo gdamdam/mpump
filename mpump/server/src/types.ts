@@ -41,6 +41,7 @@ export interface SynthParams {
   lfoShape: LfoShape;
   lfoTarget: LfoTarget;
   filterEnvDepth?: number; // filter envelope mod depth (0-1, default 0). Sweeps cutoff from cutoff+depth down to cutoff on each note.
+  filterDecay?: number;    // independent filter envelope decay time in seconds (0 = use amp decay).
   filterDrive?: number;    // pre-filter drive (0-1, default 0). Pushes signal into filter for resonance/self-oscillation.
   filterModel?: FilterModel; // filter algorithm: digital (BiquadFilter), mog (4-pole ladder), 303 (diode)
   syncRatio?: number;     // hard sync slave ratio (1-16, default 2). Only used when oscType="sync".
@@ -50,6 +51,8 @@ export interface SynthParams {
   wavetablePos?: number;  // wavetable morph position (0-1, default 0.5). Only used when oscType="wavetable".
   unison?: number;        // voice count (1-7, default 1)
   unisonSpread?: number;  // detune spread in cents (0-50, default 0)
+  noteLength?: number;    // note duration in steps (1=16th, 4=quarter, 8=half). Default 1.
+  gain?: number;          // preset-level gain offset (default 1.0). Boost quieter presets to match louder ones.
 }
 
 export const LFO_DIVISIONS = ["2", "1", "1/2", "1/4", "1/8", "1/16", "1/32"] as const;
@@ -221,15 +224,15 @@ export type PreviewMode = "kaos" | "synth" | "ease" | "mixer";
 // ── Effects (audio preview only) ─────────────────────────────────────────
 
 export interface EffectParams {
-  delay: { on: boolean; time: number; feedback: number; mix: number; sync: boolean; division: string };
+  delay: { on: boolean; time: number; feedback: number; mix: number; sync: boolean; division: string; excludeDrums?: boolean; excludeBass?: boolean; excludeSynth?: boolean };
   distortion: { on: boolean; drive: number };
-  reverb: { on: boolean; decay: number; mix: number; type: string };
+  reverb: { on: boolean; decay: number; mix: number; type: string; excludeDrums?: boolean; excludeBass?: boolean; excludeSynth?: boolean };
   compressor: { on: boolean; threshold: number; ratio: number };
   highpass: { on: boolean; cutoff: number; q: number };
   chorus: { on: boolean; rate: number; depth: number; mix: number };
   phaser: { on: boolean; rate: number; depth: number };
   bitcrusher: { on: boolean; bits: number; crushRate?: number };
-  duck: { on: boolean; depth: number; release: number };
+  duck: { on: boolean; depth: number; release: number; excludeBass?: boolean; excludeSynth?: boolean };
   flanger: { on: boolean; rate: number; depth: number; feedback: number; mix: number };
   tremolo: { on: boolean; rate: number; depth: number; shape: string };
 }
@@ -244,7 +247,7 @@ export const DEFAULT_EFFECTS: EffectParams = {
   highpass: { on: false, cutoff: 200, q: 1 },
   chorus: { on: false, rate: 1.5, depth: 0.003, mix: 0.3 },
   phaser: { on: false, rate: 0.5, depth: 1000 },
-  bitcrusher: { on: false, bits: 5 },
+  bitcrusher: { on: false, bits: 8 },
   duck: { on: false, depth: 0.85, release: 0.04 },
   flanger: { on: false, rate: 0.5, depth: 0.7, feedback: 0.7, mix: 0.5 },
   tremolo: { on: false, rate: 4, depth: 0.5, shape: "sine" },
@@ -302,7 +305,7 @@ export type ClientMessage =
   | { type: "set_channel_mono"; channel: number; on: boolean }
   | { type: "set_arp"; enabled: boolean; mode: ArpMode; rate: ArpRate; device?: string }
   | { type: "set_effect_order"; order: EffectName[] }
-  | { type: "set_duck_params"; depth: number; release: number }
+  | { type: "set_duck_params"; depth: number; release: number; excludeBass?: boolean; excludeSynth?: boolean }
   | { type: "set_eq"; low: number; mid: number; high: number }
   | { type: "set_master_boost"; gain: number }
   | { type: "set_channel_eq"; channel: number; low: number; mid: number; high: number }

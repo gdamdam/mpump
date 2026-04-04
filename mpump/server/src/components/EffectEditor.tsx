@@ -265,44 +265,81 @@ export function EffectEditor({ name, params, onUpdate, onClose }: Props) {
           <span className="fx-editor-title">{EFFECT_NAMES[name]}</span>
           <button className="fx-editor-close" onClick={onClose}>✕</button>
         </div>
-        {/* Delay: sync/free toggle + division selector */}
+        {/* Delay: sync/free toggle + division selector + drums bypass */}
         {name === "delay" && (
-          <div className="fx-editor-row" style={{ gap: 6 }}>
-            <button
-              className={`synth-osc-btn ${!p.sync ? "active" : ""}`}
-              style={!p.sync ? { background: "var(--preview)", color: "#000" } : undefined}
-              onClick={() => onUpdate({ sync: false })}
-            >FREE</button>
-            <button
-              className={`synth-osc-btn ${p.sync ? "active" : ""}`}
-              style={p.sync ? { background: "var(--preview)", color: "#000" } : undefined}
-              onClick={() => onUpdate({ sync: true })}
-            >SYNC</button>
-            {p.sync && (
-              <select
-                className="synth-preset-select"
-                value={p.division as string}
-                onChange={(e) => onUpdate({ division: e.target.value })}
-                style={{ marginLeft: 4 }}
-              >
-                {DELAY_DIVISIONS.map(d => (
-                  <option key={d} value={d}>{d === "1/8d" ? "1/8 dotted" : d}</option>
-                ))}
-              </select>
-            )}
-          </div>
-        )}
-        {/* Reverb: type selector */}
-        {name === "reverb" && (
-          <div className="fx-editor-row" style={{ gap: 6 }}>
-            {(["room", "hall", "plate", "spring"] as const).map(t => (
+          <>
+            <div className="fx-editor-row" style={{ gap: 6 }}>
               <button
-                key={t}
-                className={`synth-osc-btn ${(p.type || "room") === t ? "active" : ""}`}
-                onClick={() => onUpdate({ type: t })}
-              >{t.toUpperCase()}</button>
+                className={`synth-osc-btn ${!p.sync ? "active" : ""}`}
+                style={!p.sync ? { background: "var(--preview)", color: "#000" } : undefined}
+                onClick={() => onUpdate({ sync: false })}
+              >FREE</button>
+              <button
+                className={`synth-osc-btn ${p.sync ? "active" : ""}`}
+                style={p.sync ? { background: "var(--preview)", color: "#000" } : undefined}
+                onClick={() => onUpdate({ sync: true })}
+              >SYNC</button>
+              {p.sync && (
+                <select
+                  className="synth-preset-select"
+                  value={p.division as string}
+                  onChange={(e) => onUpdate({ division: e.target.value })}
+                  style={{ marginLeft: 4 }}
+                >
+                  {DELAY_DIVISIONS.map(d => (
+                    <option key={d} value={d}>{d === "1/8d" ? "1/8 dotted" : d}</option>
+                  ))}
+                </select>
+              )}
+            </div>
+            <div className="fx-editor-row" style={{ gap: 6 }}>
+              {([["excludeDrums", "DRUMS"], ["excludeBass", "BASS"], ["excludeSynth", "SYNTH"]] as const).map(([key, label]) => (
+                <button
+                  key={key}
+                  className={`synth-osc-btn ${p[key] ? "active" : ""}`}
+                  style={p[key] ? { background: "var(--preview)", color: "#000" } : undefined}
+                  onClick={() => onUpdate({ [key]: !p[key] })}
+                >EXCL. {label}</button>
+              ))}
+            </div>
+          </>
+        )}
+        {/* Duck: exclude channels from being ducked */}
+        {name === "duck" && (
+          <div className="fx-editor-row" style={{ gap: 6 }}>
+            {([["excludeBass", "BASS"], ["excludeSynth", "SYNTH"]] as const).map(([key, label]) => (
+              <button
+                key={key}
+                className={`synth-osc-btn ${p[key] ? "active" : ""}`}
+                style={p[key] ? { background: "var(--preview)", color: "#000" } : undefined}
+                onClick={() => onUpdate({ [key]: !p[key] })}
+              >EXCL. {label}</button>
             ))}
           </div>
+        )}
+        {/* Reverb: type selector + drums bypass */}
+        {name === "reverb" && (
+          <>
+            <div className="fx-editor-row" style={{ gap: 6 }}>
+              {(["room", "hall", "plate", "spring"] as const).map(t => (
+                <button
+                  key={t}
+                  className={`synth-osc-btn ${(p.type || "room") === t ? "active" : ""}`}
+                  onClick={() => onUpdate({ type: t })}
+                >{t.toUpperCase()}</button>
+              ))}
+            </div>
+            <div className="fx-editor-row" style={{ gap: 6 }}>
+              {([["excludeDrums", "DRUMS"], ["excludeBass", "BASS"], ["excludeSynth", "SYNTH"]] as const).map(([key, label]) => (
+                <button
+                  key={key}
+                  className={`synth-osc-btn ${p[key] ? "active" : ""}`}
+                  style={p[key] ? { background: "var(--preview)", color: "#000" } : undefined}
+                  onClick={() => onUpdate({ [key]: !p[key] })}
+                >EXCL. {label}</button>
+              ))}
+            </div>
+          </>
         )}
         {/* Tremolo: shape selector */}
         {name === "tremolo" && (

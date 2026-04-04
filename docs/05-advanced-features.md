@@ -22,10 +22,41 @@ Applied to synth and bass voices only — drums are unaffected.
 Simulates sidechain compression triggered by the kick drum (MIDI note 36). When enabled:
 
 1. Kick fires on channel 9
-2. Bass and synth channels instantly dip to **15% volume** (3ms attack)
-3. Volume recovers exponentially over **~40ms**
+2. Bass and synth channels instantly dip to configurable **depth** (default 15% volume)
+3. Volume recovers exponentially over configurable **release** time
 
-This creates the "pumping" effect common in house and EDM, without needing to route a compressor sidechain. The ducking uses `setTargetAtTime()` on the channel gain nodes for smooth, click-free transitions.
+For channels running through the AudioWorklet poly-synth (synth ch 0, bass ch 1), ducking runs inside the worklet with sample-accurate timing. The worklet maintains per-channel `_chDuckLevel` values with exponential recovery computed per audio block. For drum channels, ducking uses main-thread `setTargetAtTime()` on channel gain nodes.
+
+**Per-channel exclusion**: The duck editor includes EXCL. BASS and EXCL. SYNTH toggle buttons. Excluded channels are not ducked, allowing selective pumping (e.g., duck only synth while bass stays steady).
+
+## Trance Gate
+
+A tempo-synced volume chopper that creates rhythmic gating effects on synth and bass channels. Available per-channel from the MIXER view.
+
+### Presets
+
+- **8 numbered presets** (1–8): Classic trance gate patterns derived from standard rhythmic divisions — from straight 4-on-the-floor to complex syncopated patterns
+- **5 named stutter presets** (BDUP, TRIP, STUT, BKBT, GLTC): Buildup, Triplet, Stutter, Breakbeat, and Glitch patterns for performance effects
+- **Custom (E)**: User-editable 16-step pattern with tappable step grid. Auto-highlights when the active pattern doesn't match any preset
+
+### Implementation
+
+Gate patterns are 16-step arrays of on/off values, synced to BPM. Consecutive ON steps merge into a single sustained gate — no retriggering dip between adjacent active steps.
+
+For worklet channels (synth/bass), gate parameters are sent via `port.postMessage({ type: 'gate_pattern' })` and applied per-block in the worklet's `process()` loop. This gives sample-accurate gating rather than the ~3ms granularity of main-thread Web Audio automation.
+
+The gate also supports an LFO mode with configurable rate, depth, and shape (sine/square/triangle/sawtooth) as an alternative to step patterns.
+
+## Per-Channel FX Exclusion
+
+Reverb, Delay, and Duck support per-channel exclusion via EXCL. toggle buttons in their effect editors:
+
+- **Reverb / Delay**: EXCL. DRUMS, EXCL. BASS, EXCL. SYNTH
+- **Duck**: EXCL. BASS, EXCL. SYNTH
+
+Excluded channels bypass the effects chain entirely via dedicated `GainNode` routing (`drumsDirectOut`, `synthBassDirectOut`) connected directly to the effects output node. This means excluded channels still pass through the master EQ, multiband compressor, and limiter — only the specific effect is bypassed.
+
+**Note**: Synth (ch 0) and bass (ch 1) share a single worklet output node, so excluding either from reverb/delay bypasses both in worklet mode.
 
 ## Pattern Chain
 
