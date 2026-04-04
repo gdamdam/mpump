@@ -887,7 +887,7 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
                 {volDropCh === 1 && <div className="kaos-vol-drop" onMouseEnter={volDropKeep} onMouseLeave={volDropHide}><input type="range" min={0} max={1} step={0.01} value={channelVolumes[1] ?? 0.7} onChange={e => onChannelVolumeChange(1, parseFloat(e.target.value))} className="kaos-vol-slider" /></div>}
               </div>
               <button className="ch-vol-inline" style={{ cursor: "pointer", background: "none", border: "1px solid var(--border)", borderRadius: 4, padding: "6px 10px", color: "var(--fg)", fontSize: 10, fontWeight: 600, fontFamily: "inherit", minHeight: 28 }} onClick={() => openMixModal(1, "eq")} title="Equalizer">EQ</button>
-              <button className="ch-vol-inline" style={{ cursor: "pointer", background: getChGate(1).on ? "#66ff99" : "none", border: getChGate(1).on ? "1px solid #66ff99" : "1px solid var(--border)", borderRadius: 4, padding: "6px 10px", color: getChGate(1).on ? "#000" : "var(--fg)", fontSize: 10, fontWeight: 600, fontFamily: "inherit", minHeight: 28 }} onClick={() => openMixModal(1, "gate")} title="Trance gate">GATE</button>
+              <button className="ch-vol-inline" style={{ cursor: "pointer", background: "none", border: getChGate(1).on ? "1px solid #66ff99" : "1px solid var(--border)", borderRadius: 4, padding: "6px 10px", color: getChGate(1).on ? "#66ff99" : "var(--fg)", fontSize: 10, fontWeight: 600, fontFamily: "inherit", minHeight: 28 }} onClick={() => openMixModal(1, "gate")} title="Trance gate">GATE</button>
             </div>
             <div className="kaos-sel-divider" />
             <div className="kaos-sel-row"><span className="kaos-sel-row-label">GENRE</span>
@@ -932,7 +932,7 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
                 {volDropCh === 0 && <div className="kaos-vol-drop" onMouseEnter={volDropKeep} onMouseLeave={volDropHide}><input type="range" min={0} max={1} step={0.01} value={channelVolumes[0] ?? 0.7} onChange={e => onChannelVolumeChange(0, parseFloat(e.target.value))} className="kaos-vol-slider" /></div>}
               </div>
               <button className="ch-vol-inline" style={{ cursor: "pointer", background: "none", border: "1px solid var(--border)", borderRadius: 4, padding: "6px 10px", color: "var(--fg)", fontSize: 10, fontWeight: 600, fontFamily: "inherit", minHeight: 28 }} onClick={() => openMixModal(0, "eq")} title="Equalizer">EQ</button>
-              <button className="ch-vol-inline" style={{ cursor: "pointer", background: getChGate(0).on ? "#66ff99" : "none", border: getChGate(0).on ? "1px solid #66ff99" : "1px solid var(--border)", borderRadius: 4, padding: "6px 10px", color: getChGate(0).on ? "#000" : "var(--fg)", fontSize: 10, fontWeight: 600, fontFamily: "inherit", minHeight: 28 }} onClick={() => openMixModal(0, "gate")} title="Trance gate">GATE</button>
+              <button className="ch-vol-inline" style={{ cursor: "pointer", background: "none", border: getChGate(0).on ? "1px solid #66ff99" : "1px solid var(--border)", borderRadius: 4, padding: "6px 10px", color: getChGate(0).on ? "#66ff99" : "var(--fg)", fontSize: 10, fontWeight: 600, fontFamily: "inherit", minHeight: 28 }} onClick={() => openMixModal(0, "gate")} title="Trance gate">GATE</button>
             </div>
             <div className="kaos-sel-divider" />
             <div className="kaos-sel-row"><span className="kaos-sel-row-label">GENRE</span>

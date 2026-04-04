@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { SynthParams, OscType, LfoShape, LfoTarget, FilterType } from "../types";
 import { LFO_DIVISIONS } from "../types";
 import { SYNTH_PRESETS, BASS_PRESETS } from "../data/soundPresets";
+import { getBool } from "../utils/storage";
 
 interface Props {
   params: SynthParams;
@@ -218,10 +219,17 @@ export function Knob({ label, value, min, max, step, accent, onChange }: KnobPro
 export function SynthEditor({ params, accent, label, onChange, hideVoices }: Props) {
   const [filterOpen, setFilterOpen] = useState(false);
   const [lfoOpen, setLfoOpen] = useState(false);
+  const showHints = getBool("mpump-synth-hints", true);
 
   return (
     <div className="synth-editor">
-      <div className="synth-editor-label" style={{ color: accent }}>OSCILLATOR</div>
+      <div className="synth-editor-label" style={{ color: accent }}>
+        <span style={{ display: "inline-block", verticalAlign: "-2px", marginRight: 4, width: 14, height: 14, overflow: "hidden" }}>
+          <OscIcon type={params.oscType} color={accent} />
+        </span>
+        OSCILLATOR
+      </div>
+      {showHints && <div className="synth-section-hint">Waveform shape, envelope (ATK/DEC/SUS/REL), detune, unison voices, and sub-oscillator</div>}
 
       <div className="synth-section">
       <div className="synth-osc-row">
@@ -322,7 +330,23 @@ export function SynthEditor({ params, accent, label, onChange, hideVoices }: Pro
             style={params.filterOn !== false ? { color: accent, margin: 0 } : { margin: 0 }}
             onClick={() => setFilterOpen(!filterOpen)}
             title="Expand/collapse filter controls"
-          >FILTER {filterOpen ? "▾" : "▸"}</div>
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" style={{ verticalAlign: "-2px", marginRight: 4 }}>
+              {(params.filterType ?? "lowpass") === "lowpass" && (
+                <polyline points="1,4 8,4 10,5 12,12" fill="none" stroke="currentColor" strokeWidth={1.3} strokeLinejoin="round" />
+              )}
+              {params.filterType === "highpass" && (
+                <polyline points="2,12 4,5 6,4 13,4" fill="none" stroke="currentColor" strokeWidth={1.3} strokeLinejoin="round" />
+              )}
+              {params.filterType === "bandpass" && (
+                <polyline points="1,12 4,6 7,3 10,6 13,12" fill="none" stroke="currentColor" strokeWidth={1.3} strokeLinejoin="round" />
+              )}
+              {params.filterType === "notch" && (
+                <polyline points="1,4 4,4 6,11 8,11 10,4 13,4" fill="none" stroke="currentColor" strokeWidth={1.3} strokeLinejoin="round" />
+              )}
+            </svg>
+            FILTER {filterOpen ? "▾" : "▸"}
+          </div>
           <button
             className={`synth-toggle-sm ${params.filterOn !== false ? "active" : ""}`}
             title="Toggle filter on/off"
@@ -332,6 +356,7 @@ export function SynthEditor({ params, accent, label, onChange, hideVoices }: Pro
         </div>
         {filterOpen && (
           <>
+            {showHints && <div className="synth-section-hint">Shape the tone: type (LPF/HPF/BPF/NOTCH), model character, cutoff frequency, resonance, envelope amount, and drive</div>}
             <div className="synth-osc-row">
               {(["lowpass", "highpass", "bandpass", "notch"] as FilterType[]).map((ft) => (
                 <button
@@ -376,7 +401,12 @@ export function SynthEditor({ params, accent, label, onChange, hideVoices }: Pro
             style={params.lfoOn ? { color: accent, margin: 0 } : { margin: 0 }}
             onClick={() => setLfoOpen(!lfoOpen)}
             title="Expand/collapse LFO controls"
-          >LFO {lfoOpen ? "▾" : "▸"}</div>
+          >
+            <span style={{ display: "inline-block", verticalAlign: "-2px", marginRight: 4, width: 14, height: 14, overflow: "hidden" }}>
+              <OscIcon type={params.lfoShape as OscType} color="currentColor" />
+            </span>
+            LFO {lfoOpen ? "▾" : "▸"}
+          </div>
           <button
             className={`synth-toggle-sm ${params.lfoOn ? "active" : ""}`}
             title="Toggle LFO on/off"
@@ -386,6 +416,7 @@ export function SynthEditor({ params, accent, label, onChange, hideVoices }: Pro
         </div>
         {lfoOpen && (
           <>
+            {showHints && <div className="synth-section-hint">Modulation: wave shape, target (cutoff/pitch/both), rate (free or tempo-synced), and depth</div>}
             {/* Shape + Target + Sync in one row */}
             <div className="synth-osc-row">
               {(["sine", "square", "triangle", "sawtooth"] as LfoShape[]).map((s) => (

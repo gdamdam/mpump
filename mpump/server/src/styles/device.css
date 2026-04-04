@@ -648,6 +648,8 @@
 
 .beat-indicator {
   margin: 8px 0;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .beat-dots {

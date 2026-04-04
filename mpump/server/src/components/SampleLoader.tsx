@@ -5,10 +5,13 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { DRUM_VOICES } from "../types";
+import { getBool } from "../utils/storage";
+import { DrumIcon } from "./DrumKitEditor";
 
 interface Props {
   accent: string;
   onSamplesLoaded: (samples: Map<number, AudioBuffer>) => void;
+  defaultOpen?: boolean;
 }
 
 const DB_NAME = "mpump-samples";
@@ -80,9 +83,9 @@ function guessNoteFromFilename(name: string): number | null {
   return null;
 }
 
-export function SampleLoader({ accent, onSamplesLoaded }: Props) {
+export function SampleLoader({ accent, onSamplesLoaded, defaultOpen = false }: Props) {
   const [slotNames, setSlotNames] = useState<Record<number, string>>({});
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(defaultOpen);
   const fileInputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const dropRef = useRef<HTMLDivElement>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -161,11 +164,16 @@ export function SampleLoader({ accent, onSamplesLoaded }: Props) {
     }
   }, [loadFile]);
 
-  if (!expanded) {
+  if (!expanded && !defaultOpen) {
     return (
       <div className="sample-loader">
         <div className="synth-editor-header">
-          <div className="drum-kit-label" style={{ color: accent }}>samples</div>
+          <div className="drum-kit-label" style={{ color: accent }}>
+            <svg width="14" height="14" viewBox="0 0 14 14" style={{ verticalAlign: "-2px", marginRight: 4 }}>
+              <polyline points="1,7 3,3 5,10 6,5 7,9 8,4 9,8 11,2 13,7" fill="none" stroke={accent} strokeWidth={1.2} />
+            </svg>
+            samples
+          </div>
           <button className="synth-osc-btn" title="Expand sample loader" style={{ fontSize: 9 }} onClick={() => setExpanded(true)}>
             {Object.keys(slotNames).length > 0 ? `${Object.keys(slotNames).length} loaded` : "load"}
           </button>
@@ -176,19 +184,22 @@ export function SampleLoader({ accent, onSamplesLoaded }: Props) {
 
   return (
     <div
-      className="sample-loader"
+      className={defaultOpen ? "" : "sample-loader"}
       ref={dropRef}
       onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
       onDrop={handleDrop}
     >
-      <div className="synth-editor-header">
-        <div className="drum-kit-label" style={{ color: accent }}>samples</div>
-        <button className="synth-osc-btn" title="Collapse sample loader" style={{ fontSize: 9 }} onClick={() => setExpanded(false)}>▲</button>
-      </div>
-      <div className="sample-hint">Drop audio files or click to assign per slot</div>
+      {!defaultOpen && (
+        <div className="synth-editor-header">
+          <div className="drum-kit-label" style={{ color: accent }}>samples</div>
+          <button className="synth-osc-btn" title="Collapse sample loader" style={{ fontSize: 9 }} onClick={() => setExpanded(false)}>▲</button>
+        </div>
+      )}
+      {getBool("mpump-synth-hints", true) && <div className="synth-section-hint">Load custom samples: drop audio files or click to assign per voice slot</div>}
       <div className="sample-grid">
         {DRUM_VOICES.map(({ note, name }) => (
           <div key={note} className="sample-row">
+            <DrumIcon note={note} color={accent} />
             <span className="sample-voice" style={{ color: accent }}>{name}</span>
             <span className="sample-name">{slotNames[note] || "—"}</span>
             <button

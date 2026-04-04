@@ -70,6 +70,7 @@ export function DevicePanel({ state, catalog, command, onLoadSamples, bpm, prese
 
   const [picker, setPicker] = useState<PickerMode>(null);
   const [euclideanActive, setEuclideanActive] = useState(false);
+  const [drumModal, setDrumModal] = useState<"kit" | "euclid" | "samples" | null>(null);
   const [localScaleLock, setLocalScaleLock] = useState(() => getItem("mpump-scale-lock", "chromatic"));
   const scaleLock = scaleLockProp ?? localScaleLock;
   const setScaleLock = (v: string) => { setLocalScaleLock(v); setItem("mpump-scale-lock", v); onScaleLockChange?.(v); };
@@ -575,38 +576,83 @@ export function DevicePanel({ state, catalog, command, onLoadSamples, bpm, prese
                         <button onClick={() => { tapVibrate(); command({ type: "copy_pattern", device }); setToolsMenu(false); }}>Copy &#x2398;</button>
                         <button onClick={() => { tapVibrate(); command({ type: "paste_pattern", device }); setToolsMenu(false); }}>Paste &#x2399;</button>
                         {editing && <button onClick={() => { command({ type: "undo_edit", device }); setToolsMenu(false); }}>Undo ↩</button>}
+                        <button onClick={() => {
+                          const next = !getBool("mpump-humanize");
+                          setBool("mpump-humanize", next);
+                          command({ type: "set_humanize", on: next });
+                          setToolsMenu(false);
+                        }}>{getBool("mpump-humanize") ? "✓ " : ""}Humanize</button>
                       </div>
                     )}
                   </div>
                   <UserPatterns instrument="drums" accent={accent} getCurrentData={getDrumData} onLoad={loadDrumPattern} />
                 </div>
+                {/* Kit / Euclidean / Samples buttons */}
+                <div className="drum-editor-btns">
+                  <button className="drum-editor-btn" title="Drum kit: level, pan, tune, decay, tone" onClick={() => setDrumModal("kit")}>
+                    <svg width="14" height="14" viewBox="0 0 14 14"><ellipse cx="7" cy="8" rx="6" ry="4" fill="none" stroke={accent} strokeWidth={1}/><line x1="1" y1="8" x2="1" y2="5" stroke={accent} strokeWidth={1}/><line x1="13" y1="8" x2="13" y2="5" stroke={accent} strokeWidth={1}/><ellipse cx="7" cy="5" rx="6" ry="4" fill="none" stroke={accent} strokeWidth={1}/></svg>
+                    KIT
+                  </button>
+                  <button className={`drum-editor-btn ${euclideanActive ? "active" : ""}`} title="Euclidean rhythm generator" style={euclideanActive ? { borderColor: accent } : undefined} onClick={() => setDrumModal("euclid")}>
+                    <svg width="14" height="14" viewBox="0 0 14 14"><circle cx="7" cy="7" r="5.5" fill="none" stroke={accent} strokeWidth={1}/>{[0,1,2,3,4,5,6,7].map(i=>{const a=(i/8)*Math.PI*2-Math.PI/2;return<circle key={i} cx={7+Math.cos(a)*5} cy={7+Math.sin(a)*5} r={i%2===0?1.8:1} fill={i%2===0?accent:`${accent}44`}/>;})}</svg>
+                    EUCL
+                  </button>
+                  {onLoadSamples && (
+                    <button className="drum-editor-btn" title="Load custom audio samples" onClick={() => setDrumModal("samples")}>
+                      <svg width="14" height="14" viewBox="0 0 14 14"><polyline points="1,7 3,3 5,10 6,5 7,9 8,4 9,8 11,2 13,7" fill="none" stroke={accent} strokeWidth={1.2}/></svg>
+                      SAMPLES
+                    </button>
+                  )}
+                </div>
               </>
             )}
           </div>
 
-          {/* Drum kit editor (preview only) */}
-          {isPreview && (
-            <DrumKitEditor accent={accent} command={command} activeDrumKit={presetState?.activeDrumKit} />
+          {/* Drum Kit modal */}
+          {drumModal === "kit" && (
+            <div className="lib-overlay" onClick={() => setDrumModal(null)}>
+              <div className="dkm-panel" onClick={e => e.stopPropagation()}>
+                <div className="lib-header">
+                  <span className="lib-title" style={{ color: accent }}>
+                    <svg width="14" height="14" viewBox="0 0 14 14" style={{ verticalAlign: "-2px", marginRight: 4 }}><ellipse cx="7" cy="8" rx="6" ry="4" fill="none" stroke={accent} strokeWidth={1}/><line x1="1" y1="8" x2="1" y2="5" stroke={accent} strokeWidth={1}/><line x1="13" y1="8" x2="13" y2="5" stroke={accent} strokeWidth={1}/><ellipse cx="7" cy="5" rx="6" ry="4" fill="none" stroke={accent} strokeWidth={1}/></svg>
+                    DRUM KIT
+                  </span>
+                  <button className="synth-osc-btn" onClick={() => setDrumModal(null)} style={{ fontSize: 9, flex: "none", padding: "4px 10px" }}>CLOSE</button>
+                </div>
+                <DrumKitEditor accent={accent} command={command} activeDrumKit={presetState?.activeDrumKit} defaultOpen />
+              </div>
+            </div>
           )}
 
-          {/* Euclidean rhythm generator (preview only) */}
+          {/* Euclidean modal — always mounted to preserve state */}
           {isPreview && (
-            <EuclideanEditor accent={accent} device={device} patternLength={state.patternLength} command={command} onActiveChange={setEuclideanActive} />
+            <div className="lib-overlay" style={drumModal === "euclid" ? undefined : { display: "none" }} onClick={() => setDrumModal(null)}>
+              <div className="dkm-panel" onClick={e => e.stopPropagation()}>
+                <div className="lib-header">
+                  <span className="lib-title" style={{ color: accent }}>
+                    <svg width="14" height="14" viewBox="0 0 14 14" style={{ verticalAlign: "-2px", marginRight: 4 }}><circle cx="7" cy="7" r="5.5" fill="none" stroke={accent} strokeWidth={1}/>{[0,1,2,3,4,5,6,7].map(i=>{const a=(i/8)*Math.PI*2-Math.PI/2;return<circle key={i} cx={7+Math.cos(a)*5} cy={7+Math.sin(a)*5} r={i%2===0?1.8:1} fill={i%2===0?accent:`${accent}44`}/>;})}</svg>
+                    EUCLIDEAN
+                  </span>
+                  <button className="synth-osc-btn" onClick={() => setDrumModal(null)} style={{ fontSize: 9, flex: "none", padding: "4px 10px" }}>CLOSE</button>
+                </div>
+                <EuclideanEditor accent={accent} device={device} patternLength={state.patternLength} command={command} onActiveChange={setEuclideanActive} defaultOpen />
+              </div>
+            </div>
           )}
 
-          {/* Custom sample loader (preview only) */}
-          {isPreview && onLoadSamples && (
-            <SampleLoader accent={accent} onSamplesLoaded={onLoadSamples} />
-          )}
-
-          {/* Humanize toggle (drums, preview only) */}
-          {isPreview && (
-            <div className="device-tools-row">
-              <button className={`device-tool-btn ${getBool("mpump-humanize") ? "active" : ""}`} title="Subtle random velocity variation (±15%)" onClick={() => {
-                const next = !getBool("mpump-humanize");
-                setBool("mpump-humanize", next);
-                command({ type: "set_humanize", on: next });
-              }}>Humanize</button>
+          {/* Samples modal */}
+          {drumModal === "samples" && onLoadSamples && (
+            <div className="lib-overlay" onClick={() => setDrumModal(null)}>
+              <div className="dkm-panel" onClick={e => e.stopPropagation()}>
+                <div className="lib-header">
+                  <span className="lib-title" style={{ color: accent }}>
+                    <svg width="14" height="14" viewBox="0 0 14 14" style={{ verticalAlign: "-2px", marginRight: 4 }}><polyline points="1,7 3,3 5,10 6,5 7,9 8,4 9,8 11,2 13,7" fill="none" stroke={accent} strokeWidth={1.2}/></svg>
+                    SAMPLES
+                  </span>
+                  <button className="synth-osc-btn" onClick={() => setDrumModal(null)} style={{ fontSize: 9, flex: "none", padding: "4px 10px" }}>CLOSE</button>
+                </div>
+                <SampleLoader accent={accent} onSamplesLoaded={onLoadSamples} defaultOpen />
+              </div>
             </div>
           )}
 
@@ -800,6 +846,22 @@ export function DevicePanel({ state, catalog, command, onLoadSamples, bpm, prese
               <div className="pattern-tools-row">
                 <KaosDropdown className="kaos-dropdown-patlen" value={state.patternLength} onChange={(v: number) => command({ type: "set_pattern_length", device, length: v as typeof STEP_LENGTHS[number] })} title="Pattern length in steps" options={STEP_LENGTHS.map(n => ({ label: String(n), value: n }))} />
                 <span className="pattern-tools-label">steps</span>
+                <KaosDropdown className={`kaos-dropdown-arp ${getItem(`mpump-arp-mode-${device}`, "off") !== "off" ? "arp-on" : ""}`} value={getItem(`mpump-arp-mode-${device}`, "off")} title="Arpeggiator mode" onChange={(val: string) => {
+                  setItem(`mpump-arp-mode-${device}`, val);
+                  if (val === "off") {
+                    command({ type: "set_arp", enabled: false, mode: "up", rate: "1/8", device });
+                  } else {
+                    const rate = (getItem(`mpump-arp-rate-${device}`, "1/8")) as import("../types").ArpRate;
+                    command({ type: "set_arp", enabled: true, mode: val as import("../types").ArpMode, rate, device });
+                  }
+                }} options={[{ label: "Arp: Off", value: "off" }, { label: "Arp: Up", value: "up" }, { label: "Arp: Down", value: "down" }, { label: "Arp: U-D", value: "up-down" }, { label: "Arp: Rnd", value: "random" }]} />
+                {getItem(`mpump-arp-mode-${device}`) && getItem(`mpump-arp-mode-${device}`) !== "off" && (
+                  <KaosDropdown className="kaos-dropdown-arp" value={getItem(`mpump-arp-rate-${device}`, "1/8")} title="Arpeggiator rate" onChange={(val: string) => {
+                    setItem(`mpump-arp-rate-${device}`, val);
+                    const arpMode = (getItem(`mpump-arp-mode-${device}`, "up")) as import("../types").ArpMode;
+                    command({ type: "set_arp", enabled: true, mode: arpMode, rate: val as import("../types").ArpRate, device });
+                  }} options={[{ label: "1/4", value: "1/4" }, { label: "1/8", value: "1/8" }, { label: "1/16", value: "1/16" }]} />
+                )}
                 {playNote && (
                   <>
                     <button
@@ -861,28 +923,6 @@ export function DevicePanel({ state, catalog, command, onLoadSamples, bpm, prese
         </>
       )}
 
-      {/* Arpeggiator (preview synth/bass only) */}
-      {isPreview && (mode === "synth" || mode === "bass") && (
-        <div className="device-tools-row">
-          <span className="device-tool-label">Arp</span>
-          <KaosDropdown className="kaos-dropdown-arp" value={getItem(`mpump-arp-mode-${device}`, "off")} onChange={(val: string) => {
-            setItem(`mpump-arp-mode-${device}`, val);
-            if (val === "off") {
-              command({ type: "set_arp", enabled: false, mode: "up", rate: "1/8", device });
-            } else {
-              const rate = (getItem(`mpump-arp-rate-${device}`, "1/8")) as import("../types").ArpRate;
-              command({ type: "set_arp", enabled: true, mode: val as import("../types").ArpMode, rate, device });
-            }
-          }} options={[{ label: "Off", value: "off" }, { label: "Up", value: "up" }, { label: "Down", value: "down" }, { label: "Up-Down", value: "up-down" }, { label: "Random", value: "random" }]} />
-          {getItem(`mpump-arp-mode-${device}`) && getItem(`mpump-arp-mode-${device}`) !== "off" && (
-            <KaosDropdown className="kaos-dropdown-arp" value={getItem(`mpump-arp-rate-${device}`, "1/8")} onChange={(val: string) => {
-              setItem(`mpump-arp-rate-${device}`, val);
-              const mode = (getItem(`mpump-arp-mode-${device}`, "up")) as import("../types").ArpMode;
-              command({ type: "set_arp", enabled: true, mode, rate: val as import("../types").ArpRate, device });
-            }} options={[{ label: "1/4", value: "1/4" }, { label: "1/8", value: "1/8" }, { label: "1/16", value: "1/16" }]} />
-          )}
-        </div>
-      )}
 
       {/* Edit actions bar */}
       {editing && (

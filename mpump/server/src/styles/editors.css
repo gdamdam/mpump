@@ -46,6 +46,13 @@
   line-height: 1;
 }
 
+.synth-section-hint {
+  font-size: 8px;
+  color: var(--preview);
+  opacity: 0.5;
+  margin-bottom: 4px;
+}
+
 .synth-section {
   margin-bottom: 8px;
   padding: 6px;
@@ -303,6 +310,9 @@
   align-items: center;
   gap: 4px;
 }
+.drum-kit-voice-row svg:first-child {
+  flex-shrink: 0;
+}
 
 .drum-kit-voice-row .synth-knob {
   flex: 1;
@@ -361,6 +371,62 @@
   background: var(--text);
   border: none;
   cursor: pointer;
+}
+
+/* ── Drum kit modal ──────────────────────────────────────────────────── */
+
+.dkm-panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px;
+  width: 96vw;
+  max-width: 680px;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.dkm-grid {
+  display: grid;
+  grid-template-columns: auto repeat(5, 1fr);
+  gap: 6px 10px;
+  align-items: center;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.dkm-hdr-label {
+  font-size: 8px;
+  font-weight: 700;
+  color: var(--preview);
+  opacity: 0.7;
+  text-transform: uppercase;
+  text-align: center;
+  padding-bottom: 4px;
+}
+
+.dkm-voice {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.dkm-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+
+.dkm-cell .drum-kit-slider {
+  width: 100%;
+}
+
+.dkm-val {
+  font-size: 8px;
+  color: var(--preview);
+  opacity: 0.6;
 }
 
 .synth-filter-row {

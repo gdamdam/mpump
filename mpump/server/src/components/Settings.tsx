@@ -87,6 +87,11 @@ export function getBottomTransportEnabled(): boolean {
   return getBool("mpump-bottom-transport");
 }
 
+/** Read synth hints preference — on by default. */
+export function getSynthHintsEnabled(): boolean {
+  return getBool("mpump-synth-hints", true);
+}
+
 interface Props {
   volume: number;
   onVolumeChange: (v: number) => void;
@@ -268,6 +273,10 @@ export function Settings({ volume, onVolumeChange, onClose, swing, onSwingChange
                   <option value="rotate">KAOS Viz: Rotate</option>
                   <option value="off">KAOS Viz: Off</option>
                 </select>
+                <button className={`settings-toggle ${getBool("mpump-synth-hints", true) ? "on" : ""}`} title="Show description hints under synth/drum/euclidean sections"
+                  onClick={() => { const next = !getBool("mpump-synth-hints", true); setBool("mpump-synth-hints", next); window.dispatchEvent(new Event("mpump-settings-changed")); refreshToggles(); }}>
+                  <span className="settings-toggle-dot" />Section Hints
+                </button>
                 <select className="synth-preset-select" value={getItem("mpump-mix-fx", "both")} title="Visual feedback on MIX"
                   onChange={(e) => { setItem("mpump-mix-fx", e.target.value); refreshToggles(); }} style={{ fontSize: 11 }}>
                   <option value="shake">MIX Effect: Shake</option>

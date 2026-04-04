@@ -378,6 +378,35 @@
   max-width: 42px;
   min-width: 36px;
 }
+.drum-editor-btns {
+  display: flex;
+  gap: 4px;
+  width: 100%;
+}
+.drum-editor-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 5px 0;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--preview);
+  opacity: 0.7;
+  cursor: pointer;
+}
+.drum-editor-btn.active {
+  opacity: 1;
+  border-color: var(--preview);
+}
+.drum-editor-btn:hover {
+  background: rgba(255,255,255,0.04);
+}
+
 .pattern-tool-group {
   position: relative;
 }
@@ -418,9 +447,17 @@
   opacity: 0.7;
   margin-right: 4px;
 }
-.kaos-dropdown-arp {
+.kaos-dropdown-arp .kaos-dropdown-trigger {
   max-width: 60px;
   font-size: 10px;
+  color: var(--text-dim);
+  border-color: var(--border);
+  opacity: 0.7;
+}
+.kaos-dropdown-arp.arp-on .kaos-dropdown-trigger {
+  color: var(--preview);
+  border-color: var(--preview);
+  opacity: 1;
 }
 .device-tool-btn {
   font-size: 10px;

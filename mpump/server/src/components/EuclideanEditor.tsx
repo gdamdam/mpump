@@ -8,6 +8,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import type { ClientMessage, DrumHit } from "../types";
 import { DRUM_VOICES } from "../types";
 import { euclidean } from "../engine/euclidean";
+import { DrumIcon } from "./DrumKitEditor";
+import { getBool } from "../utils/storage";
 
 interface Props {
   accent: string;
@@ -15,6 +17,7 @@ interface Props {
   patternLength: number;
   command: (msg: ClientMessage) => void;
   onActiveChange?: (active: boolean) => void;
+  defaultOpen?: boolean;
 }
 
 interface VoiceEuclid {
@@ -42,7 +45,7 @@ const VOICE_DEFAULTS: Record<number, Partial<VoiceEuclid>> = {
   49: { hits: 1, steps: 16 },
 };
 
-export function EuclideanEditor({ accent, device, patternLength, command, onActiveChange }: Props) {
+export function EuclideanEditor({ accent, device, patternLength, command, onActiveChange, defaultOpen = false }: Props) {
   const [voices, setVoices] = useState<Record<number, VoiceEuclid>>(() =>
     Object.fromEntries(DRUM_VOICES.map(v => [
       v.note,
@@ -139,19 +142,30 @@ export function EuclideanEditor({ accent, device, patternLength, command, onActi
     onActiveChange?.(false);
   };
 
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
 
   return (
-    <div className={`euclid-editor ${active ? "euclid-active" : ""}`} style={active ? { borderColor: accent } : undefined}>
-      <button className="collapsible-header" onClick={() => setOpen(!open)}>
-        <span className="drum-kit-label" style={{ color: accent }}>
-          euclidean {active && <span className="euclid-badge">ACTIVE</span>}
-        </span>
-        <span className="collapsible-arrow">{open ? "▼" : "▶"}</span>
-      </button>
+    <div className={defaultOpen ? "" : `euclid-editor ${active ? "euclid-active" : ""}`} style={!defaultOpen && active ? { borderColor: accent } : undefined}>
+      {!defaultOpen && (
+        <button className="collapsible-header" onClick={() => setOpen(!open)}>
+          <span className="drum-kit-label" style={{ color: accent }}>
+            <svg width="14" height="14" viewBox="0 0 14 14" style={{ verticalAlign: "-2px", marginRight: 4 }}>
+              <circle cx="7" cy="7" r="5.5" fill="none" stroke={accent} strokeWidth={1} />
+              {[0,1,2,3,4,5,6,7].map(i => {
+                const a = (i / 8) * Math.PI * 2 - Math.PI / 2;
+                const x = 7 + Math.cos(a) * 5;
+                const y = 7 + Math.sin(a) * 5;
+                return <circle key={i} cx={x} cy={y} r={i % 2 === 0 ? 1.8 : 1} fill={i % 2 === 0 ? accent : `${accent}44`} />;
+              })}
+            </svg>
+            euclidean {active && <span className="euclid-badge">ACTIVE</span>}
+          </span>
+          <span className="collapsible-arrow">{open ? "▼" : "▶"}</span>
+        </button>
+      )}
 
       {open && <>
-      <div className="euclid-hint">hits = how many &nbsp;·&nbsp; steps = over how many</div>
+      {!defaultOpen && getBool("mpump-synth-hints", true) && <div className="synth-section-hint">Algorithmic rhythms: hits = active beats, steps = pattern length, rotation shifts the pattern, velocity sets intensity</div>}
       <div className="euclid-actions" style={{ marginBottom: 6 }}>
           <button
             className={`synth-osc-btn ${anyEnabled ? "active" : ""}`}
@@ -178,7 +192,7 @@ export function EuclideanEditor({ accent, device, patternLength, command, onActi
           </button>
         </div>
 
-      <div className="euclid-grid" style={{ gridTemplateColumns: expanded ? "28px 24px 1fr 1fr 36px 1fr 1fr auto" : "28px 24px 1fr 1fr 36px auto" }}>
+      <div className="euclid-grid" style={{ gridTemplateColumns: expanded ? "48px 24px 1fr 1fr 36px 1fr 1fr auto" : "48px 24px 1fr 1fr 36px auto" }}>
         <div className="euclid-hdr" />
         <div className="euclid-hdr">ON</div>
         <div className="euclid-hdr">HITS</div>
@@ -192,7 +206,7 @@ export function EuclideanEditor({ accent, device, patternLength, command, onActi
           const v = voices[note];
           const pattern = v.enabled ? euclidean(v.hits, v.steps, v.rotation) : [];
           return [
-            <div key={`n${note}`} className="euclid-name" style={{ color: accent }}>{name}</div>,
+            <div key={`n${note}`} className="euclid-name" style={{ color: accent, display: "flex", alignItems: "center", gap: 2 }}><DrumIcon note={note} color={accent} />{name}</div>,
             <button
               key={`e${note}`}
               className={`euclid-toggle ${v.enabled ? "on" : ""}`}
@@ -252,13 +266,21 @@ export function EuclideanEditor({ accent, device, patternLength, command, onActi
               />
             ),
             <div key={`p${note}`} className="euclid-viz">
-              {v.enabled && pattern.map((hit, i) => (
-                <div
-                  key={i}
-                  className={`euclid-dot ${hit ? "hit" : ""}`}
-                  style={hit ? { background: accent } : undefined}
-                />
-              ))}
+              {v.enabled && (() => {
+                const size = 32, cx = size / 2, cy = size / 2, r = 12;
+                const n = pattern.length;
+                return (
+                  <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+                    <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth={1} />
+                    {pattern.map((hit, i) => {
+                      const angle = (i / n) * Math.PI * 2 - Math.PI / 2;
+                      const x = cx + Math.cos(angle) * r;
+                      const y = cy + Math.sin(angle) * r;
+                      return <circle key={i} cx={x} cy={y} r={hit ? 3 : 1.5} fill={hit ? accent : "rgba(255,255,255,0.15)"} />;
+                    })}
+                  </svg>
+                );
+              })()}
             </div>,
           ];
         })}

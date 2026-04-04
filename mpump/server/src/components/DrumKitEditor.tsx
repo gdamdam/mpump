@@ -12,6 +12,49 @@ import { SAMPLE_PACKS } from "../data/samplePacks";
 import { getJSON, setJSON } from "../utils/storage";
 import { tapVibrate } from "../utils/haptic";
 import { Knob } from "./SynthEditor";
+import { getBool } from "../utils/storage";
+
+/** Tiny 16×14 SVG icon per drum voice for visual identity */
+export function DrumIcon({ note, color }: { note: number; color: string }) {
+  const w = 16, h = 14;
+  const dim = `${color}66`; // 40% opacity version
+  switch (note) {
+    case 36: // BD — kick: rounded bump
+      return <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}><path d={`M1 ${h-1} Q${w/2} -2 ${w-1} ${h-1}`} fill="none" stroke={color} strokeWidth={1.5}/></svg>;
+    case 37: // RS — rimshot: two sharp spikes
+      return <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}><polyline points={`2,${h-2} 5,2 8,${h-2} 11,3 14,${h-2}`} fill="none" stroke={color} strokeWidth={1.2}/></svg>;
+    case 38: // SD — snare: jagged noise burst
+      return <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}><polyline points={`1,7 3,3 5,10 7,2 9,11 11,4 13,9 15,7`} fill="none" stroke={color} strokeWidth={1.2}/></svg>;
+    case 42: // CH — closed hat: tight lines
+      return <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>{[0,1,2,3,4].map(i=><line key={i} x1={2+i*3} y1={3} x2={2+i*3} y2={h-3} stroke={color} strokeWidth={1.2}/>)}</svg>;
+    case 46: // OH — open hat: lines with decay
+      return <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>{[0,1,2,3,4].map(i=><line key={i} x1={2+i*3} y1={3+i*0.5} x2={2+i*3} y2={h-3-i*0.3} stroke={i<3?color:dim} strokeWidth={1.2}/>)}</svg>;
+    case 47: // CB — cowbell: bell curve
+      return <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}><path d={`M2 ${h-2} L5 3 Q8 1 11 3 L14 ${h-2}`} fill="none" stroke={color} strokeWidth={1.2}/></svg>;
+    case 49: // CY — cymbal: wide splash
+      return <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}><path d={`M1 4 Q3 2 5 3 Q8 1 11 3 Q13 2 15 5`} fill="none" stroke={color} strokeWidth={1.2}/><path d={`M5 3 Q8 8 15 10`} fill="none" stroke={dim} strokeWidth={1}/></svg>;
+    case 50: // CP — clap: double burst
+      return <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}><polyline points={`2,7 4,3 6,8`} fill="none" stroke={color} strokeWidth={1.2}/><polyline points={`8,7 10,2 12,9 14,5`} fill="none" stroke={color} strokeWidth={1.2}/></svg>;
+    case 51: // RD — ride: wide ring
+      return <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}><ellipse cx={w/2} cy={h/2} rx={6} ry={4} fill="none" stroke={color} strokeWidth={1.2}/><circle cx={w/2} cy={h/2} r={1.5} fill={color}/></svg>;
+    case 56: // tambourine-ish
+      return <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>{[0,1,2].map(i=><circle key={i} cx={3+i*5} cy={h/2} r={2} fill="none" stroke={color} strokeWidth={1}/>)}</svg>;
+    default:
+      return <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}><circle cx={w/2} cy={h/2} r={3} fill="none" stroke={color} strokeWidth={1}/></svg>;
+  }
+}
+
+/** Tiny horizontal level bar, 20×6 */
+function LevelBar({ value, accent }: { value: number; accent: string }) {
+  const w = 20, h = 6;
+  const fill = Math.max(0, Math.min(1, value)) * (w - 2);
+  return (
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} style={{ flexShrink: 0 }}>
+      <rect x={0} y={0} width={w} height={h} rx={2} fill="rgba(255,255,255,0.06)" />
+      <rect x={1} y={1} width={fill} height={h - 2} rx={1} fill={accent} opacity={0.8} />
+    </svg>
+  );
+}
 
 const KITS_STORAGE_KEY = "mpump-kits-drums";
 
@@ -146,26 +189,37 @@ export function DrumKitEditor({ accent, command, activeDrumKit, defaultOpen = fa
     refreshKits();
   }, [kits, refreshKits]);
 
+  const MODAL_COLS = ["LEVEL", "PAN", "TUNE", "DECAY", "TONE"] as const;
+
   return (
-    <div className="drum-kit-editor">
-      <button className="collapsible-header" onClick={() => setOpen(!open)}>
-        <span className="drum-kit-label" style={{ color: accent }}>drum kit</span>
-        <span className="collapsible-arrow">{open ? "▼" : "▶"}</span>
-      </button>
+    <div className={defaultOpen ? "" : "drum-kit-editor"}>
+      {!defaultOpen && (
+        <button className="collapsible-header" onClick={() => setOpen(!open)}>
+          <span className="drum-kit-label" style={{ color: accent }}>
+            <svg width="14" height="14" viewBox="0 0 14 14" style={{ verticalAlign: "-2px", marginRight: 4 }}>
+              <ellipse cx="7" cy="8" rx="6" ry="4" fill="none" stroke={accent} strokeWidth={1} />
+              <line x1="1" y1="8" x2="1" y2="5" stroke={accent} strokeWidth={1} />
+              <line x1="13" y1="8" x2="13" y2="5" stroke={accent} strokeWidth={1} />
+              <ellipse cx="7" cy="5" rx="6" ry="4" fill="none" stroke={accent} strokeWidth={1} />
+            </svg>
+            drum kit
+          </span>
+          <span className="collapsible-arrow">{open ? "▼" : "▶"}</span>
+        </button>
+      )}
       {open && <div className="drum-kit-knobs">
         <div className="drum-kit-toolbar">
           <button
             className="synth-osc-btn"
-            title={expanded ? "Show fewer controls" : "Show all controls"}
-            onClick={() => setExpanded(!expanded)}
+            title="Open full drum kit editor"
+            onClick={() => setExpanded(true)}
             style={{ fontSize: 9 }}
-          >{expanded ? "COMPACT" : "EXPAND"}</button>
+          >EXPAND</button>
         </div>
+        {!defaultOpen && getBool("mpump-synth-hints", true) && <div className="synth-section-hint">Per-voice sound shaping: level, stereo pan, tuning, decay, and tone character. Expand for full controls</div>}
         {DRUM_VOICES.map(({ note, name }) => {
           const v = voices[note] ?? { ...DEFAULT_DRUM_VOICE };
           const isMuted = muted[note] ?? false;
-          const tone = toneParam(note);
-          const toneVal = (v[tone.key] as number | undefined) ?? tone.def;
 
           return (
             <div key={note} className={`drum-kit-voice-row ${isMuted ? "drum-kit-muted" : ""}`}>
@@ -179,15 +233,11 @@ export function DrumKitEditor({ accent, command, activeDrumKit, defaultOpen = fa
                   update(note, { level: next ? 0 : (voices[note].level || 1) });
                 }}
               >M</button>
+              <DrumIcon note={note} color={accent} />
               <div className="drum-kit-name" style={{ color: accent }}>{name}</div>
               <Knob label="LEVEL" value={v.level} min={0} max={1} step={0.01} accent={accent} onChange={(val) => update(note, { level: val })} />
               <Knob label="PAN" value={v.pan ?? defaultPan(note)} min={-1} max={1} step={0.05} accent={accent} onChange={(val) => update(note, { pan: val })} />
-              {expanded && <>
-                <Knob label="TUNE" value={v.tune} min={-12} max={12} step={1} accent={accent} onChange={(val) => update(note, { tune: val })} />
-                <Knob label="DECAY" value={v.decay} min={0.1} max={2} step={0.1} accent={accent} onChange={(val) => update(note, { decay: val })} />
-                <Knob label={tone.label} value={toneVal} min={tone.min} max={tone.max} step={0.01} accent={accent} onChange={(val) => update(note, { [tone.key]: val })} />
-                {note === 36 && <Knob label="CLK TN" value={(v.clickTune as number | undefined) ?? 0} min={-1} max={1} step={0.1} accent={accent} onChange={(val) => update(note, { clickTune: val })} />}
-              </>}
+              <LevelBar value={v.level} accent={accent} />
             </div>
           );
         })}
@@ -233,6 +283,80 @@ export function DrumKitEditor({ accent, command, activeDrumKit, defaultOpen = fa
                 )}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Expanded modal ── */}
+      {expanded && (
+        <div className="lib-overlay" onClick={() => setExpanded(false)}>
+          <div className="dkm-panel" onClick={e => e.stopPropagation()}>
+            <div className="lib-header">
+              <span className="lib-title" style={{ color: accent }}>DRUM KIT</span>
+              <button className="synth-osc-btn" onClick={() => setExpanded(false)} style={{ fontSize: 9, flex: "none", padding: "4px 10px" }}>CLOSE</button>
+            </div>
+            <div className="synth-section-hint">Per-voice sound shaping: level, stereo pan, tuning, decay, and tone character</div>
+            {/* Grid */}
+            <div className="dkm-grid">
+              {/* Header row */}
+              <div className="dkm-hdr-label" />
+              {MODAL_COLS.map(c => <div key={c} className="dkm-hdr-label">{c}</div>)}
+
+              {/* Voice rows */}
+              {DRUM_VOICES.map(({ note, name }) => {
+                const v = voices[note] ?? { ...DEFAULT_DRUM_VOICE };
+                const isMuted = muted[note] ?? false;
+                const tone = toneParam(note);
+                const toneVal = (v[tone.key] as number | undefined) ?? tone.def;
+                return [
+                  <div key={`n${note}`} className={`dkm-voice ${isMuted ? "drum-kit-muted" : ""}`}>
+                    <button
+                      className={`drum-kit-mute ${isMuted ? "on" : ""}`}
+                      title={isMuted ? `Unmute ${name}` : `Mute ${name}`}
+                      style={isMuted ? { background: accent, color: "#000" } : undefined}
+                      onClick={() => {
+                        const next = !isMuted;
+                        setMuted(prev => ({ ...prev, [note]: next }));
+                        update(note, { level: next ? 0 : (voices[note].level || 1) });
+                      }}
+                    >M</button>
+                    <DrumIcon note={note} color={accent} />
+                    <span className="drum-kit-name" style={{ color: accent }}>{name}</span>
+                  </div>,
+                  <div key={`l${note}`} className={`dkm-cell ${isMuted ? "drum-kit-muted" : ""}`}>
+                    <input type="range" className="drum-kit-slider" min={0} max={1} step={0.01} value={v.level}
+                      style={{ "--knob-accent": accent } as React.CSSProperties}
+                      title={`Level: ${v.level.toFixed(2)}`}
+                      onChange={e => update(note, { level: parseFloat(e.target.value) })} />
+                    <span className="dkm-val">{v.level.toFixed(2)}</span>
+                  </div>,
+                  <div key={`p${note}`} className={`dkm-cell ${isMuted ? "drum-kit-muted" : ""}`}>
+                    <input type="range" className="drum-kit-slider" min={-1} max={1} step={0.05} value={v.pan ?? defaultPan(note)}
+                      title={`Pan: ${(v.pan ?? defaultPan(note)).toFixed(2)}`}
+                      onChange={e => update(note, { pan: parseFloat(e.target.value) })} />
+                    <span className="dkm-val">{(v.pan ?? defaultPan(note)).toFixed(2)}</span>
+                  </div>,
+                  <div key={`t${note}`} className={`dkm-cell ${isMuted ? "drum-kit-muted" : ""}`}>
+                    <input type="range" className="drum-kit-slider" min={-12} max={12} step={1} value={v.tune}
+                      title={`Tune: ${v.tune}`}
+                      onChange={e => update(note, { tune: parseInt(e.target.value) })} />
+                    <span className="dkm-val">{v.tune}</span>
+                  </div>,
+                  <div key={`d${note}`} className={`dkm-cell ${isMuted ? "drum-kit-muted" : ""}`}>
+                    <input type="range" className="drum-kit-slider" min={0.1} max={2} step={0.1} value={v.decay}
+                      title={`Decay: ${v.decay.toFixed(1)}`}
+                      onChange={e => update(note, { decay: parseFloat(e.target.value) })} />
+                    <span className="dkm-val">{v.decay.toFixed(1)}</span>
+                  </div>,
+                  <div key={`o${note}`} className={`dkm-cell ${isMuted ? "drum-kit-muted" : ""}`}>
+                    <input type="range" className="drum-kit-slider" min={tone.min} max={tone.max} step={0.01} value={toneVal}
+                      title={`${tone.label}: ${toneVal.toFixed(2)}`}
+                      onChange={e => update(note, { [tone.key]: parseFloat(e.target.value) })} />
+                    <span className="dkm-val">{toneVal.toFixed(2)}</span>
+                  </div>,
+                ];
+              })}
+            </div>
           </div>
         </div>
       )}
