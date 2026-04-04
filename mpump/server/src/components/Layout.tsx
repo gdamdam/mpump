@@ -221,7 +221,7 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
     "dub-techno": ["dub techno", "dub", "deep house", "minimal"],
     house: ["house", "deep house", "tech house"],
     garage: ["garage", "2-step", "uk garage"],
-    electro: ["electro", "miami bass", "breakdance"],
+    electro: ["electro", "miami bass", "breakdance", "ebm", "synth-pop"],
     breakbeat: ["breakbeat", "old school", "hip-hop"],
     techno: ["techno", "tech house", "minimal", "industrial"],
     "acid-techno": ["acid techno", "acid house", "acid"],
@@ -239,6 +239,20 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
       return kws.some(kw => tags.includes(kw.toLowerCase()));
     });
     return matches.length > 0 ? matches[Math.floor(Math.random() * matches.length)].idx : null;
+  };
+
+  /** Combined drum kit list: sample packs first, then presets. Returns value string for handleDrumKitChange. */
+  const allDrumKits: { name: string; genres?: string; value: string }[] = [
+    ...SAMPLE_PACKS.map(p => ({ name: p.name, genres: p.genres, value: `pack:${p.id}` })),
+    ...DRUM_KIT_PRESETS.map((p, i) => ({ name: p.name, genres: p.genres, value: String(i) })),
+  ];
+  const matchDrumKit = (genreName: string): string | null => {
+    const kws = GENRE_KEYWORDS[genreName] || [genreName];
+    const matches = allDrumKits.filter(k => {
+      const tags = (k.genres || "").toLowerCase();
+      return kws.some(kw => tags.includes(kw.toLowerCase()));
+    });
+    return matches.length > 0 ? matches[Math.floor(Math.random() * matches.length)].value : null;
   };
 
   // Action bubbles: show who did what in jam mode
@@ -1357,8 +1371,8 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
         const synthGenreName = synthD ? synthGenresArr[synthD.genre_idx]?.name : undefined;
 
         if (!soundLock.drums) {
-          const gi = patternLock.drums && drumsGenreName ? matchPreset(DRUM_KIT_PRESETS as unknown as { name: string; genres?: string }[], drumsGenreName) : null;
-          handleDrumKitChange(gi != null ? String(gi) : ri(DRUM_KIT_PRESETS.length));
+          const gv = patternLock.drums && drumsGenreName ? matchDrumKit(drumsGenreName) : null;
+          handleDrumKitChange(gv ?? allDrumKits[Math.random() < 0.15 ? 0 : 1 + Math.floor(Math.random() * (allDrumKits.length - 1))].value);
         }
         if (!soundLock.synth) {
           const gi = patternLock.synth && synthGenreName ? matchPreset(SYNTH_PRESETS as unknown as { name: string; genres?: string }[], synthGenreName) : null;

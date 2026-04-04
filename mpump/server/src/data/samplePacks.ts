@@ -26,6 +26,19 @@ export const SAMPLE_PACKS: SamplePack[] = [
     },
   },
   {
+    id: "drumulator", name: "Drumulator", genres: "Electro, Synth-Pop, EBM",
+    voices: {
+      36: { tune: 1, decay: 0.2, level: 1, click: 0.3, sweepDepth: 0.35, sweepRate: 0.55, noiseMix: 0.08, filterCutoff: 0.7 },
+      38: { tune: 1, decay: 0.2, level: 0.95, noiseMix: 0.6, color: 0.2, filterCutoff: 0.72 },
+      42: { tune: 1, decay: 0.25, level: 0.8, color: 0.3, filterCutoff: 0.68 },
+      46: { tune: 0, decay: 0.3, level: 0.7, color: 0.3, filterCutoff: 0.68 },
+      47: { tune: 0, decay: 0.25, level: 0.85, noiseMix: 0.05, filterCutoff: 0.7 },
+      50: { tune: 2, decay: 0.1, level: 0.85, filterCutoff: 0.72 },
+      56: { tune: 0, decay: 0.15, level: 0.75, filterCutoff: 0.7 },
+      49: { tune: 0, decay: 0.7, level: 0.6, color: 0.2, filterCutoff: 0.65 },
+    },
+  },
+  {
     id: "dmx", name: "DMX", genres: "Electro, Hip-Hop, Breakdance",
     voices: {
       36: { tune: -1, decay: 0.3, level: 1, click: 0.25, sweepDepth: 0.6, sweepRate: 0.45 },

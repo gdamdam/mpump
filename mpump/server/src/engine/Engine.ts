@@ -17,6 +17,7 @@ import { DEFAULT_SYNTH_PARAMS } from "../types";
 import type { MidiPort } from "./MidiPort";
 import { AudioPort } from "./AudioPort";
 import { SYNTH_PRESETS, BASS_PRESETS, DRUM_KIT_PRESETS } from "../data/soundPresets";
+import { SAMPLE_PACKS } from "../data/samplePacks";
 import { MidiClock } from "./MidiClock";
 import { Sequencer } from "./Sequencer";
 import { T8Sequencer } from "./T8Sequencer";
@@ -266,26 +267,39 @@ export class Engine {
   private static CURATED_STARTS: { genre: string; bpm: number; synth?: string; bass?: string; kit?: string; weight: number }[] = [
     // High weight — these sound great on first listen
     { genre: "techno", bpm: 130, synth: "Classic Saw", bass: "Acid Bass", kit: "Default", weight: 3 },
+    { genre: "techno", bpm: 132, synth: "Classic Saw", bass: "Acid Bass", kit: "pack:909", weight: 2 },
     { genre: "house", bpm: 124, synth: "House Stab", bass: "Pluck Bass", kit: "House", weight: 3 },
+    { genre: "house", bpm: 122, synth: "House Stab", bass: "Pluck Bass", kit: "pack:909", weight: 1 },
     { genre: "trance", bpm: 140, synth: "Supersaw", bass: "Deep Sub", kit: "Trance", weight: 3 },
+    { genre: "trance", bpm: 138, synth: "Supersaw", bass: "Deep Sub", kit: "pack:909", weight: 1 },
     { genre: "acid-techno", bpm: 138, synth: "Acid Squelch", bass: "303 Acid", kit: "Default", weight: 2 },
+    { genre: "acid-techno", bpm: 136, synth: "Acid Squelch", bass: "303 Acid", kit: "pack:606", weight: 1 },
     { genre: "electro", bpm: 128, synth: "Square Lead", bass: "Square Bass", kit: "Electro", weight: 2 },
+    { genre: "electro", bpm: 125, synth: "Square Lead", bass: "Square Bass", kit: "pack:drumulator", weight: 2 },
+    { genre: "electro", bpm: 126, synth: "Square Lead", bass: "Square Bass", kit: "pack:dmx", weight: 1 },
     { genre: "deep-house", bpm: 122, synth: "Warm Pad", bass: "Warm Bass", kit: "House", weight: 2 },
     { genre: "synthwave", bpm: 118, synth: "Supersaw", bass: "Arp Bass", kit: "Default", weight: 2 },
+    { genre: "synthwave", bpm: 116, synth: "Supersaw", bass: "Arp Bass", kit: "pack:linn", weight: 1 },
+    { genre: "synthwave", bpm: 120, synth: "Supersaw", bass: "Arp Bass", kit: "pack:drumulator", weight: 1 },
     // Normal weight — solid but more niche
     { genre: "dub-techno", bpm: 118, synth: "Dark Drone", bass: "Deep Sub", kit: "Dub", weight: 1 },
     { genre: "breakbeat", bpm: 140, synth: "Classic Saw", bass: "Pluck Bass", kit: "DnB", weight: 1 },
+    { genre: "breakbeat", bpm: 138, synth: "Classic Saw", bass: "Pluck Bass", kit: "pack:dmx", weight: 1 },
     { genre: "garage", bpm: 132, synth: "House Stab", bass: "Garage Bass", kit: "Garage", weight: 1 },
+    { genre: "garage", bpm: 130, synth: "House Stab", bass: "Garage Bass", kit: "pack:707", weight: 1 },
     { genre: "dubstep", bpm: 140, synth: "Neuro", bass: "Wobble", kit: "Heavy", weight: 1 },
     { genre: "psytrance", bpm: 145, synth: "Supersaw", bass: "Psy Bass", kit: "Trance", weight: 1 },
     { genre: "downtempo", bpm: 95, synth: "Warm Pad", bass: "Warm Bass", kit: "Lo-Fi", weight: 1 },
+    { genre: "downtempo", bpm: 90, synth: "Warm Pad", bass: "Warm Bass", kit: "pack:cr78", weight: 1 },
     { genre: "lo-fi", bpm: 80, synth: "Rhodes Keys", bass: "Deep Sub", kit: "Lo-Fi", weight: 1 },
+    { genre: "lo-fi", bpm: 78, synth: "Rhodes Keys", bass: "Deep Sub", kit: "pack:cr78", weight: 1 },
     { genre: "idm", bpm: 135, synth: "FM Bell", bass: "Zapper", kit: "Glitch", weight: 1 },
     { genre: "ambient", bpm: 90, synth: "String Pad", bass: "Foghorn", kit: "Dub", weight: 1 },
     { genre: "glitch", bpm: 130, synth: "FM Bell", bass: "Distorted", kit: "Glitch", weight: 1 },
     { genre: "jungle", bpm: 170, synth: "Classic Saw", bass: "Reese", kit: "DnB", weight: 1 },
     { genre: "drum-and-bass", bpm: 174, synth: "Neuro", bass: "Reese", kit: "DnB", weight: 1 },
     { genre: "edm", bpm: 128, synth: "EDM Pluck", bass: "Pluck Bass", kit: "Default", weight: 1 },
+    { genre: "edm", bpm: 126, synth: "EDM Pluck", bass: "Pluck Bass", kit: "pack:808", weight: 1 },
   ];
 
   /** Create AudioPort early (must be called synchronously during user gesture for Safari). */
@@ -372,7 +386,9 @@ export class Engine {
         (useCurated && name && list.find(p => p.name === name)) || list[Math.floor(Math.random() * list.length)];
       const synthPreset = findPreset(SYNTH_PRESETS, curated.synth);
       const bassPreset = findPreset(BASS_PRESETS, curated.bass);
-      const drumPreset = findPreset(DRUM_KIT_PRESETS, curated.kit);
+      const drumPreset = curated.kit?.startsWith("pack:")
+        ? SAMPLE_PACKS.find(p => p.id === curated.kit!.slice(5)) ?? findPreset(DRUM_KIT_PRESETS, undefined)
+        : findPreset(DRUM_KIT_PRESETS, curated.kit);
 
       const synthDs = this.deviceStates.get("preview_synth");
       if (synthDs) {
