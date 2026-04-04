@@ -785,6 +785,7 @@
   max-height: 240px;
   overflow-y: auto;
   background: var(--bg-panel, #161b22);
+  color: var(--text, #e6edf3);
   border: 1px solid var(--border, #30363d);
   border-radius: 6px;
   padding: 4px 0;
@@ -817,6 +818,8 @@
   border: none;
   cursor: pointer;
   white-space: nowrap;
+  -webkit-appearance: none;
+  appearance: none;
 }
 .kaos-dropdown-item:hover {
   background: var(--border, #30363d);

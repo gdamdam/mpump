@@ -378,6 +378,10 @@
   max-width: 42px;
   min-width: 36px;
 }
+.pattern-tools-row .kaos-dropdown-patlen .kaos-dropdown-menu {
+  min-width: unset;
+  width: 48px;
+}
 .drum-editor-btns {
   display: flex;
   gap: 4px;
