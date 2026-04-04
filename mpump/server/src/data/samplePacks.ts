@@ -26,7 +26,7 @@ export const SAMPLE_PACKS: SamplePack[] = [
     },
   },
   {
-    id: "drumulator", name: "Drumulator", genres: "Electro, Synth-Pop, EBM",
+    id: "drumulator", name: "Drumulator", genres: "Electro, Synth-Pop, EBM, Synthwave",
     voices: {
       36: { tune: 1, decay: 0.2, level: 1, click: 0.3, sweepDepth: 0.35, sweepRate: 0.55, noiseMix: 0.08, filterCutoff: 0.7 },
       38: { tune: 1, decay: 0.2, level: 0.95, noiseMix: 0.6, color: 0.2, filterCutoff: 0.72 },
