@@ -11,7 +11,7 @@ import type { StepData, DrumHit, EffectName, EffectParams } from "../types";
 
 // ── Share payload validation ─────────────────────────────────────────────
 
-const VALID_EFFECT_NAMES = new Set<string>(["compressor", "highpass", "distortion", "bitcrusher", "chorus", "phaser", "delay", "reverb"]);
+const VALID_EFFECT_NAMES = new Set<string>(["compressor", "highpass", "distortion", "bitcrusher", "chorus", "phaser", "delay", "reverb", "flanger", "tremolo"]);
 const MAX_STEPS = 64;            // longest supported pattern (64 sixteenth-note steps)
 const MAX_HITS_PER_STEP = 16;    // drum polyphony limit per step
 const MAX_PATTERN_STRING = 4000;
@@ -249,6 +249,8 @@ const SYNTH_KEY_MAP: Record<string, string> = {
   lfoOn: "lo", lfoSync: "ls", lfoRate: "lr", lfoDivision: "ld",
   lfoDepth: "lp", lfoShape: "lh", lfoTarget: "lt",
   filterEnvDepth: "fe", unison: "un", unisonSpread: "us",
+  filterModel: "fm", filterDecay: "fd", filterDrive: "fv",
+  noteLength: "nl", gain: "gn",
 };
 const SYNTH_KEY_REVERSE: Record<string, string> = Object.fromEntries(
   Object.entries(SYNTH_KEY_MAP).map(([k, v]) => [v, k])
@@ -261,6 +263,9 @@ const SYNTH_DEFAULTS: Record<string, unknown> = {
   subOsc: true, subLevel: 0.5, detune: 0,
   lfoOn: false, lfoSync: false, lfoRate: 2, lfoDivision: "1/4",
   lfoDepth: 0.5, lfoShape: "sine", lfoTarget: "cutoff",
+  filterEnvDepth: 0, unison: 1, unisonSpread: 25,
+  filterModel: "digital", filterDecay: 0, filterDrive: 0,
+  noteLength: 1, gain: 1,
 };
 
 /** Encode synth params as compact diff against defaults with short keys. */
