@@ -167,10 +167,16 @@ export class Sequencer {
       const midiNote = Math.max(0, Math.min(127, this.rootNote + step.semi));
       const velocity = this.humanizeVel(Math.min(127, Math.round(this.baseVelocity * step.vel)));
       if (step.slide && this.pendingNote !== null) {
-        this.port.noteOn(this.channel, midiNote, velocity, stepTime);
-        this.port.noteOff(this.channel, this.pendingNote, stepTime);
-        this.pendingNote = midiNote;
-        this.pendingOffTime = stepTime + gateDur;
+        if (midiNote === this.pendingNote) {
+          // Tie: same pitch — extend the note, no new note-on/off
+          this.pendingOffTime = stepTime + gateDur;
+        } else {
+          // Portamento: different pitch — glide via simultaneous off/on
+          this.port.noteOn(this.channel, midiNote, velocity, stepTime);
+          this.port.noteOff(this.channel, this.pendingNote, stepTime);
+          this.pendingNote = midiNote;
+          this.pendingOffTime = stepTime + gateDur;
+        }
       } else {
         if (this.pendingNote !== null) {
           this.port.noteOff(this.channel, this.pendingNote, stepTime);
@@ -227,10 +233,16 @@ export class Sequencer {
         const velocity = this.humanizeVel(Math.min(127, Math.round(this.baseVelocity * step.vel)));
 
         if (step.slide && this.pendingNote !== null) {
-          this.port.noteOn(this.channel, midiNote, velocity, stepTime);
-          this.port.noteOff(this.channel, this.pendingNote, stepTime);
-          this.pendingNote = midiNote;
-          this.pendingOffTime = stepTime + gateDur;
+          if (midiNote === this.pendingNote) {
+            // Tie: same pitch — extend the note, no new note-on/off
+            this.pendingOffTime = stepTime + gateDur;
+          } else {
+            // Portamento: different pitch — glide via simultaneous off/on
+            this.port.noteOn(this.channel, midiNote, velocity, stepTime);
+            this.port.noteOff(this.channel, this.pendingNote, stepTime);
+            this.pendingNote = midiNote;
+            this.pendingOffTime = stepTime + gateDur;
+          }
         } else {
           if (this.pendingNote !== null) {
             this.port.noteOff(this.channel, this.pendingNote, stepTime);

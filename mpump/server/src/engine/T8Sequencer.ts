@@ -147,9 +147,14 @@ export class T8Sequencer {
       const midiNote = Math.max(0, Math.min(127, this.bassRoot + bassStep.semi));
       const velocity = this.humanizeVel(Math.min(127, Math.round(this.baseVelocity * bassStep.vel)));
       if (bassStep.slide && this.pendingBassNote !== null) {
-        this.port.noteOn(this.bassCh, midiNote, velocity, stepTime);
-        this.port.noteOff(this.bassCh, this.pendingBassNote, stepTime);
-        this.pendingBassNote = midiNote;
+        if (midiNote === this.pendingBassNote) {
+          // Tie: same pitch — extend the note
+        } else {
+          // Portamento: different pitch — glide
+          this.port.noteOn(this.bassCh, midiNote, velocity, stepTime);
+          this.port.noteOff(this.bassCh, this.pendingBassNote, stepTime);
+          this.pendingBassNote = midiNote;
+        }
       } else {
         if (this.pendingBassNote !== null) {
           this.port.noteOff(this.bassCh, this.pendingBassNote, stepTime);
@@ -210,10 +215,14 @@ export class T8Sequencer {
         const velocity = this.humanizeVel(Math.min(127, Math.round(this.baseVelocity * bassStep.vel)));
 
         if (bassStep.slide && this.pendingBassNote !== null) {
-          // Slide: legato
-          this.port.noteOn(this.bassCh, midiNote, velocity, stepTime);
-          this.port.noteOff(this.bassCh, this.pendingBassNote, stepTime);
-          this.pendingBassNote = midiNote;
+          if (midiNote === this.pendingBassNote) {
+            // Tie: same pitch — extend the note
+          } else {
+            // Portamento: different pitch — glide
+            this.port.noteOn(this.bassCh, midiNote, velocity, stepTime);
+            this.port.noteOff(this.bassCh, this.pendingBassNote, stepTime);
+            this.pendingBassNote = midiNote;
+          }
         } else {
           // Normal
           if (this.pendingBassNote !== null) {
