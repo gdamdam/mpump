@@ -5,6 +5,7 @@
   padding: 8px;
   background: var(--bg-cell);
   border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
 }
 
 .synth-editor-label {
@@ -36,9 +37,20 @@
   border-color: transparent;
   opacity: 1;
 }
+.synth-osc-btn.synth-osc-icon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 3px 0 2px;
+  font-size: 8px;
+  line-height: 1;
+}
 
 .synth-section {
   margin-bottom: 8px;
+  padding: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 5px;
 }
 
 .synth-section-header {
@@ -59,20 +71,62 @@
   opacity: 1;
 }
 
-.adsr-curve, .filter-curve {
+.synth-section-header-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.synth-toggle-sm {
+  font-size: 8px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 3px;
+  border: 1px solid var(--preview);
+  background: transparent;
+  color: var(--preview);
+  opacity: 0.7;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.synth-toggle-sm.active {
+  opacity: 1;
+}
+.adsr-curve {
   width: 100%;
-  aspect-ratio: 3 / 1;
+  aspect-ratio: 5 / 1;
   display: block;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
+  border-radius: 4px;
+  background: rgba(255,255,255,0.03);
+}
+.filter-curve {
+  width: 100%;
+  aspect-ratio: 4 / 1;
+  display: block;
+  margin-bottom: 4px;
   border-radius: 4px;
   background: rgba(255,255,255,0.03);
 }
 .lfo-curve {
-  width: 100%;
-  aspect-ratio: 5 / 1;
+  flex: 1;
+  min-width: 0;
+  aspect-ratio: 3 / 1;
   display: block;
-  margin: 4px 0;
   border-radius: 4px;
+  margin: 0;
+}
+.synth-lfo-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 4px;
+}
+.synth-lfo-knobs {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 70px;
 }
 
 .synth-knobs {

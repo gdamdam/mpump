@@ -23,6 +23,79 @@ const OSC_LABELS: Record<OscType, string> = {
   wavetable: "WTB",
 };
 
+/** Tiny inline SVG waveform icons for oscillator buttons. */
+function OscIcon({ type, color }: { type: OscType; color: string }) {
+  const w = 28, h = 12, m = 1;
+  const mid = h / 2;
+  const amp = mid - m;
+  let d = "";
+  switch (type) {
+    case "sawtooth":
+      d = `M${m},${mid} L${w/2},${m} L${w/2},${h-m} L${w-m},${m}`;
+      break;
+    case "square":
+      d = `M${m},${h-m} L${m},${m} L${w/2},${m} L${w/2},${h-m} L${w-m},${h-m} L${w-m},${m}`;
+      break;
+    case "sine": {
+      const pts = Array.from({ length: 20 }, (_, i) => {
+        const x = m + (i / 19) * (w - 2 * m);
+        const y = mid - Math.sin((i / 19) * Math.PI * 2) * amp;
+        return `${x},${y}`;
+      });
+      d = `M${pts.join(" L")}`;
+      break;
+    }
+    case "triangle":
+      d = `M${m},${mid} L${w/4},${m} L${w*3/4},${h-m} L${w-m},${mid}`;
+      break;
+    case "pwm":
+      d = `M${m},${h-m} L${m},${m} L${w*0.3},${m} L${w*0.3},${h-m} L${w-m},${h-m} L${w-m},${m}`;
+      break;
+    case "sync":
+      d = `M${m},${mid} L${w*0.3},${m} L${w*0.3},${h-m} L${w*0.5},${mid} L${w*0.7},${m} L${w*0.7},${h-m} L${w-m},${mid}`;
+      break;
+    case "fm": {
+      const pts = Array.from({ length: 24 }, (_, i) => {
+        const t = i / 23;
+        const x = m + t * (w - 2 * m);
+        const y = mid - Math.sin(t * Math.PI * 2 + Math.sin(t * Math.PI * 6) * 2) * amp * 0.8;
+        return `${x},${y}`;
+      });
+      d = `M${pts.join(" L")}`;
+      break;
+    }
+    case "wavetable": {
+      const pts = Array.from({ length: 24 }, (_, i) => {
+        const t = i / 23;
+        const x = m + t * (w - 2 * m);
+        const y = mid - (Math.sin(t * Math.PI * 2) * 0.6 + Math.sin(t * Math.PI * 6) * 0.4) * amp;
+        return `${x},${y}`;
+      });
+      d = `M${pts.join(" L")}`;
+      break;
+    }
+  }
+  return <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} style={{ display: "block", margin: "0 auto 1px" }}><path d={d} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" /></svg>;
+}
+
+/** Tiny filter response icons for model buttons. */
+function FilterModelIcon({ model, color }: { model: string; color: string }) {
+  const w = 28, h = 12, m = 1;
+  let d = "";
+  switch (model) {
+    case "digital": // sharp cutoff
+      d = `M${m},${h*0.3} L${w*0.6},${h*0.3} L${w*0.7},${h*0.25} L${w*0.75},${h-m}`;
+      break;
+    case "mog": // warm rolloff with subtle resonance
+      d = `M${m},${h*0.3} L${w*0.5},${h*0.3} L${w*0.6},${h*0.2} L${w*0.7},${h*0.4} L${w-m},${h-m}`;
+      break;
+    case "303": // aggressive resonance peak
+      d = `M${m},${h*0.5} L${w*0.4},${h*0.5} L${w*0.55},${m} L${w*0.65},${h*0.6} L${w*0.75},${h-m}`;
+      break;
+  }
+  return <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} style={{ display: "block", margin: "0 auto 1px" }}><path d={d} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" /></svg>;
+}
+
 import type { FilterModel } from "../types";
 const FILTER_MODELS: FilterModel[] = ["digital", "mog", "303"];
 const FILTER_MODEL_LABELS: Record<FilterModel, string> = {
@@ -148,17 +221,19 @@ export function SynthEditor({ params, accent, label, onChange, hideVoices }: Pro
 
   return (
     <div className="synth-editor">
-      <div className="synth-editor-label" style={{ color: accent }}>{label}</div>
+      <div className="synth-editor-label" style={{ color: accent }}>OSCILLATOR</div>
 
+      <div className="synth-section">
       <div className="synth-osc-row">
         {OSC_TYPES.slice(0, 5).map((t) => (
           <button
             key={t}
-            className={`synth-osc-btn ${params.oscType === t ? "active" : ""}`}
+            className={`synth-osc-btn synth-osc-icon ${params.oscType === t ? "active" : ""}`}
             title={`Oscillator: ${t}`}
             style={params.oscType === t ? { background: accent, color: "#000" } : undefined}
             onClick={() => onChange({ oscType: t })}
           >
+            <OscIcon type={t} color={params.oscType === t ? "#000" : "var(--preview)"} />
             {OSC_LABELS[t]}
           </button>
         ))}
@@ -166,11 +241,12 @@ export function SynthEditor({ params, accent, label, onChange, hideVoices }: Pro
         {OSC_TYPES.slice(5).map((t) => (
           <button
             key={t}
-            className={`synth-osc-btn ${params.oscType === t ? "active" : ""}`}
+            className={`synth-osc-btn synth-osc-icon ${params.oscType === t ? "active" : ""}`}
             title={`Oscillator: ${t} (AudioWorklet)`}
             style={params.oscType === t ? { background: accent, color: "#000" } : undefined}
             onClick={() => onChange({ oscType: t })}
           >
+            <OscIcon type={t} color={params.oscType === t ? "#000" : "var(--preview)"} />
             {OSC_LABELS[t]}
           </button>
         ))}
@@ -195,6 +271,7 @@ export function SynthEditor({ params, accent, label, onChange, hideVoices }: Pro
               <button
                 key={t}
                 className={`synth-osc-btn ${(params.wavetable ?? "basic") === t ? "active" : ""}`}
+                title={`Wavetable: ${t}`}
                 style={(params.wavetable ?? "basic") === t ? { background: accent, color: "#000" } : undefined}
                 onClick={() => onChange({ wavetable: t })}
               >{t.toUpperCase()}</button>
@@ -206,8 +283,6 @@ export function SynthEditor({ params, accent, label, onChange, hideVoices }: Pro
         </div>
       )}
 
-      <div className="synth-section">
-        <div className="synth-section-header">ADSR</div>
         <AdsrCurve
           attack={params.attack}
           decay={params.decay}
@@ -220,29 +295,20 @@ export function SynthEditor({ params, accent, label, onChange, hideVoices }: Pro
           <Knob label="DEC" value={params.decay} min={0.01} max={1} step={0.01} accent={accent} onChange={(v) => onChange({ decay: v })} />
           <Knob label="SUS" value={params.sustain} min={0} max={1} step={0.01} accent={accent} onChange={(v) => onChange({ sustain: v })} />
           <Knob label="REL" value={params.release} min={0.01} max={2} step={0.01} accent={accent} onChange={(v) => onChange({ release: v })} />
-        </div>
-      </div>
-
-      <div className="synth-knobs" style={{ maxWidth: hideVoices ? 100 : 200 }}>
-        <Knob label="DETUNE" value={params.detune} min={-50} max={50} step={1} accent={accent} onChange={(v) => onChange({ detune: v })} />
-        {!hideVoices && <Knob label="VOICES" value={params.unison ?? 1} min={1} max={7} step={2} accent={accent} onChange={(v) => {
-          const n = Math.round(v);
-          const spread = n <= 1 ? 0 : (params.unisonSpread ?? Math.round(n * 5));
-          onChange({ unison: n, unisonSpread: spread });
-        }} />}
-      </div>
-
-      <div className="synth-section">
-        <div className="synth-sub-row">
-          <div className="synth-section-header" style={{ margin: 0 }}>SUB BASS</div>
-          <button
-            className={`synth-osc-btn ${params.subOsc ? "active" : ""}`}
-            title="Toggle sub-bass oscillator"
-            style={params.subOsc ? { background: accent, color: "#000" } : undefined}
-            onClick={() => onChange({ subOsc: !params.subOsc })}
-          >
-            {params.subOsc ? "ON" : "OFF"}
-          </button>
+          <Knob label="DETUNE" value={params.detune} min={-50} max={50} step={1} accent={accent} onChange={(v) => onChange({ detune: v })} />
+          {!hideVoices && <Knob label="VOICES" value={params.unison ?? 1} min={1} max={7} step={2} accent={accent} onChange={(v) => {
+            const n = Math.round(v);
+            const spread = n <= 1 ? 0 : (params.unisonSpread ?? Math.round(n * 5));
+            onChange({ unison: n, unisonSpread: spread });
+          }} />}
+          <label className="synth-knob" style={{ maxWidth: 30 }}>
+            <button
+              className={`synth-toggle-sm ${params.subOsc ? "active" : ""}`}
+              title="Toggle sub-bass oscillator"
+              style={params.subOsc ? { background: accent, color: "#000", borderColor: accent } : undefined}
+              onClick={() => onChange({ subOsc: !params.subOsc })}
+            >SUB</button>
+          </label>
           {params.subOsc && (
             <Knob label="LVL" value={params.subLevel} min={0} max={1} step={0.01} accent={accent} onChange={(v) => onChange({ subLevel: v })} />
           )}
@@ -250,24 +316,22 @@ export function SynthEditor({ params, accent, label, onChange, hideVoices }: Pro
       </div>
 
       <div className="synth-section">
-        <div
-          className={`synth-section-header synth-section-toggle ${params.filterOn !== false ? "on" : ""}`}
-          style={params.filterOn !== false ? { color: accent } : undefined}
-          onClick={() => setFilterOpen(!filterOpen)}
-          title="Expand/collapse filter controls"
-        >FILTER {params.filterOn !== false ? "●" : "○"} {filterOpen ? "▾" : "▸"}</div>
+        <div className="synth-section-header-row">
+          <div
+            className={`synth-section-header synth-section-toggle ${params.filterOn !== false ? "on" : ""}`}
+            style={params.filterOn !== false ? { color: accent, margin: 0 } : { margin: 0 }}
+            onClick={() => setFilterOpen(!filterOpen)}
+            title="Expand/collapse filter controls"
+          >FILTER {filterOpen ? "▾" : "▸"}</div>
+          <button
+            className={`synth-toggle-sm ${params.filterOn !== false ? "active" : ""}`}
+            title="Toggle filter on/off"
+            style={params.filterOn !== false ? { background: accent, color: "#000", borderColor: accent } : undefined}
+            onClick={() => onChange({ filterOn: params.filterOn === false })}
+          >{params.filterOn !== false ? "ON" : "OFF"}</button>
+        </div>
         {filterOpen && (
           <>
-            <div className="synth-sub-row" style={{ marginBottom: 6 }}>
-              <button
-                className={`synth-osc-btn ${params.filterOn !== false ? "active" : ""}`}
-                title="Toggle filter on/off"
-                style={params.filterOn !== false ? { background: accent, color: "#000" } : undefined}
-                onClick={() => onChange({ filterOn: params.filterOn === false })}
-              >
-                {params.filterOn !== false ? "ON" : "OFF"}
-              </button>
-            </div>
             <div className="synth-osc-row">
               {(["lowpass", "highpass", "bandpass", "notch"] as FilterType[]).map((ft) => (
                 <button
@@ -284,123 +348,131 @@ export function SynthEditor({ params, accent, label, onChange, hideVoices }: Pro
               {FILTER_MODELS.map((fm) => (
                 <button
                   key={fm}
-                  className={`synth-osc-btn ${(params.filterModel ?? "digital") === fm ? "active" : ""}`}
+                  className={`synth-osc-btn synth-osc-icon ${(params.filterModel ?? "digital") === fm ? "active" : ""}`}
                   title={`Filter model: ${fm}`}
                   style={(params.filterModel ?? "digital") === fm ? { background: accent, color: "#000" } : undefined}
                   onClick={() => onChange({ filterModel: fm })}
                 >
+                  <FilterModelIcon model={fm} color={(params.filterModel ?? "digital") === fm ? "#000" : "var(--preview)"} />
                   {FILTER_MODEL_LABELS[fm]}
                 </button>
               ))}
             </div>
-            <div className="synth-filter-row">
-              <FilterCurve cutoff={params.cutoff} resonance={params.resonance} accent={accent} filterType={params.filterType} />
-              <div className="synth-filter-knobs">
-                <Knob label="CUT" value={params.cutoff} min={100} max={8000} step={50} accent={accent} onChange={(v) => onChange({ cutoff: v })} />
-                <Knob label="RES" value={params.resonance} min={0.5} max={20} step={0.5} accent={accent} onChange={(v) => onChange({ resonance: v })} />
-                <Knob label="ENV" value={params.filterEnvDepth ?? 0} min={0} max={1} step={0.01} accent={accent} onChange={(v) => onChange({ filterEnvDepth: v })} />
-                <Knob label="DRV" value={params.filterDrive ?? 0} min={0} max={1} step={0.01} accent={accent} onChange={(v) => onChange({ filterDrive: v })} />
-              </div>
+            <FilterCurve cutoff={params.cutoff} resonance={params.resonance} accent={accent} filterType={params.filterType} />
+            <div className="synth-knobs">
+              <Knob label="CUT" value={params.cutoff} min={100} max={8000} step={50} accent={accent} onChange={(v) => onChange({ cutoff: v })} />
+              <Knob label="RES" value={params.resonance} min={0.5} max={20} step={0.5} accent={accent} onChange={(v) => onChange({ resonance: v })} />
+              <Knob label="ENV" value={params.filterEnvDepth ?? 0} min={0} max={1} step={0.01} accent={accent} onChange={(v) => onChange({ filterEnvDepth: v })} />
+              <Knob label="DRV" value={params.filterDrive ?? 0} min={0} max={1} step={0.01} accent={accent} onChange={(v) => onChange({ filterDrive: v })} />
             </div>
           </>
         )}
       </div>
 
       <div className="synth-section">
-        <div
-          className={`synth-section-header synth-section-toggle ${params.lfoOn ? "on" : ""}`}
-          style={params.lfoOn ? { color: accent } : undefined}
-          onClick={() => setLfoOpen(!lfoOpen)}
-          title="Expand/collapse LFO controls"
-        >LFO {params.lfoOn ? "●" : "○"} {lfoOpen ? "▾" : "▸"}</div>
+        <div className="synth-section-header-row">
+          <div
+            className={`synth-section-header synth-section-toggle ${params.lfoOn ? "on" : ""}`}
+            style={params.lfoOn ? { color: accent, margin: 0 } : { margin: 0 }}
+            onClick={() => setLfoOpen(!lfoOpen)}
+            title="Expand/collapse LFO controls"
+          >LFO {lfoOpen ? "▾" : "▸"}</div>
+          <button
+            className={`synth-toggle-sm ${params.lfoOn ? "active" : ""}`}
+            title="Toggle LFO on/off"
+            style={params.lfoOn ? { background: accent, color: "#000", borderColor: accent } : undefined}
+            onClick={() => onChange({ lfoOn: !params.lfoOn })}
+          >{params.lfoOn ? "ON" : "OFF"}</button>
+        </div>
         {lfoOpen && (
           <>
-            {/* Row 1: ON/OFF + Shape */}
-            <div className="synth-sub-row" style={{ marginBottom: 4 }}>
-              <button
-                className={`synth-osc-btn ${params.lfoOn ? "active" : ""}`}
-                style={params.lfoOn ? { background: accent, color: "#000" } : undefined}
-                onClick={() => onChange({ lfoOn: !params.lfoOn })}
-              >{params.lfoOn ? "ON" : "OFF"}</button>
+            {/* Shape + Target + Sync in one row */}
+            <div className="synth-osc-row">
               {(["sine", "square", "triangle", "sawtooth"] as LfoShape[]).map((s) => (
                 <button key={s}
-                  className={`synth-osc-btn ${params.lfoShape === s ? "active" : ""}`}
+                  className={`synth-osc-btn synth-osc-icon ${params.lfoShape === s ? "active" : ""}`}
+                  title={`LFO shape: ${s}`}
                   style={params.lfoShape === s ? { background: accent, color: "#000" } : undefined}
                   onClick={() => onChange({ lfoShape: s })}
-                >{s === "sawtooth" ? "SAW" : s === "triangle" ? "TRI" : s === "square" ? "SQR" : "SIN"}</button>
+                >
+                  <OscIcon type={s as OscType} color={params.lfoShape === s ? "#000" : "var(--preview)"} />
+                  {s === "sawtooth" ? "SAW" : s === "triangle" ? "TRI" : s === "square" ? "SQR" : "SIN"}
+                </button>
               ))}
-            </div>
-            {/* Row 2: Target + Sync */}
-            <div className="synth-sub-row" style={{ marginBottom: 4 }}>
+              <span style={{ width: 1, background: "var(--border)", margin: "0 2px", alignSelf: "stretch" }} />
               {(["cutoff", "pitch", "both"] as LfoTarget[]).map((t) => (
                 <button key={t}
                   className={`synth-osc-btn ${params.lfoTarget === t ? "active" : ""}`}
+                  title={`LFO target: ${t === "both" ? "cutoff + pitch" : t}`}
                   style={params.lfoTarget === t ? { background: accent, color: "#000" } : undefined}
                   onClick={() => onChange({ lfoTarget: t })}
-                >{t.toUpperCase()}</button>
+                >{t === "cutoff" ? "CUT" : t === "pitch" ? "PIT" : "BOTH"}</button>
               ))}
+              <span style={{ width: 1, background: "var(--border)", margin: "0 2px", alignSelf: "stretch" }} />
               <button
                 className={`synth-osc-btn ${!params.lfoSync ? "active" : ""}`}
+                title="LFO rate: free-running (Hz)"
                 style={!params.lfoSync ? { background: accent, color: "#000" } : undefined}
                 onClick={() => onChange({ lfoSync: false })}
               >FREE</button>
               <button
                 className={`synth-osc-btn ${params.lfoSync ? "active" : ""}`}
+                title="LFO rate: synced to tempo (note division)"
                 style={params.lfoSync ? { background: accent, color: "#000" } : undefined}
                 onClick={() => onChange({ lfoSync: true })}
               >SYNC</button>
             </div>
-            {/* Row 3: Full-width LFO waveform */}
-            {(() => {
-              const w = 200, h = 40;
-              const shape = params.lfoShape;
-              const depth = params.lfoOn ? params.lfoDepth : 0.3;
-              // Map division/rate to visual cycles
-              const DIV_CYCLES: Record<string, number> = { "2": 0.5, "1": 1, "1/2": 2, "1/4": 4, "1/8": 8, "1/16": 16, "1/4d": 3, "1/8d": 6 };
-              const rawCycles = params.lfoSync
-                ? (DIV_CYCLES[params.lfoDivision] ?? 2)
-                : 0.5 + (params.lfoRate / 20) * 6;
-              const cycles = Math.min(rawCycles, 8);
-              const pts = Array.from({ length: 80 }, (_, i) => {
-                const t = i / 79;
-                let y = 0;
-                const phase = t * cycles;
-                switch (shape) {
-                  case "sine": y = Math.sin(phase * Math.PI * 2); break;
-                  case "square": y = Math.sin(phase * Math.PI * 2) >= 0 ? 1 : -1; break;
-                  case "triangle": y = 2 * Math.abs(2 * (phase % 1) - 1) - 1; break;
-                  case "sawtooth": y = 2 * (phase % 1) - 1; break;
-                }
-                return `${4 + t * (w - 8)},${h / 2 - y * depth * (h / 2 - 4)}`;
-              }).join(" ");
-              return (
-                <svg className="lfo-curve" viewBox={`0 0 ${w} ${h}`} style={{ opacity: params.lfoOn ? 1 : 0.3 }}>
-                  <rect x={0} y={0} width={w} height={h} fill="rgba(0,0,0,0.2)" rx={4} />
-                  <line x1={4} y1={h / 2} x2={w - 4} y2={h / 2} stroke="rgba(102,255,153,0.15)" strokeWidth={1} />
-                  <polyline points={pts} fill="none" stroke={accent} strokeWidth={1.5} />
-                </svg>
-              );
-            })()}
-            {/* Row 4: Rate + Depth sliders */}
-            <div className="synth-knobs">
-              {params.lfoSync ? (
-                <label className="synth-knob">
-                  <span className="synth-knob-label">DIV</span>
-                  <select
-                    className="synth-preset-select"
-                    value={params.lfoDivision}
-                    onChange={(e) => onChange({ lfoDivision: e.target.value })}
-                    style={{ width: "100%" }}
-                  >
-                    {LFO_DIVISIONS.map(d => (
-                      <option key={d} value={d}>{d === "2" ? "2 bars" : d === "1" ? "1 bar" : d}</option>
-                    ))}
-                  </select>
-                </label>
-              ) : (
-                <Knob label="RATE" value={params.lfoRate} min={0.1} max={20} step={0.1} accent={accent} onChange={(v) => onChange({ lfoRate: v })} />
-              )}
-              <Knob label="DEPTH" value={params.lfoDepth} min={0} max={1} step={0.01} accent={accent} onChange={(v) => onChange({ lfoDepth: v })} />
+            {/* LFO waveform + Rate/Depth side by side */}
+            <div className="synth-lfo-row">
+              {(() => {
+                const w = 200, h = 40;
+                const shape = params.lfoShape;
+                const depth = params.lfoOn ? params.lfoDepth : 0.3;
+                const DIV_CYCLES: Record<string, number> = { "2": 0.5, "1": 1, "1/2": 2, "1/4": 4, "1/8": 8, "1/16": 16, "1/4d": 3, "1/8d": 6 };
+                const rawCycles = params.lfoSync
+                  ? (DIV_CYCLES[params.lfoDivision] ?? 2)
+                  : 0.5 + (params.lfoRate / 20) * 6;
+                const cycles = Math.min(rawCycles, 8);
+                const pts = Array.from({ length: 80 }, (_, i) => {
+                  const t = i / 79;
+                  let y = 0;
+                  const phase = t * cycles;
+                  switch (shape) {
+                    case "sine": y = Math.sin(phase * Math.PI * 2); break;
+                    case "square": y = Math.sin(phase * Math.PI * 2) >= 0 ? 1 : -1; break;
+                    case "triangle": y = 2 * Math.abs(2 * (phase % 1) - 1) - 1; break;
+                    case "sawtooth": y = 2 * (phase % 1) - 1; break;
+                  }
+                  return `${4 + t * (w - 8)},${h / 2 - y * depth * (h / 2 - 4)}`;
+                }).join(" ");
+                return (
+                  <svg className="lfo-curve" viewBox={`0 0 ${w} ${h}`} style={{ opacity: params.lfoOn ? 1 : 0.3 }}>
+                    <rect x={0} y={0} width={w} height={h} fill="rgba(0,0,0,0.2)" rx={4} />
+                    <line x1={4} y1={h / 2} x2={w - 4} y2={h / 2} stroke="rgba(102,255,153,0.15)" strokeWidth={1} />
+                    <polyline points={pts} fill="none" stroke={accent} strokeWidth={1.5} />
+                  </svg>
+                );
+              })()}
+              <div className="synth-lfo-knobs">
+                {params.lfoSync ? (
+                  <label className="synth-knob">
+                    <span className="synth-knob-label">DIV</span>
+                    <select
+                      className="synth-preset-select"
+                      value={params.lfoDivision}
+                      onChange={(e) => onChange({ lfoDivision: e.target.value })}
+                      style={{ width: "100%" }}
+                    >
+                      {LFO_DIVISIONS.map(d => (
+                        <option key={d} value={d}>{d === "2" ? "2 bars" : d === "1" ? "1 bar" : d}</option>
+                      ))}
+                    </select>
+                  </label>
+                ) : (
+                  <Knob label="RATE" value={params.lfoRate} min={0.1} max={20} step={0.1} accent={accent} onChange={(v) => onChange({ lfoRate: v })} />
+                )}
+                <Knob label="DEPTH" value={params.lfoDepth} min={0} max={1} step={0.01} accent={accent} onChange={(v) => onChange({ lfoDepth: v })} />
+              </div>
             </div>
           </>
         )}
