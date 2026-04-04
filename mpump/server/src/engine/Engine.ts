@@ -266,7 +266,7 @@ export class Engine {
   // High-weight combos are crowd-pleasers for first impressions.
   private static CURATED_STARTS: { genre: string; bpm: number; synth?: string; bass?: string; kit?: string; weight: number }[] = [
     // High weight — these sound great on first listen
-    { genre: "techno", bpm: 130, synth: "Classic Saw", bass: "Acid Bass", kit: "Default", weight: 3 },
+    { genre: "techno", bpm: 130, synth: "Classic Saw", bass: "Acid Bass", kit: "Techno", weight: 3 },
     { genre: "techno", bpm: 132, synth: "Classic Saw", bass: "Acid Bass", kit: "pack:909", weight: 2 },
     { genre: "house", bpm: 124, synth: "House Stab", bass: "Pluck Bass", kit: "House", weight: 3 },
     { genre: "house", bpm: 122, synth: "House Stab", bass: "Pluck Bass", kit: "pack:909", weight: 1 },

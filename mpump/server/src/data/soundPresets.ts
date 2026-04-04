@@ -484,7 +484,7 @@ export const DRUM_KIT_PRESETS: DrumKitPreset[] = [
     46: { tune: -2, decay: 0.5, level: 0.35, color: -0.6, filterCutoff: 0.55 },
   })},
   { name: "Electro", genres: "Electro, Breakdance, Miami Bass", voices: kit({
-    36: { tune: -3, decay: 0.3, level: 1, click: 0.08, sweepDepth: 0.65, sweepRate: 0.3 },
+    36: { tune: -3, decay: 0.3, level: 1, click: 0.08, sweepDepth: 0.65, sweepRate: 0.5 },
     38: { tune: 0, decay: 0.5, level: 0.9, noiseMix: 0.6 },
     42: { tune: 0, decay: 0.5, level: 0.8, color: -0.2 },
     46: { tune: -1, decay: 0.6, level: 0.7, color: -0.2 },
@@ -548,6 +548,14 @@ export const DRUM_KIT_PRESETS: DrumKitPreset[] = [
     46: { tune: -1, decay: 0.7, level: 0.7, color: 0.0 },
     50: { tune: 2, decay: 0.2, level: 0.85 },
     49: { tune: 0, decay: 1.2, level: 0.65 },
+  })},
+  { name: "Techno", genres: "Techno, Dark Techno, Peak Time", voices: kit({
+    36: { tune: 1, decay: 0.25, level: 1, click: 0.3, sweepDepth: 0.5, sweepRate: 0.6 },
+    38: { tune: 1, decay: 0.2, level: 0.95, noiseMix: 0.55 },
+    42: { tune: 1, decay: 0.3, level: 0.9, color: 0.3 },
+    46: { tune: 0, decay: 0.4, level: 0.8, color: 0.3 },
+    50: { tune: 2, decay: 0.15, level: 0.9 },
+    49: { tune: 1, decay: 0.7, level: 0.65, color: 0.2 },
   })},
   { name: "Tight", genres: "Tech House, Minimal, Techno", voices: kit({
     36: { tune: 0, decay: 0.2, level: 1, click: 0.25, sweepDepth: 0.4, sweepRate: 0.7 },
