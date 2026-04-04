@@ -428,6 +428,7 @@
   gap: 4px;
   align-items: center;
   justify-content: flex-end;
+  margin-left: auto;
   padding: 4px 0 2px;
 }
 
