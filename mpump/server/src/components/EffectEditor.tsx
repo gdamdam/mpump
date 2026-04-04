@@ -304,7 +304,7 @@ export function EffectEditor({ name, params, onUpdate, onClose }: Props) {
             </div>
           </>
         )}
-        {/* Duck: exclude channels from being ducked */}
+        {/* Duck: exclude channels from being ducked (no drums — kick triggers duck) */}
         {name === "duck" && (
           <div className="fx-editor-row" style={{ gap: 6 }}>
             {([["excludeBass", "BASS"], ["excludeSynth", "SYNTH"]] as const).map(([key, label]) => (
@@ -317,29 +317,30 @@ export function EffectEditor({ name, params, onUpdate, onClose }: Props) {
             ))}
           </div>
         )}
-        {/* Reverb: type selector + drums bypass */}
+        {/* Reverb: type selector */}
         {name === "reverb" && (
-          <>
-            <div className="fx-editor-row" style={{ gap: 6 }}>
-              {(["room", "hall", "plate", "spring"] as const).map(t => (
-                <button
-                  key={t}
-                  className={`synth-osc-btn ${(p.type || "room") === t ? "active" : ""}`}
-                  onClick={() => onUpdate({ type: t })}
-                >{t.toUpperCase()}</button>
-              ))}
-            </div>
-            <div className="fx-editor-row" style={{ gap: 6 }}>
-              {([["excludeDrums", "DRUMS"], ["excludeBass", "BASS"], ["excludeSynth", "SYNTH"]] as const).map(([key, label]) => (
-                <button
-                  key={key}
-                  className={`synth-osc-btn ${p[key] ? "active" : ""}`}
-                  style={p[key] ? { background: "var(--preview)", color: "#000" } : undefined}
-                  onClick={() => onUpdate({ [key]: !p[key] })}
-                >EXCL. {label}</button>
-              ))}
-            </div>
-          </>
+          <div className="fx-editor-row" style={{ gap: 6 }}>
+            {(["room", "hall", "plate", "spring"] as const).map(t => (
+              <button
+                key={t}
+                className={`synth-osc-btn ${(p.type || "room") === t ? "active" : ""}`}
+                onClick={() => onUpdate({ type: t })}
+              >{t.toUpperCase()}</button>
+            ))}
+          </div>
+        )}
+        {/* Channel exclusion — all effects except delay (has its own above) and duck (no drums) */}
+        {name !== "delay" && name !== "duck" && (
+          <div className="fx-editor-row" style={{ gap: 6 }}>
+            {([["excludeDrums", "DRUMS"], ["excludeBass", "BASS"], ["excludeSynth", "SYNTH"]] as const).map(([key, label]) => (
+              <button
+                key={key}
+                className={`synth-osc-btn ${p[key] ? "active" : ""}`}
+                style={p[key] ? { background: "var(--preview)", color: "#000" } : undefined}
+                onClick={() => onUpdate({ [key]: !p[key] })}
+              >EXCL. {label}</button>
+            ))}
+          </div>
         )}
         {/* Tremolo: shape selector */}
         {name === "tremolo" && (

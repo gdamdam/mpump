@@ -225,16 +225,16 @@ export type PreviewMode = "kaos" | "synth" | "ease" | "mixer";
 
 export interface EffectParams {
   delay: { on: boolean; time: number; feedback: number; mix: number; sync: boolean; division: string; excludeDrums?: boolean; excludeBass?: boolean; excludeSynth?: boolean };
-  distortion: { on: boolean; drive: number };
+  distortion: { on: boolean; drive: number; excludeDrums?: boolean; excludeBass?: boolean; excludeSynth?: boolean };
   reverb: { on: boolean; decay: number; mix: number; type: string; excludeDrums?: boolean; excludeBass?: boolean; excludeSynth?: boolean };
-  compressor: { on: boolean; threshold: number; ratio: number };
-  highpass: { on: boolean; cutoff: number; q: number };
-  chorus: { on: boolean; rate: number; depth: number; mix: number };
-  phaser: { on: boolean; rate: number; depth: number };
-  bitcrusher: { on: boolean; bits: number; crushRate?: number };
+  compressor: { on: boolean; threshold: number; ratio: number; excludeDrums?: boolean; excludeBass?: boolean; excludeSynth?: boolean };
+  highpass: { on: boolean; cutoff: number; q: number; excludeDrums?: boolean; excludeBass?: boolean; excludeSynth?: boolean };
+  chorus: { on: boolean; rate: number; depth: number; mix: number; excludeDrums?: boolean; excludeBass?: boolean; excludeSynth?: boolean };
+  phaser: { on: boolean; rate: number; depth: number; excludeDrums?: boolean; excludeBass?: boolean; excludeSynth?: boolean };
+  bitcrusher: { on: boolean; bits: number; crushRate?: number; excludeDrums?: boolean; excludeBass?: boolean; excludeSynth?: boolean };
   duck: { on: boolean; depth: number; release: number; excludeBass?: boolean; excludeSynth?: boolean };
-  flanger: { on: boolean; rate: number; depth: number; feedback: number; mix: number };
-  tremolo: { on: boolean; rate: number; depth: number; shape: string };
+  flanger: { on: boolean; rate: number; depth: number; feedback: number; mix: number; excludeDrums?: boolean; excludeBass?: boolean; excludeSynth?: boolean };
+  tremolo: { on: boolean; rate: number; depth: number; shape: string; excludeDrums?: boolean; excludeBass?: boolean; excludeSynth?: boolean };
 }
 
 export type EffectName = keyof EffectParams;

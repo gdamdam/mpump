@@ -512,12 +512,21 @@ export class AudioPort {
     this.fxRebuildTimer = window.setTimeout(() => this.rebuildFxChain(), onChanged ? 100 : 200);
   }
 
+  /** Check if any effect has a given exclude flag set. */
+  private anyFxExcludes(flag: "excludeDrums" | "excludeBass" | "excludeSynth"): boolean {
+    for (const name of Object.keys(this.fx) as (keyof EffectParams)[]) {
+      const p = this.fx[name] as Record<string, unknown>;
+      if (p[flag]) return true;
+    }
+    return false;
+  }
+
   /** Reroute synth (ch 0) and bass (ch 1) based on excludeSynth/excludeBass state.
    *  In worklet mode both channels share one output node, so either flag bypasses both. */
   private updateSynthBassBypassFx(): void {
     if (!this.synthBassDirectOut) return;
-    const excludeSynth = !!(this.fx.reverb.excludeSynth || this.fx.delay.excludeSynth);
-    const excludeBass  = !!(this.fx.reverb.excludeBass  || this.fx.delay.excludeBass);
+    const excludeSynth = this.anyFxExcludes("excludeSynth");
+    const excludeBass  = this.anyFxExcludes("excludeBass");
 
     // Worklet mode: polySynth mixes ch0+ch1 — reroute entire worklet output
     if (this.polySynth) {
@@ -545,9 +554,9 @@ export class AudioPort {
     }
   }
 
-  /** Reroute drum channel based on excludeDrums state of reverb/delay effects. */
+  /** Reroute drum channel based on excludeDrums state of any effect. */
   private updateDrumsBypassFx(): void {
-    const shouldBypass = !!(this.fx.reverb.excludeDrums || this.fx.delay.excludeDrums);
+    const shouldBypass = this.anyFxExcludes("excludeDrums");
     if (shouldBypass === this.drumsBypassFx) return;
     this.drumsBypassFx = shouldBypass;
     const panner = this.channelPanners.get(DRUM_CH);
@@ -1036,8 +1045,8 @@ export class AudioPort {
       eqMid.connect(eqHigh);
       eqHigh.connect(panner);
       // Channel may bypass effects chain depending on exclude flags
-      const excludeSynth = !!(this.fx.reverb.excludeSynth || this.fx.delay.excludeSynth);
-      const excludeBass  = !!(this.fx.reverb.excludeBass  || this.fx.delay.excludeBass);
+      const excludeSynth = this.anyFxExcludes("excludeSynth");
+      const excludeBass  = this.anyFxExcludes("excludeBass");
       const drumsBypass = ch === DRUM_CH && this.drumsBypassFx && this.drumsDirectOut;
       const synthBass = (ch === 0 && excludeSynth) || (ch === 1 && excludeBass);
       const nonDrumBypass = synthBass && this.synthBassDirectOut;
