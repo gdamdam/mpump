@@ -178,7 +178,23 @@ class PolySynthProcessor extends AudioWorkletProcessor {
     this._bpm = 120;
     this._gateFraction = 0.8;
     this._masterGain = 0.2;
+    this._chPresetGain = new Float64Array(MAX_CH).fill(1.0);
     this._driftEnabled = true;
+
+    // Per-channel sidechain duck state
+    this._chDuckLevel = new Float64Array(16).fill(1); // 1=full, <1=ducked
+    this._duckDepth = 0.5;
+    this._duckRelease = 0.04; // seconds
+
+    // Per-channel trance gate state
+    this._chGateOn = new Uint8Array(16);               // 0=off, 1=on
+    this._chGateMode = new Uint8Array(16);             // 0=lfo, 1=pattern
+    this._chGateDepth = new Float64Array(16).fill(1);  // 0–1
+    this._chGatePattern = new Float64Array(16 * 32);   // flat: ch*32+step (max 32 steps)
+    this._chGateSteps = new Uint8Array(16).fill(16);   // steps per pattern
+    this._chGateCurrent = new Float64Array(16).fill(1); // smoothed gate value (starts open)
+    this._chGateLfoRate = new Float64Array(16).fill(4); // Hz (LFO mode)
+    this._chGateLfoShape = new Uint8Array(16);          // 0=square, 1=triangle
 
     // Wavetable data (generated once)
     this._wavetables = generateWavetables();
@@ -210,6 +226,34 @@ class PolySynthProcessor extends AudioWorkletProcessor {
       case "mute": if (msg.channel !== undefined) this._chMuted[msg.channel] = msg.muted ? 1 : 0; break;
       case "bpm": this._bpm = msg.bpm; break;
       case "gate": this._gateFraction = msg.fraction; break;
+      case "duck": {
+        // Kick hit: duck specified channel immediately
+        const ch = msg.channel;
+        this._chDuckLevel[ch] = 1 - (msg.depth ?? this._duckDepth);
+        break;
+      }
+      case "duck_params":
+        if (msg.depth !== undefined) this._duckDepth = msg.depth;
+        if (msg.release !== undefined) this._duckRelease = msg.release;
+        break;
+      case "gate_pattern": {
+        const ch = msg.channel;
+        this._chGateOn[ch] = msg.on ? 1 : 0;
+        if (!msg.on) { this._chGateCurrent[ch] = 1; break; }
+        this._chGateDepth[ch] = msg.depth ?? 1.0;
+        if (msg.mode === "pattern" && msg.pattern) {
+          this._chGateMode[ch] = 1;
+          const steps = Math.min(msg.pattern.length, 32);
+          this._chGateSteps[ch] = steps;
+          const base = ch * 32;
+          for (let i = 0; i < steps; i++) this._chGatePattern[base + i] = msg.pattern[i];
+        } else {
+          this._chGateMode[ch] = 0;
+          this._chGateLfoRate[ch] = msg.lfoRate ?? 4;
+          this._chGateLfoShape[ch] = msg.lfoShape === "triangle" ? 1 : 0;
+        }
+        break;
+      }
       case "allNotesOff": this._allNotesOff(msg.channel); break;
     }
   }
@@ -330,6 +374,7 @@ class PolySynthProcessor extends AudioWorkletProcessor {
       }
       if (msg.lfoSync !== undefined) this._chLfoSync[c] = msg.lfoSync ? 1 : 0;
       if (msg.lfoSyncRate !== undefined) this._chLfoSyncRate[c] = msg.lfoSyncRate;
+      if (msg.presetGain !== undefined) this._chPresetGain[c] = msg.presetGain;
     }
     if (msg.masterGain !== undefined) this._masterGain = msg.masterGain;
   }
@@ -386,6 +431,39 @@ class PolySynthProcessor extends AudioWorkletProcessor {
     const masterGain = this._masterGain;
     const driftEnabled = this._driftEnabled;
 
+    // Sidechain duck: exponential recovery toward 1 each block
+    const duckRelCoeff = 1 - Math.exp(-N / (this._duckRelease * sr));
+    for (let ch = 0; ch < 16; ch++) {
+      if (this._chDuckLevel[ch] < 1) {
+        this._chDuckLevel[ch] += (1 - this._chDuckLevel[ch]) * duckRelCoeff;
+        if (this._chDuckLevel[ch] > 0.999) this._chDuckLevel[ch] = 1;
+      }
+    }
+
+    // Pre-compute per-channel trance gate gain for this block
+    const gateGains = new Float64Array(16).fill(1);
+    const gateSmoothRate = 1 - Math.exp(-N / (0.002 * sr)); // ~2ms smoothing
+    for (let ch = 0; ch < 16; ch++) {
+      if (!this._chGateOn[ch]) { this._chGateCurrent[ch] = 1; continue; }
+      let targetGain;
+      if (this._chGateMode[ch] === 1) {
+        // Pattern mode: BPM-synced step sequencer
+        const steps = this._chGateSteps[ch];
+        const samplesPerStep = (240 * sr) / (this._bpm * steps);
+        const currentStep = Math.floor(currentFrame / samplesPerStep) % steps;
+        targetGain = this._chGatePattern[ch * 32 + currentStep];
+      } else {
+        // LFO mode: free-running oscillator
+        const phase = (currentFrame * this._chGateLfoRate[ch] / sr) % 1;
+        targetGain = this._chGateLfoShape[ch] === 1
+          ? (phase < 0.5 ? phase * 2 : (1 - phase) * 2) // triangle
+          : (phase < 0.5 ? 1 : 0);                       // square
+      }
+      this._chGateCurrent[ch] += (targetGain - this._chGateCurrent[ch]) * gateSmoothRate;
+      const depth = this._chGateDepth[ch];
+      gateGains[ch] = 1 - depth * (1 - this._chGateCurrent[ch]);
+    }
+
     for (let v = 0; v < MAX_VOICES; v++) {
       if (!this._active[v]) continue;
       this._age[v]++;
@@ -437,7 +515,7 @@ class PolySynthProcessor extends AudioWorkletProcessor {
       const fltDecCoeff = filterDecayTime > 0 ? 1 - Math.exp(-1 / (filterDecayTime * sr)) : decCoeff;
       const relCoeff = 1 - Math.exp(-1 / (release * sr));
       const chVol = this._chVolume[ch];
-      const envTarget = vel * masterGain * chVol;
+      const envTarget = vel * masterGain * chVol * this._chPresetGain[ch];
       const voiceGain = 1 / Math.pow(unisonCount, 0.3);
       const ladderRes = Math.min(4, 4 * Math.pow(Math.max(0, baseQ) / 20, 0.7));
       const driveGain = 1 + filterDrive * 7;
@@ -700,9 +778,10 @@ class PolySynthProcessor extends AudioWorkletProcessor {
           mixR = filtered - sideFilt;
         }
 
-        // ── Apply envelope + channel pan ──
-        const outSampleL = mixL * envLevel;
-        const outSampleR = mixR * envLevel;
+        // ── Apply envelope + channel pan + trance gate + duck ──
+        const gateGain = gateGains[ch] * this._chDuckLevel[ch];
+        const outSampleL = mixL * envLevel * gateGain;
+        const outSampleR = mixR * envLevel * gateGain;
         if (isStereo) {
           // Equal-power pan: chPan -1(L) to +1(R)
           outL[s] += outSampleL * (1 - chPan * 0.5);
