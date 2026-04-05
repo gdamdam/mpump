@@ -6,6 +6,7 @@
 import { useState, useRef } from "react";
 import type { ClientMessage, SongState, SongScene, SongArrangementEntry, TransitionType } from "../types";
 import { getJSON, setJSON } from "../utils/storage";
+import { checkRelayHealth, shortenBeat } from "../utils/shareRelay";
 
 interface Props {
   accent: string;
@@ -41,6 +42,8 @@ export function SongStrip({ accent, songState, command }: Props) {
   const [showLib, setShowLib] = useState(false);
   const [showSongList, setShowSongList] = useState(false);
   const [savedSongs, setSavedSongs] = useState<SavedSong[]>(() => getJSON(STORAGE_KEY, []));
+  const [songCopied, setSongCopied] = useState(false);
+  const [songSharing, setSongSharing] = useState(false);
   const nameRef = useRef<HTMLInputElement>(null);
 
   const totalBars = arrangement.reduce((a, e) => a + e.bars, 0);
@@ -64,6 +67,42 @@ export function SongStrip({ accent, songState, command }: Props) {
     const updated = savedSongs.filter(s => s.name !== name);
     setSavedSongs(updated);
     setJSON(STORAGE_KEY, updated);
+  };
+
+  const shareSong = async () => {
+    if (scenes.length === 0 || arrangement.length === 0) return;
+    setSongSharing(true);
+    try {
+      const payload = JSON.stringify({ s: scenes, a: arrangement });
+      // Compress with deflate
+      const encoder = new CompressionStream("deflate");
+      const writer = encoder.writable.getWriter();
+      writer.write(new TextEncoder().encode(payload));
+      writer.close();
+      const reader = encoder.readable.getReader();
+      const chunks: Uint8Array[] = [];
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+      }
+      const total = chunks.reduce((n, c) => n + c.length, 0);
+      const compressed = new Uint8Array(total);
+      let off = 0;
+      for (const c of chunks) { compressed.set(c, off); off += c.length; }
+      const b64 = btoa(String.fromCharCode(...compressed)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+      const longUrl = `${window.location.origin}/app.html?song=${b64}`;
+      let url = longUrl;
+      const up = await checkRelayHealth();
+      if (up) {
+        const result = await shortenBeat(longUrl);
+        if (result) url = result.short;
+      }
+      await navigator.clipboard.writeText(url);
+      setSongCopied(true);
+      setTimeout(() => setSongCopied(false), 2000);
+    } catch { /* silent */ }
+    setSongSharing(false);
   };
 
   const capture = () => {
@@ -156,6 +195,17 @@ export function SongStrip({ accent, songState, command }: Props) {
           >
             Songs
           </button>
+          {arrangement.length > 0 && (
+            <button
+              className="synth-osc-btn"
+              style={{ fontSize: 9, padding: "2px 5px", opacity: songSharing ? 0.4 : 0.7 }}
+              onClick={(e) => { e.stopPropagation(); shareSong(); }}
+              title="Copy song link to clipboard"
+              disabled={songSharing}
+            >
+              {songCopied ? "✓" : "⤴"}
+            </button>
+          )}
         </div>
       </div>
 
@@ -249,9 +299,20 @@ export function SongStrip({ accent, songState, command }: Props) {
                     background: isActive ? "rgba(102,255,153,0.1)" : "transparent",
                     cursor: playback.playing ? "pointer" : "default",
                     whiteSpace: "nowrap",
+                    position: "relative",
+                    overflow: "hidden",
                   }}
                   onClick={() => playback.playing && command({ type: "song_jump", index: i })}
                 >
+                  {/* Progress bar */}
+                  {isActive && entry.bars > 0 && (
+                    <div style={{
+                      position: "absolute", left: 0, bottom: 0, height: 2,
+                      width: `${(playback.barInScene / entry.bars) * 100}%`,
+                      background: accent, opacity: 0.6,
+                      transition: "width 0.3s linear",
+                    }} />
+                  )}
                   <span style={{ fontSize: 9, color: isActive ? accent : "inherit" }}>{getSceneName(entry.sceneId)}</span>
                   <select
                     className="synth-preset-select"

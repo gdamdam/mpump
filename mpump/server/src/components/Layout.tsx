@@ -1304,6 +1304,42 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [connectedDevices, catalog]);
 
+  // Decode shared song from ?song= param
+  useEffect(() => {
+    const songParam = new URLSearchParams(window.location.search).get("song");
+    if (!songParam || connectedDevices.length === 0) return;
+    try {
+      const b64 = songParam.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(songParam.length / 4) * 4, "=");
+      const binary = atob(b64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      const ds = new DecompressionStream("deflate");
+      const writer = ds.writable.getWriter();
+      writer.write(bytes);
+      writer.close();
+      const reader = ds.readable.getReader();
+      const chunks: Uint8Array[] = [];
+      (async () => {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          chunks.push(value);
+        }
+        const total = chunks.reduce((n, c) => n + c.length, 0);
+        const result = new Uint8Array(total);
+        let off = 0;
+        for (const c of chunks) { result.set(c, off); off += c.length; }
+        const json = JSON.parse(new TextDecoder().decode(result));
+        if (json.s && json.a) {
+          command({ type: "song_load", scenes: json.s, arrangement: json.a });
+          setSongModeOn(true);
+          setItem("mpump-song-mode", "1");
+        }
+      })();
+    } catch { /* invalid song param — ignore */ }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [connectedDevices]);
+
   // Start with a specific genre (from landing page pill)
   useEffect(() => {
     const genre = getItem("mpump-start-genre", "");
