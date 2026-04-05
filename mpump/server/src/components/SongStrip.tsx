@@ -122,15 +122,24 @@ export function SongStrip({ accent, songState, command }: Props) {
             onKeyDown={(e) => e.key === "Enter" && capture()}
           />
           {scenes.map(s => (
-            <button
-              key={s.id}
-              className="synth-osc-btn"
-              style={{ fontSize: 9, padding: "1px 6px" }}
-              onClick={() => addToArrangement(s.id)}
-              title={`Add "${s.name}" to arrangement`}
-            >
-              + {s.name}
-            </button>
+            <span key={s.id} style={{ display: "inline-flex", alignItems: "center", gap: 1 }}>
+              <button
+                className="synth-osc-btn"
+                style={{ fontSize: 9, padding: "1px 6px", borderRadius: "3px 0 0 3px" }}
+                onClick={() => addToArrangement(s.id)}
+                title={`Add "${s.name}" to arrangement`}
+              >
+                + {s.name}
+              </button>
+              <button
+                className="synth-osc-btn"
+                style={{ fontSize: 7, padding: "1px 3px", opacity: 0.4, borderRadius: "0 3px 3px 0" }}
+                onClick={() => command({ type: "song_delete_scene", sceneId: s.id })}
+                title={`Delete "${s.name}"`}
+              >
+                ✕
+              </button>
+            </span>
           ))}
           {scenes.length === 0 && <span style={{ opacity: 0.4, fontSize: 9 }}>Click ⊕ to capture a scene</span>}
         </div>

@@ -581,6 +581,8 @@ export function DevicePanel({ state, catalog, command, onLoadSamples, bpm, prese
                     )}
                     </>
                   )}
+                </div>
+                <div className="pattern-tools-row">
                   <div className="pattern-tool-group">
                     <button className="device-midi-btn" title="Tools" onClick={() => setToolsMenu(v => !v)}>&#x2699;</button>
                     {toolsMenu && (
@@ -905,6 +907,8 @@ export function DevicePanel({ state, catalog, command, onLoadSamples, bpm, prese
                   style={stepRecMode ? { background: accent, color: "#000" } : undefined}
                   onClick={() => { setStepRecMode(v => !v); setStepRecCursor(0); }}
                 >✎</button>
+              </div>
+              <div className="pattern-tools-row">
                 <div className="pattern-tool-group">
                   <button className="device-midi-btn" title="Tools" onClick={() => setToolsMenu(v => !v)}>&#x2699;</button>
                   {toolsMenu && (

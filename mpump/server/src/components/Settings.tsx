@@ -71,7 +71,8 @@ function loadPalette(): PaletteId {
 
 /** Read song mode preference from localStorage. */
 export function getSongModeEnabled(): boolean {
-  return getItem("mpump-song-mode") === "true";
+  const v = getItem("mpump-song-mode");
+  return v === "true" || v === "1";
 }
 
 /** Read visual effects preference from localStorage. */
@@ -315,10 +316,6 @@ export function Settings({ volume, onVolumeChange, onClose, swing, onSwingChange
                   onClick={() => { const next = !getBool("mpump-gesture-rec", true); setBool("mpump-gesture-rec", next); window.dispatchEvent(new Event("mpump-settings-changed")); refreshToggles(); }}>
                   <span className="settings-toggle-dot" />Gesture Recording
                 </button>
-                <button className={`settings-toggle ${songMode ? "on" : ""}`} title="Arrange scenes into a song"
-                  onClick={() => { const next = !songMode; setSongMode(next); setItem("mpump-song-mode", String(next)); window.dispatchEvent(new Event("mpump-settings-changed")); }}>
-                  <span className="settings-toggle-dot" />Song Mode
-                </button>
               </div>
               <div className="settings-hint" style={{ marginTop: 8 }}>
                 ←→ focus · ↑↓ sound · Shift+←→ pattern · Shift+↑↓ genre · M mute · S solo · L lock · Tab view
@@ -418,10 +415,6 @@ export function Settings({ volume, onVolumeChange, onClose, swing, onSwingChange
                 <button className={`settings-toggle ${videoRec ? "on" : ""}`} title="Show video recording button in KAOS pad"
                   onClick={() => { const next = !getBool("mpump-video-rec"); setBool("mpump-video-rec", next); setVideoRec(next); }}>
                   <span className="settings-toggle-dot" />Video REC
-                </button>
-                <button className={`settings-toggle ${songMode ? "on" : ""}`} title="Chain patterns in SYNTH view"
-                  onClick={() => { const next = !songMode; setSongMode(next); setItem("mpump-song-mode", String(next)); window.dispatchEvent(new Event("mpump-settings-changed")); }}>
-                  <span className="settings-toggle-dot" />Song Mode
                 </button>
               </div>
             </div>

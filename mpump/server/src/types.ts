@@ -363,7 +363,7 @@ export type TransitionType = "instant" | "fade" | "filter" | "breakdown";
 export interface SongScene {
   id: string;
   name: string;
-  /** Per-device snapshot: genre/pattern indices + mute state */
+  /** Per-device snapshot: genre/pattern indices + mute state + sound */
   devices: Record<string, {
     genreIdx: number;
     patternIdx: number;
@@ -371,6 +371,7 @@ export interface SongScene {
     bassPatternIdx: number;
     drumsMuted: boolean;
     bassMuted: boolean;
+    synthParams?: SynthParams;
   }>;
   /** Mixer snapshot */
   mixer: {

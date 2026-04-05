@@ -1747,6 +1747,7 @@ export class Engine {
         bassPatternIdx: ds.bassPatternIdx,
         drumsMuted: ds.drumsMuted,
         bassMuted: ds.bassMuted,
+        synthParams: id.startsWith("preview_") ? { ...ds.synthParams } : undefined,
       };
     }
 
@@ -1810,6 +1811,14 @@ export class Engine {
       }
       if (ds.bassMuted !== snap.bassMuted) {
         ds.bassMuted = snap.bassMuted;
+      }
+      // Restore synth params (release-tail: old notes finish their envelope,
+      // new notes use the new preset — no abrupt cut)
+      if (snap.synthParams && id.startsWith("preview_")) {
+        ds.synthParams = { ...snap.synthParams };
+        if (this.audioPort) {
+          this.audioPort.setSynthParams(ds.config.channels.main, ds.synthParams);
+        }
       }
     }
 
@@ -1883,7 +1892,7 @@ export class Engine {
     }
   }
 
-  /** Apply only pattern/genre changes (not mixer) — used by fade transition. */
+  /** Apply only pattern/genre/sound changes (not mixer) — used by fade transition. */
   private applySongScenePatterns(scene: SongScene): void {
     for (const [id, snap] of Object.entries(scene.devices)) {
       const ds = this.deviceStates.get(id);
@@ -1892,6 +1901,11 @@ export class Engine {
       if (ds.patternIdx !== snap.patternIdx) this.setPattern(id, snap.patternIdx);
       ds.drumsMuted = snap.drumsMuted;
       ds.bassMuted = snap.bassMuted;
+      // Release-tail preset swap
+      if (snap.synthParams && id.startsWith("preview_")) {
+        ds.synthParams = { ...snap.synthParams };
+        if (this.audioPort) this.audioPort.setSynthParams(ds.config.channels.main, ds.synthParams);
+      }
     }
     if (this.bpm !== scene.bpm) this.setBpm(scene.bpm);
     this.emitStateNow();
@@ -1899,10 +1913,8 @@ export class Engine {
 
   /** Start song playback from the beginning or current position. */
   songPlay(): void {
-    if (this.songArrangement.length === 0) {
-      console.warn("[song] no arrangement entries, can't play");
-      return;
-    }
+    if (this.songArrangement.length === 0) return;
+
     this.songPlaying = true;
     this.songCurrentIdx = 0;
     this.songBarCounter = 0;
@@ -1910,15 +1922,27 @@ export class Engine {
     // Apply the first scene immediately
     const first = this.songArrangement[0];
     const scene = this.songScenes.find(s => s.id === first.sceneId);
-    console.log("[song] play — scenes:", this.songScenes.length, "arrangement:", this.songArrangement.length, "first scene:", scene?.name);
     if (scene) this.applySongScene(scene);
+
+    // Ensure all devices are playing (song needs step-0 callbacks to advance)
+    for (const [id] of this.deviceStates) {
+      if (this.stopped.has(id)) {
+        this.togglePause(id);
+      }
+    }
 
     this.emitSongState();
   }
 
-  /** Stop song playback. */
+  /** Stop song playback and stop all devices. */
   songStop(): void {
     this.songPlaying = false;
+    // Stop all devices
+    for (const [id] of this.deviceStates) {
+      if (!this.stopped.has(id)) {
+        this.togglePause(id);
+      }
+    }
     this.emitSongState();
   }
 

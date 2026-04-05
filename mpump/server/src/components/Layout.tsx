@@ -1779,6 +1779,7 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
                         input.onchange = () => { if (input.files?.[0]) handleImportSession(input.files[0]); };
                         input.click();
                       }}>↑ Import session</button>
+                      <button onClick={() => { setSongModeOn(v => { const next = !v; setItem("mpump-song-mode", next ? "1" : ""); return next; }); }}>{songModeOn ? "✓" : " "} Song Mode</button>
                       {onConnectMidi && <button onClick={onConnectMidi}>🎹 Connect MIDI</button>}
                       <button className="more-menu-help" onClick={() => { setShowMoreMenu(false); setShowHelp(true); }}>? Help</button>
                       <button onClick={() => { setShowMoreMenu(false); setShowSettings(true); }}>⚙ Settings</button>
@@ -1790,6 +1791,13 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
           </div>{/* /header-row-tools */}
         </div>
       </header>
+
+      {/* Song strip — right below header, centered */}
+      {isPreview && songModeOn && (
+        <div style={{ padding: "4px 8px" }}>
+          <SongStrip accent={connectedDevices[0]?.accent ?? "#66ff99"} songState={songState ?? { scenes: [], arrangement: [], loop: true, playback: { playing: false, currentIndex: 0, barInScene: 0, totalBars: 0 } }} command={command} />
+        </div>
+      )}
 
       {/* Update banner */}
       {updateAvailable && (
@@ -1912,13 +1920,6 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
           )
         )}
       </main>
-
-      {/* Song strip — below instruments, above effects */}
-      {isPreview && songModeOn && (
-        <div style={{ padding: "0 8px 8px", maxWidth: "50%", margin: "0 auto" }}>
-          <SongStrip accent={connectedDevices[0]?.accent ?? "#66ff99"} songState={songState ?? { scenes: [], arrangement: [], loop: true, playback: { playing: false, currentIndex: 0, barInScene: 0, totalBars: 0 } }} command={command} />
-        </div>
-      )}
 
       {showSessionModal && (() => {
         const sessionDur = sessionMin < 1 ? "<1 min" : sessionMin < 60 ? `${sessionMin} min` : `${Math.floor(sessionMin / 60)}h ${sessionMin % 60 > 0 ? `${sessionMin % 60}m` : ""}`;
