@@ -4,7 +4,8 @@
  */
 
 import { useState, useRef } from "react";
-import type { ClientMessage, SongState, SongArrangementEntry, TransitionType } from "../types";
+import type { ClientMessage, SongState, SongScene, SongArrangementEntry, TransitionType } from "../types";
+import { getJSON, setJSON } from "../utils/storage";
 
 interface Props {
   accent: string;
@@ -27,12 +28,43 @@ const TRANSITION_TITLES: Record<TransitionType, string> = {
 
 const TRANSITION_ORDER: TransitionType[] = ["instant", "fade", "filter", "breakdown"];
 
+interface SavedSong {
+  name: string;
+  scenes: SongScene[];
+  arrangement: SongArrangementEntry[];
+}
+
+const STORAGE_KEY = "mpump-saved-songs";
+
 export function SongStrip({ accent, songState, command }: Props) {
   const { scenes, arrangement, loop, playback } = songState;
   const [showLib, setShowLib] = useState(false);
+  const [showSongList, setShowSongList] = useState(false);
+  const [savedSongs, setSavedSongs] = useState<SavedSong[]>(() => getJSON(STORAGE_KEY, []));
   const nameRef = useRef<HTMLInputElement>(null);
 
   const totalBars = arrangement.reduce((a, e) => a + e.bars, 0);
+
+  const saveSong = () => {
+    if (scenes.length === 0 && arrangement.length === 0) return;
+    const name = prompt("Song name:", `Song ${savedSongs.length + 1}`);
+    if (!name?.trim()) return;
+    const song: SavedSong = { name: name.trim(), scenes, arrangement };
+    const updated = [...savedSongs.filter(s => s.name !== name.trim()), song];
+    setSavedSongs(updated);
+    setJSON(STORAGE_KEY, updated);
+  };
+
+  const loadSong = (song: SavedSong) => {
+    command({ type: "song_load", scenes: song.scenes, arrangement: song.arrangement });
+    setShowSongList(false);
+  };
+
+  const deleteSong = (name: string) => {
+    const updated = savedSongs.filter(s => s.name !== name);
+    setSavedSongs(updated);
+    setJSON(STORAGE_KEY, updated);
+  };
 
   const capture = () => {
     const name = nameRef.current?.value?.trim() || `S${scenes.length + 1}`;
@@ -102,10 +134,27 @@ export function SongStrip({ accent, songState, command }: Props) {
           <button
             className={`synth-osc-btn ${showLib ? "active" : ""}`}
             style={{ fontSize: 9, padding: "2px 6px" }}
-            onClick={(e) => { e.stopPropagation(); setShowLib(!showLib); }}
+            onClick={(e) => { e.stopPropagation(); setShowLib(!showLib); setShowSongList(false); }}
             title="Scene library"
           >
             LIB
+          </button>
+          <span style={{ width: 1, height: 12, background: "rgba(102,255,153,0.15)", display: "inline-block" }} />
+          <button
+            className="synth-osc-btn"
+            style={{ fontSize: 9, padding: "2px 6px" }}
+            onClick={(e) => { e.stopPropagation(); saveSong(); }}
+            title="Save song"
+          >
+            +Save
+          </button>
+          <button
+            className={`synth-osc-btn ${showSongList ? "active" : ""}`}
+            style={{ fontSize: 9, padding: "2px 6px" }}
+            onClick={(e) => { e.stopPropagation(); setShowSongList(!showSongList); setShowLib(false); }}
+            title="Load saved song"
+          >
+            Songs
           </button>
         </div>
       </div>
@@ -142,6 +191,33 @@ export function SongStrip({ accent, songState, command }: Props) {
             </span>
           ))}
           {scenes.length === 0 && <span style={{ opacity: 0.4, fontSize: 9 }}>Click ⊕ to capture a scene</span>}
+        </div>
+      )}
+
+      {/* Saved songs list (collapsible) */}
+      {showSongList && (
+        <div style={{ display: "flex", gap: 4, alignItems: "center", marginBottom: 4, flexWrap: "wrap" }}>
+          {savedSongs.length === 0 && <span style={{ opacity: 0.4, fontSize: 9 }}>No saved songs yet</span>}
+          {savedSongs.map(s => (
+            <span key={s.name} style={{ display: "inline-flex", alignItems: "center", gap: 1 }}>
+              <button
+                className="synth-osc-btn"
+                style={{ fontSize: 9, padding: "1px 6px", borderRadius: "3px 0 0 3px" }}
+                onClick={() => loadSong(s)}
+                title={`Load "${s.name}" (${s.scenes.length} scenes, ${s.arrangement.length} blocks)`}
+              >
+                {s.name}
+              </button>
+              <button
+                className="synth-osc-btn"
+                style={{ fontSize: 7, padding: "1px 3px", opacity: 0.4, borderRadius: "0 3px 3px 0" }}
+                onClick={() => deleteSong(s.name)}
+                title={`Delete "${s.name}"`}
+              >
+                ✕
+              </button>
+            </span>
+          ))}
         </div>
       )}
 

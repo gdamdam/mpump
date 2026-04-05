@@ -276,6 +276,9 @@ export function useEngine() {
       case "song_jump":
         engine.songJump(msg.index);
         break;
+      case "song_load":
+        engine.loadSong(msg.scenes, msg.arrangement);
+        break;
     }
   }, []);
 

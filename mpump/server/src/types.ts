@@ -324,7 +324,8 @@ export type ClientMessage =
   | { type: "song_play" }
   | { type: "song_stop" }
   | { type: "song_toggle_loop" }
-  | { type: "song_jump"; index: number };
+  | { type: "song_jump"; index: number }
+  | { type: "song_load"; scenes: SongScene[]; arrangement: SongArrangementEntry[] };
 
 export type ArpMode = "up" | "down" | "up-down" | "random";
 export type ArpRate = "1/4" | "1/8" | "1/16";

@@ -1792,6 +1792,14 @@ export class Engine {
     this.emitSongState();
   }
 
+  /** Load a full song (scenes + arrangement). Replaces current song state. */
+  loadSong(scenes: SongScene[], arrangement: SongArrangementEntry[]): void {
+    if (this.songPlaying) this.songStop();
+    this.songScenes = scenes;
+    this.songArrangement = arrangement;
+    this.emitSongState();
+  }
+
   /** Apply a scene: switch genres/patterns on all devices + load mixer state. */
   private applySongScene(scene: SongScene): void {
     // Apply per-device state
