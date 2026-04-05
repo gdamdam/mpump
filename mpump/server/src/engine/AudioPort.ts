@@ -112,8 +112,16 @@ export class AudioPort {
   private drumsBypassFx = false;
   /** Synth/bass bypass FX chain (shared node — worklet mixes both channels). */
   private synthBassDirectOut: GainNode | null = null;
+  /** MB (multiband) bypass: excluded channels skip FX+EQ+MB, connect to driveGain. */
+  private mbDrumsDirectOut: GainNode | null = null;
+  private mbExcludeDrums = true;
   /** Stereo width gain (Haas effect level on high band). */
   private widthGain: GainNode | null = null;
+  private widthDelay: DelayNode | null = null;
+  private widthPanR: StereoPannerNode | null = null;
+  private widthPanL: StereoPannerNode | null = null;
+  private widthHP: BiquadFilterNode | null = null;
+  private widthMerge: GainNode | null = null;
   private _userWidth = 0.5; // logical width set by user (0–1)
   /** Low cut filter on master output. */
   private lowCutFilter: BiquadFilterNode | null = null;
@@ -193,6 +201,9 @@ export class AudioPort {
     if (this.perfMode === "normal") this.initMultiband();
     if (this.perfMode !== "normal") this.mbEnabled = false;
 
+    // Stereo width (Haas effect on highs) — independent of MB
+    this.initWidth();
+
     this.analyser = this.ctx.createAnalyser();
     this.analyser.fftSize = 256;
     this.analyser.connect(this.ctx.destination);
@@ -213,6 +224,12 @@ export class AudioPort {
     this.synthBassDirectOut = this.ctx.createGain();
     this.synthBassDirectOut.gain.value = 1;
     this.synthBassDirectOut.connect(this.fxOutput);
+
+    // MB bypass nodes: skip FX+EQ+MB, connect directly to driveGain
+    this.mbDrumsDirectOut = this.ctx.createGain();
+    this.mbDrumsDirectOut.gain.value = 1;
+    this.mbDrumsDirectOut.connect(this.driveGain);
+
 
     // Load AudioWorklet modules (skip in eco mode — fallback to standard biquad filters)
     if (this.perfMode !== "eco") this.loadWorklets();
@@ -443,30 +460,44 @@ export class AudioPort {
     midLP.connect(this.mbMidComp);
     this.mbHighHP.connect(this.mbHighComp);
 
-    // Subtle stereo widening on high band only (Haas effect, ~0.4ms)
-    // Gain-compensated to avoid adding perceived loudness to hats
-    const haasDelay = this.ctx.createDelay(0.01);
-    haasDelay.delayTime.value = 0.0004;
-    const haasPan = this.ctx.createStereoPanner();
-    haasPan.pan.value = 0.6;
-    const haasDirectPan = this.ctx.createStereoPanner();
-    haasDirectPan.pan.value = -0.3;
-    // Attenuate high band slightly — Haas sum adds ~3dB, compensate + pull hats back
-    const haasGain = this.ctx.createGain();
-    haasGain.gain.value = 0.32; // Pull back high-band stereo widening to reduce sharp top-end.
-    this.widthGain = haasGain;
-
     // Merge: all 3 bands sum into one node
     this.mbMerge = this.ctx.createGain();
     this.mbLowComp.connect(this.mbMerge);
     this.mbMidComp.connect(this.mbMerge);
-    // High band: attenuate → direct (slight left) + delayed copy (right) for width
-    this.mbHighComp.connect(haasGain);
-    haasGain.connect(haasDirectPan);
-    haasGain.connect(haasDelay);
-    haasDelay.connect(haasPan);
-    haasDirectPan.connect(this.mbMerge);
-    haasPan.connect(this.mbMerge);
+    this.mbHighComp.connect(this.mbMerge);
+  }
+
+  /** Stereo width via Haas effect on highs — works independently of MB. */
+  private initWidth(): void {
+    // HP filter to isolate highs (>3kHz) for widening
+    this.widthHP = this.ctx.createBiquadFilter();
+    this.widthHP.type = "highpass";
+    this.widthHP.frequency.value = 3000;
+    this.widthHP.Q.value = 0.7;
+
+    // Haas effect: delayed copy panned right, direct panned slightly left
+    this.widthDelay = this.ctx.createDelay(0.01);
+    this.widthDelay.delayTime.value = 0.0004;
+    this.widthPanR = this.ctx.createStereoPanner();
+    this.widthPanR.pan.value = 0.6;
+    this.widthPanL = this.ctx.createStereoPanner();
+    this.widthPanL.pan.value = -0.3;
+
+    // Gain control — Haas sum adds ~3dB, compensate
+    const haasGain = this.ctx.createGain();
+    haasGain.gain.value = this._userWidth * 0.7;
+    this.widthGain = haasGain;
+
+    // Merge point for width output
+    this.widthMerge = this.ctx.createGain();
+
+    // Wire: HP → gain → direct (left pan) + delayed (right pan) → widthMerge
+    this.widthHP.connect(haasGain);
+    haasGain.connect(this.widthPanL);
+    haasGain.connect(this.widthDelay);
+    this.widthDelay.connect(this.widthPanR);
+    this.widthPanL.connect(this.widthMerge);
+    this.widthPanR.connect(this.widthMerge);
   }
 
   /** Enable/disable multiband compression. */
@@ -567,6 +598,35 @@ export class AudioPort {
     } else {
       try { panner.disconnect(this.drumsDirectOut); } catch { /* */ }
       panner.connect(this.master);
+    }
+  }
+
+  // ── MB (multiband) channel exclusion ────────────────────────────────
+
+  /** Set MB exclude for a channel. Excluded channels bypass FX+EQ+MB, go straight to driveGain. */
+  setMbExclude(channel: "drums", exclude: boolean): void {
+    if (channel === "drums") { this.mbExcludeDrums = exclude; this.updateDrumsBypassMb(); }
+  }
+
+  getMbExclude(): { drums: boolean } {
+    return { drums: this.mbExcludeDrums };
+  }
+
+  /** Reroute drums based on MB exclude state. */
+  private updateDrumsBypassMb(): void {
+    const panner = this.channelPanners.get(DRUM_CH);
+    if (!panner || !this.mbDrumsDirectOut) return;
+    if (this.mbExcludeDrums) {
+      try { panner.disconnect(this.master); } catch { /* */ }
+      try { panner.disconnect(this.drumsDirectOut!); } catch { /* */ }
+      try { panner.connect(this.mbDrumsDirectOut); } catch { /* already connected */ }
+    } else {
+      try { panner.disconnect(this.mbDrumsDirectOut); } catch { /* */ }
+      if (this.drumsBypassFx && this.drumsDirectOut) {
+        try { panner.connect(this.drumsDirectOut); } catch { /* already connected */ }
+      } else {
+        try { panner.connect(this.master); } catch { /* already connected */ }
+      }
     }
   }
 
@@ -1047,10 +1107,11 @@ export class AudioPort {
       // Channel may bypass effects chain depending on exclude flags
       const excludeSynth = this.anyFxExcludes("excludeSynth");
       const excludeBass  = this.anyFxExcludes("excludeBass");
+      const drumsMbBypass = ch === DRUM_CH && this.mbExcludeDrums && this.mbDrumsDirectOut;
       const drumsBypass = ch === DRUM_CH && this.drumsBypassFx && this.drumsDirectOut;
       const synthBass = (ch === 0 && excludeSynth) || (ch === 1 && excludeBass);
       const nonDrumBypass = synthBass && this.synthBassDirectOut;
-      panner.connect(drumsBypass ? this.drumsDirectOut! : nonDrumBypass ? this.synthBassDirectOut! : this.master);
+      panner.connect(drumsMbBypass ? this.mbDrumsDirectOut! : drumsBypass ? this.drumsDirectOut! : nonDrumBypass ? this.synthBassDirectOut! : this.master);
       this.channelPanners.set(ch, panner);
 
       const analyser = this.ctx.createAnalyser();
@@ -1361,6 +1422,12 @@ export class AudioPort {
       try { this.softClip.disconnect(); } catch { /* */ }
       try { this.limiter.disconnect(); } catch { /* */ }
       if (this.mbMerge) try { this.mbMerge.disconnect(); } catch { /* */ }
+      if (this.widthHP) try { this.widthHP.disconnect(); } catch { /* */ }
+      if (this.widthMerge) try { this.widthMerge.disconnect(); } catch { /* */ }
+      if (this.widthGain) try { this.widthGain.disconnect(); } catch { /* */ }
+      if (this.widthDelay) try { this.widthDelay.disconnect(); } catch { /* */ }
+      if (this.widthPanL) try { this.widthPanL.disconnect(); } catch { /* */ }
+      if (this.widthPanR) try { this.widthPanR.disconnect(); } catch { /* */ }
 
       // Common: fxOutput → [lowCut if active] → EQ (low→mid→high) → masterBoost
       if (this.lowCutFilter && this.lowCutFilter.type === "highpass") {
@@ -1382,6 +1449,18 @@ export class AudioPort {
         postEQ = this.mbMerge;
       }
 
+      // Stereo width: tap postEQ → HP filter → Haas widener → driveGain (additive)
+      if (this.widthHP && this.widthGain && this.widthMerge && this.widthDelay && this.widthPanL && this.widthPanR) {
+        postEQ.connect(this.widthHP);
+        this.widthHP.connect(this.widthGain);
+        this.widthGain.connect(this.widthPanL);
+        this.widthGain.connect(this.widthDelay);
+        this.widthDelay.connect(this.widthPanR);
+        this.widthPanL.connect(this.widthMerge);
+        this.widthPanR.connect(this.widthMerge);
+        this.widthMerge.connect(this.driveGain);
+      }
+
       if (this.antiClipMode === "off") {
         postEQ.connect(this.driveGain);
         this.driveGain.connect(this.analyser);
@@ -1397,6 +1476,9 @@ export class AudioPort {
         this.softClip.connect(this.limiter);
         this.limiter.connect(this.analyser);
       }
+
+      // Reconnect MB bypass nodes to driveGain (driveGain.disconnect() broke them)
+      if (this.mbDrumsDirectOut) try { this.mbDrumsDirectOut.connect(this.driveGain); } catch { /* */ }
 
       // Fade back in
       const now = this.ctx.currentTime;

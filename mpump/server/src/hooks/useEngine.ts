@@ -220,6 +220,9 @@ export function useEngine() {
       case "set_multiband_amount":
         engine.setMultibandAmount(msg.amount);
         break;
+      case "set_mb_exclude":
+        engine.setMbExclude(msg.channel, msg.exclude);
+        break;
       case "set_width":
         engine.setWidth(msg.width);
         break;
@@ -307,7 +310,7 @@ export function useEngine() {
   }, []);
 
   const getMixerState = useCallback(() => {
-    return engineRef.current?.getMixerState() ?? { drive: 0, eq: { low: 1, mid: 0, high: 0 }, width: 0.5, lowCut: 0, mbOn: true };
+    return engineRef.current?.getMixerState() ?? { drive: 0, eq: { low: 1, mid: 0, high: 0 }, width: 0.5, lowCut: 0, mbOn: true, mbExcludeDrums: true };
   }, []);
 
   const getMutedDrumNotes = useCallback((): Set<number> => {

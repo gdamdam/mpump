@@ -313,6 +313,7 @@ export type ClientMessage =
   | { type: "set_channel_gate"; channel: number; on: boolean; rate: string; depth: number; shape: string; mode?: string; pattern?: number[] }
   | { type: "set_multiband"; on: boolean }
   | { type: "set_multiband_amount"; amount: number }
+  | { type: "set_mb_exclude"; channel: "drums"; exclude: boolean }
   | { type: "set_width"; width: number }
   | { type: "set_low_cut"; freq: number }
   | { type: "load_scene"; volumes: Record<number, number>; pans: Record<number, number>; chEQ: Record<number, { low: number; mid: number; high: number }>; masterEQ: { low: number; mid: number; high: number }; drive: number; width: number; lowCut: number; mbOn: boolean; mbAmount: number };

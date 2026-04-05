@@ -51,7 +51,7 @@ interface Props {
   getMutedDrumNotes?: () => Set<number>;
   playNote?: (ch: number, note: number, vel?: number) => void;
   stopNote?: (ch: number, note: number) => void;
-  getMixerState?: () => { drive: number; eq: { low: number; mid: number; high: number }; width: number; lowCut: number; mbOn: boolean };
+  getMixerState?: () => { drive: number; eq: { low: number; mid: number; high: number }; width: number; lowCut: number; mbOn: boolean; mbExcludeDrums: boolean };
   getCpuLoad?: () => number;
 }
 
@@ -1883,6 +1883,7 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
             onShowDrumKit={() => setShowDrumKitFromMixer(true)}
             soloChannel={soloChannel}
             onSoloChange={setSoloChannel}
+            getMixerState={getMixerState}
           />
         ) : (
           connectedDevices.map(ds =>

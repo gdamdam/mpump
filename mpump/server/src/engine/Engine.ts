@@ -1617,6 +1617,7 @@ export class Engine {
       width: this.audioPort?.getWidth() ?? 0.5,
       lowCut: this.audioPort?.getLowCut() ?? 0,
       mbOn: this.audioPort?.isMultibandEnabled() ?? true,
+      mbExcludeDrums: this.audioPort?.getMbExclude().drums ?? false,
     };
   }
 
@@ -1638,6 +1639,14 @@ export class Engine {
 
   setMultibandAmount(amount: number): void {
     if (this.audioPort) this.audioPort.setMultibandAmount(amount);
+  }
+
+  setMbExclude(channel: "drums", exclude: boolean): void {
+    if (this.audioPort) this.audioPort.setMbExclude(channel, exclude);
+  }
+
+  getMbExclude(): { drums: boolean } {
+    return this.audioPort?.getMbExclude() ?? { drums: false };
   }
 
   setWidth(width: number): void {

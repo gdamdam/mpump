@@ -39,6 +39,7 @@ interface Props {
   onShowDrumKit?: () => void;
   soloChannel?: "drums" | "bass" | "synth" | null;
   onSoloChange?: (ch: "drums" | "bass" | "synth" | null) => void;
+  getMixerState?: () => { drive: number; eq: { low: number; mid: number; high: number }; width: number; lowCut: number; mbOn: boolean; mbExcludeDrums: boolean };
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────
@@ -159,7 +160,7 @@ function MasterModal({ title, onClose, getAnalyser, children }: {
 export function MixerPanel({
   volume, onVolumeChange, channelVolumes, onChannelVolumeChange,
   devices, command, antiClipMode, getAnalyser, getChannelAnalyser, pendingMutes, onShowDrumKit,
-  soloChannel: soloProp, onSoloChange,
+  soloChannel: soloProp, onSoloChange, getMixerState,
 }: Props) {
 
   // Pro controls visibility (LIMIT, MB, MS, DRV)
@@ -221,8 +222,9 @@ export function MixerPanel({
   const [eqLow, setEqLow] = useState(1); // match AudioPort default
   const [eqMid, setEqMid] = useState(0); // flat — mud cut on bass channel only
   const [eqHigh, setEqHigh] = useState(0); // neutral
-  const [mbOn, setMbOn] = useState(true);
+  const [mbOn, setMbOn] = useState(() => getMixerState?.().mbOn ?? true);
   const [mbAmount, setMbAmount] = useState(0.25);
+  const [mbExcludeDrums, setMbExcludeDrums] = useState(() => getMixerState?.().mbExcludeDrums ?? true);
   const [showMbModal, setShowMbModal] = useState(false);
   const [width, setWidth] = useState(0.5);
   const [lowCut, setLowCut] = useState(0);
@@ -835,12 +837,6 @@ export function MixerPanel({
           onClose={() => setShowMbModal(false)}
           getAnalyser={() => getAnalyser?.() ?? null}
         >
-          <div className="fx-editor-row" style={{ justifyContent: "center", marginBottom: 8 }}>
-            <button
-              className={`synth-osc-btn ${mbOn ? "active" : ""}`}
-              onClick={() => { const next = !mbOn; setMbOn(next); command({ type: "set_multiband", on: next } as ClientMessage); }}
-            >{mbOn ? "ON" : "OFF"}</button>
-          </div>
           {window.innerWidth >= 700 && (() => {
             const w = 200, h = 50, col = "#66ff99", dim = "rgba(102,255,153,0.15)";
             const a = mbAmount;
@@ -869,14 +865,29 @@ export function MixerPanel({
           })()}
           <div className="fx-editor-row">
             <span className="fx-editor-label">AMOUNT</span>
-            <input type="range" min={0} max={1} step={0.05} value={mbAmount} className="fx-editor-slider"
+            <input type="range" min={0} max={1} step={0.05} value={mbAmount} className="fx-editor-slider" title="Multiband compression amount"
               onChange={(e) => { const v = parseFloat(e.target.value); setMbAmount(v); throttledCmd({ type: "set_multiband_amount", amount: v } as ClientMessage); }} />
             <span className="fx-editor-value">{Math.round(mbAmount * 100)}%</span>
           </div>
+          <div className="fx-editor-row" style={{ justifyContent: "center", gap: 6, marginTop: 8 }}>
+            <button
+              className={`mx-btn ${mbOn ? "active" : ""}`}
+              title="Toggle multiband compression on/off"
+              onClick={() => { const next = !mbOn; setMbOn(next); command({ type: "set_multiband", on: next } as ClientMessage); }}
+            >{mbOn ? "ON" : "OFF"}</button>
+            <button
+              className={`mx-btn ${mbExcludeDrums ? "active" : ""}`}
+              style={{ fontSize: 9, padding: "3px 10px", whiteSpace: "nowrap", width: "auto" }}
+              title="Exclude drums from multiband compression"
+              onClick={() => { const next = !mbExcludeDrums; setMbExcludeDrums(next); command({ type: "set_mb_exclude", channel: "drums", exclude: next } as ClientMessage); }}
+            >EXCL.&nbsp;DRUMS</button>
+          </div>
           <span className="mx-modal-reset" onClick={() => {
             setMbOn(true); setMbAmount(0.25);
+            setMbExcludeDrums(false);
             command({ type: "set_multiband", on: true } as ClientMessage);
             command({ type: "set_multiband_amount", amount: 0.25 } as ClientMessage);
+            command({ type: "set_mb_exclude", channel: "drums", exclude: false } as ClientMessage);
           }}>RST</span>
         </MasterModal>
       )}
