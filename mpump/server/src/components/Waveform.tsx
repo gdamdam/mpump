@@ -53,7 +53,7 @@ export function Waveform({ getAnalyser, command }: Props) {
     ro.observe(canvas);
 
     const p = new URLSearchParams(window.location.search);
-    const isLite = window.innerWidth < 700 || p.get("lite") === "true" || p.get("eco") === "true" || localStorage.getItem("mpump-perf-mode") === "lite" || localStorage.getItem("mpump-perf-mode") === "eco";
+    const isLite = p.get("lite") === "true" || p.get("eco") === "true" || localStorage.getItem("mpump-perf-mode") === "lite" || localStorage.getItem("mpump-perf-mode") === "eco";
     let dataBuf: Uint8Array | null = null;
     let skip = 0;
     const draw = () => {

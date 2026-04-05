@@ -1,6 +1,6 @@
 import { useRef, useEffect } from "react";
 
-const IS_LITE = window.innerWidth < 700 || new URLSearchParams(window.location.search).get("lite") === "true" || new URLSearchParams(window.location.search).get("eco") === "true" || localStorage.getItem("mpump-perf-mode") === "lite" || localStorage.getItem("mpump-perf-mode") === "eco";
+const IS_LITE = new URLSearchParams(window.location.search).get("lite") === "true" || new URLSearchParams(window.location.search).get("eco") === "true" || localStorage.getItem("mpump-perf-mode") === "lite" || localStorage.getItem("mpump-perf-mode") === "eco";
 
 export function SignalLed({ getAnalyser }: { getAnalyser: () => AnalyserNode | null }) {
   const dotRef = useRef<HTMLSpanElement>(null);
