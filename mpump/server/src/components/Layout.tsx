@@ -1915,7 +1915,7 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
 
       {/* Song strip — below instruments, above effects */}
       {isPreview && songModeOn && (
-        <div style={{ padding: "0 8px 8px" }}>
+        <div style={{ padding: "0 8px 8px", maxWidth: "50%", margin: "0 auto" }}>
           <SongStrip accent={connectedDevices[0]?.accent ?? "#66ff99"} songState={songState ?? { scenes: [], arrangement: [], loop: true, playback: { playing: false, currentIndex: 0, barInScene: 0, totalBars: 0 } }} command={command} />
         </div>
       )}

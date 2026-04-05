@@ -699,9 +699,9 @@ class PolySynthProcessor extends AudioWorkletProcessor {
           if (driftAmt > 0) this._uDriftPhase[ui] = (this._uDriftPhase[ui] + this._uDriftRate[ui] * invSr) % 1;
         }
 
-        // ── Sub-oscillator ──
+        // ── Sub-oscillator (scaled by voiceGain to match unison level) ──
         if (subOn) {
-          const subSample = Math.sin(TWOPI * subPhase) * subLevel;
+          const subSample = Math.sin(TWOPI * subPhase) * subLevel * voiceGain;
           mixL += subSample; mixR += subSample;
           subPhase = (subPhase + freq * 0.5 * invSr) % 1;
         }
@@ -803,6 +803,12 @@ class PolySynthProcessor extends AudioWorkletProcessor {
       this._subPhase[v] = subPhase;
       this._gateRemaining[v] = gateRemaining;
       this._lfoPhase[v] = lfoPhase;
+    }
+
+    // ── Soft-clip output to prevent digital clipping from polyphonic stacking ──
+    for (let s = 0; s < N; s++) {
+      outL[s] = Math.tanh(outL[s]);
+      if (isStereo) outR[s] = Math.tanh(outR[s]);
     }
 
     return true;
