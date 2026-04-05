@@ -420,6 +420,10 @@ async function generatePng(payload) {
 function esc(s) {
   return s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
+/** Escape for use inside JS string literals in script tags. */
+function escJs(s) {
+  return s.replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/<\//g, "<\\/");
+}
 
 const BOT_RE = /bot|crawl|spider|preview|fetch|slack|discord|telegram|whatsapp|facebook|twitter|linkedin|signal|mastodon|bluesky|cardyb|okhttp|cfnetwork/i;
 
@@ -614,7 +618,7 @@ async function handleShortUrl(id, url, request, env, ctx) {
 <meta name="twitter:description" content="${esc(desc)}" />
 <meta name="twitter:image" content="${esc(imgUrl)}" />
 </head><body><p>Redirecting to <a href="${esc(appUrl)}">mpump</a>...</p>
-<script>window.location.replace("${esc(appUrl)}");</script>
+<script>window.location.replace("${escJs(appUrl)}");</script>
 <noscript><meta http-equiv="refresh" content="1;url=${esc(appUrl)}"></noscript>
 </body></html>`;
 
@@ -690,7 +694,7 @@ async function handleRequest(url) {
 <meta name="twitter:description" content="${esc(desc)}" />
 <meta name="twitter:image" content="${esc(imgUrl)}" />
 </head><body><p>Redirecting to <a href="${esc(appUrl)}">mpump</a>...</p>
-<script>window.location.replace("${esc(appUrl)}");</script>
+<script>window.location.replace("${escJs(appUrl)}");</script>
 <noscript><meta http-equiv="refresh" content="1;url=${esc(appUrl)}"></noscript>
 </body></html>`;
 
