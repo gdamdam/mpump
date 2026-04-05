@@ -12,7 +12,7 @@
  * The UI communicates via EngineCallbacks (onStateChange, onStep, onCatalogChange).
  */
 
-import type { StepData, DrumHit, EngineState, Catalog, DeviceState, SynthParams, EffectName, EffectParams, DrumVoiceParams } from "../types";
+import type { StepData, DrumHit, EngineState, Catalog, DeviceState, SynthParams, EffectName, EffectParams, DrumVoiceParams, SongScene, SongArrangementEntry, SongPlaybackState, SongState, TransitionType } from "../types";
 import { DEFAULT_SYNTH_PARAMS } from "../types";
 import type { MidiPort } from "./MidiPort";
 import { AudioPort } from "./AudioPort";
@@ -34,6 +34,7 @@ export interface EngineCallbacks {
   onStateChange: (state: EngineState) => void;
   onStep: (device: string, step: number) => void;
   onCatalogChange: (catalog: Catalog) => void;
+  onSongStateChange?: (state: SongState) => void;
 }
 
 // ── Per-device internal state (not exported to UI) ───────────────────────
@@ -122,6 +123,16 @@ export class Engine {
     }
     this.cb.onStateChange(this.getState());
   }
+
+  // ── Song mode state ──────────────────────────────────────────────────
+  private songScenes: SongScene[] = [];
+  private songArrangement: SongArrangementEntry[] = [];
+  private songPlaying = false;
+  private songLoop = true;
+  private songCurrentIdx = 0;
+  private songBarCounter = 0;
+  /** Device ID that drives the song bar counter (first device at step 0). */
+  private songDriverDevice = "preview_drums";
 
   // Visibility handling
   private visHandler: (() => void) | null = null;
@@ -490,6 +501,7 @@ export class Engine {
         this.cb.onStep(id, step);
         if (step === 0 && ds.chainEnabled) this.chainSwap(id);
         if (step === 0 && this.restartAtLoop.has(id)) this.restartDevice(id, true);
+        if (step === 0 && this.songPlaying && id === this.songDriverDevice) this.songBarTick();
         // Metronome click on quarter notes (every 4th step)
         if (step % 4 === 0 && this.audioPort) this.audioPort.playClick();
       };
@@ -527,6 +539,7 @@ export class Engine {
         this.cb.onStep(id, step);
         if (step === 0 && ds.chainEnabled) this.chainSwap(id);
         if (step === 0 && this.restartAtLoop.has(id)) this.restartDevice(id, true);
+        if (step === 0 && this.songPlaying && id === this.songDriverDevice) this.songBarTick();
       };
       seq.start();
       this.sequencers.set(id, seq);
@@ -1719,6 +1732,255 @@ export class Engine {
 
   getCatalog(): Catalog {
     return this.data.catalog;
+  }
+
+  // ── Song mode ───────────────────────────────────────────────────────────
+
+  /** Capture current live state as a named scene. */
+  captureScene(name: string): SongScene {
+    const devices: SongScene["devices"] = {};
+    for (const [id, ds] of this.deviceStates) {
+      devices[id] = {
+        genreIdx: ds.genreIdx,
+        patternIdx: ds.patternIdx,
+        bassGenreIdx: ds.bassGenreIdx,
+        bassPatternIdx: ds.bassPatternIdx,
+        drumsMuted: ds.drumsMuted,
+        bassMuted: ds.bassMuted,
+        synthParams: id.startsWith("preview_") ? { ...ds.synthParams } : undefined,
+      };
+    }
+
+    const mixer: SongScene["mixer"] = this.audioPort ? {
+      volumes: this.audioPort.getChannelVolumes(),
+      pans: this.audioPort.getChannelPans(),
+      chEQ: this.audioPort.getChannelEQs(),
+      masterEQ: this.audioPort.getEQ(),
+      drive: this.audioPort.getDrive(),
+      width: this.audioPort.getWidth(),
+      lowCut: this.audioPort.getLowCut(),
+      mbOn: this.audioPort.isMultibandEnabled(),
+      mbAmount: this.audioPort.getMultibandAmount(),
+    } : {
+      volumes: {}, pans: {}, chEQ: {},
+      masterEQ: { low: 0, mid: 0, high: 0 },
+      drive: 0, width: 0.5, lowCut: 0, mbOn: false, mbAmount: 0.25,
+    };
+
+    const scene: SongScene = {
+      id: `sc_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+      name,
+      devices,
+      mixer,
+      bpm: this.bpm,
+    };
+    this.songScenes.push(scene);
+    this.emitSongState();
+    return scene;
+  }
+
+  /** Delete a scene by ID. Also removes from arrangement. */
+  deleteScene(sceneId: string): void {
+    this.songScenes = this.songScenes.filter(s => s.id !== sceneId);
+    this.songArrangement = this.songArrangement.filter(e => e.sceneId !== sceneId);
+    this.emitSongState();
+  }
+
+  /** Set the full arrangement. */
+  setSongArrangement(arrangement: SongArrangementEntry[]): void {
+    this.songArrangement = arrangement;
+    this.emitSongState();
+  }
+
+  /** Apply a scene: switch genres/patterns on all devices + load mixer state. */
+  private applySongScene(scene: SongScene): void {
+    // Apply per-device state
+    for (const [id, snap] of Object.entries(scene.devices)) {
+      const ds = this.deviceStates.get(id);
+      if (!ds) continue;
+      if (ds.genreIdx !== snap.genreIdx) this.setGenre(id, snap.genreIdx);
+      if (ds.patternIdx !== snap.patternIdx) this.setPattern(id, snap.patternIdx);
+      if (ds.bassGenreIdx !== snap.bassGenreIdx) {
+        ds.bassGenreIdx = snap.bassGenreIdx;
+      }
+      if (ds.bassPatternIdx !== snap.bassPatternIdx) {
+        ds.bassPatternIdx = snap.bassPatternIdx;
+      }
+      if (ds.drumsMuted !== snap.drumsMuted) {
+        ds.drumsMuted = snap.drumsMuted;
+      }
+      if (ds.bassMuted !== snap.bassMuted) {
+        ds.bassMuted = snap.bassMuted;
+      }
+      // Restore synth params (release-tail: old notes finish their envelope,
+      // new notes use the new preset — no abrupt cut)
+      if (snap.synthParams && id.startsWith("preview_")) {
+        ds.synthParams = { ...snap.synthParams };
+        if (this.audioPort) {
+          this.audioPort.setSynthParams(ds.config.channels.main, ds.synthParams);
+        }
+      }
+    }
+
+    // Apply BPM
+    if (this.bpm !== scene.bpm) this.setBpm(scene.bpm);
+
+    // Apply mixer
+    if (this.audioPort) this.audioPort.loadScene(scene.mixer);
+
+    this.emitStateNow();
+  }
+
+  /** Called at step 0 of the driver device — counts bars and advances scenes. */
+  private songBarTick(): void {
+    if (!this.songPlaying || this.songArrangement.length === 0) return;
+
+    this.songBarCounter++;
+    console.log("[song] bar tick:", this.songBarCounter, "/", this.songArrangement[this.songCurrentIdx]?.bars, "scene:", this.songCurrentIdx);
+    const entry = this.songArrangement[this.songCurrentIdx];
+    if (!entry) return;
+
+    if (this.songBarCounter >= entry.bars) {
+      // Advance to next scene
+      this.songBarCounter = 0;
+      const nextIdx = this.songCurrentIdx + 1;
+
+      if (nextIdx >= this.songArrangement.length) {
+        if (this.songLoop) {
+          this.songCurrentIdx = 0;
+        } else {
+          this.songPlaying = false;
+          this.emitSongState();
+          return;
+        }
+      } else {
+        this.songCurrentIdx = nextIdx;
+      }
+
+      const nextEntry = this.songArrangement[this.songCurrentIdx];
+      const nextScene = this.songScenes.find(s => s.id === nextEntry.sceneId);
+      if (nextScene) {
+        this.applyTransition(nextEntry.transition, nextScene);
+      }
+    }
+
+    this.emitSongState();
+  }
+
+  /** Apply a transition then load the target scene. */
+  private applyTransition(type: TransitionType, scene: SongScene): void {
+    const barDuration = (16 * 60) / (this.bpm * 4); // seconds per bar (16 steps)
+
+    switch (type) {
+      case "instant":
+        this.applySongScene(scene);
+        break;
+      case "fade":
+        if (this.audioPort) this.audioPort.transitionFade(scene.mixer.volumes, barDuration);
+        // Apply patterns immediately, fade handles volume
+        this.applySongScenePatterns(scene);
+        break;
+      case "filter":
+        if (this.audioPort) this.audioPort.transitionFilter(barDuration);
+        // Apply scene at midpoint of filter sweep
+        setTimeout(() => this.applySongScene(scene), (barDuration * 500));
+        break;
+      case "breakdown":
+        if (this.audioPort) this.audioPort.transitionBreakdown(barDuration, 9);
+        this.applySongScene(scene);
+        break;
+    }
+  }
+
+  /** Apply only pattern/genre/sound changes (not mixer) — used by fade transition. */
+  private applySongScenePatterns(scene: SongScene): void {
+    for (const [id, snap] of Object.entries(scene.devices)) {
+      const ds = this.deviceStates.get(id);
+      if (!ds) continue;
+      if (ds.genreIdx !== snap.genreIdx) this.setGenre(id, snap.genreIdx);
+      if (ds.patternIdx !== snap.patternIdx) this.setPattern(id, snap.patternIdx);
+      ds.drumsMuted = snap.drumsMuted;
+      ds.bassMuted = snap.bassMuted;
+      // Release-tail preset swap
+      if (snap.synthParams && id.startsWith("preview_")) {
+        ds.synthParams = { ...snap.synthParams };
+        if (this.audioPort) this.audioPort.setSynthParams(ds.config.channels.main, ds.synthParams);
+      }
+    }
+    if (this.bpm !== scene.bpm) this.setBpm(scene.bpm);
+    this.emitStateNow();
+  }
+
+  /** Start song playback from the beginning or current position. */
+  songPlay(): void {
+    if (this.songArrangement.length === 0) return;
+
+    this.songPlaying = true;
+    this.songCurrentIdx = 0;
+    this.songBarCounter = 0;
+
+    // Apply the first scene immediately
+    const first = this.songArrangement[0];
+    const scene = this.songScenes.find(s => s.id === first.sceneId);
+    if (scene) this.applySongScene(scene);
+
+    // Ensure all devices are playing (song needs step-0 callbacks to advance)
+    for (const [id] of this.deviceStates) {
+      if (this.stopped.has(id)) {
+        this.togglePause(id);
+      }
+    }
+
+    this.emitSongState();
+  }
+
+  /** Stop song playback and stop all devices. */
+  songStop(): void {
+    this.songPlaying = false;
+    // Stop all devices
+    for (const [id] of this.deviceStates) {
+      if (!this.stopped.has(id)) {
+        this.togglePause(id);
+      }
+    }
+    this.emitSongState();
+  }
+
+  /** Toggle loop mode. */
+  songToggleLoop(): void {
+    this.songLoop = !this.songLoop;
+    this.emitSongState();
+  }
+
+  /** Jump to a specific arrangement index. */
+  songJump(index: number): void {
+    if (index < 0 || index >= this.songArrangement.length) return;
+    this.songCurrentIdx = index;
+    this.songBarCounter = 0;
+    const entry = this.songArrangement[index];
+    const scene = this.songScenes.find(s => s.id === entry.sceneId);
+    if (scene) this.applySongScene(scene);
+    this.emitSongState();
+  }
+
+  /** Get current song state for UI. */
+  getSongState(): SongState {
+    return {
+      scenes: this.songScenes,
+      arrangement: this.songArrangement,
+      loop: this.songLoop,
+      playback: {
+        playing: this.songPlaying,
+        currentIndex: this.songCurrentIdx,
+        barInScene: this.songBarCounter,
+        totalBars: this.songArrangement.reduce((a, e) => a + e.bars, 0),
+      },
+    };
+  }
+
+  /** Notify UI of song state changes. */
+  private emitSongState(): void {
+    this.cb.onSongStateChange?.(this.getSongState());
   }
 }
 

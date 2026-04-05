@@ -53,15 +53,14 @@ interface Props {
   onKeyLockedChange?: (locked: boolean) => void;
 }
 
-// QWERTY → semitone offset from C (standard piano roll mapping)
+// QWERTY → semitone offset from C (DAW-style piano layout)
+// Middle row (A-L) = white keys, top row (W-O) = black keys
+// Z/X = octave down/up, C/V = velocity down/up
 const QWERTY_MAP: Record<string, number> = {
-  // Lower row: C3-B3
-  KeyZ: 0, KeyS: 1, KeyX: 2, KeyD: 3, KeyC: 4, KeyV: 5,
-  KeyG: 6, KeyB: 7, KeyH: 8, KeyN: 9, KeyJ: 10, KeyM: 11,
-  // Upper row: C4-B4
-  KeyQ: 12, Digit2: 13, KeyW: 14, Digit3: 15, KeyE: 16, KeyR: 17,
-  Digit5: 18, KeyT: 19, Digit6: 20, KeyY: 21, Digit7: 22, KeyU: 23,
-  KeyI: 24,
+  // White keys: C D E F G A B C D
+  KeyA: 0, KeyS: 2, KeyD: 4, KeyF: 5, KeyG: 7, KeyH: 9, KeyJ: 11, KeyK: 12, KeyL: 14,
+  // Black keys: C# D# F# G# A# C#
+  KeyW: 1, KeyE: 3, KeyT: 6, KeyY: 8, KeyU: 10, KeyO: 13,
 };
 
 export function DevicePanel({ state, catalog, command, onLoadSamples, bpm, presetState, allDevices, scaleLock: scaleLockProp, onScaleLockChange, soloChannel: soloProp, onSoloChange, channelVolumes, onChannelVolumeChange, getChannelAnalyser, getMutedDrumNotes, playNote, stopNote, kbdFocusDevice, onKbdFocusChange, keyLocked, onKeyLockedChange }: Props) {
@@ -99,6 +98,8 @@ export function DevicePanel({ state, catalog, command, onLoadSamples, bpm, prese
   const [kbdHold, setKbdHold] = useState(false);
   const [toolsMenu, setToolsMenu] = useState(false);
   const heldNotesRef = useRef<Set<number>>(new Set());
+  const kbdVelRef = useRef(100);
+  const [kbdVelocity, setKbdVelocity] = useState(100);
   // Sequencer root = 36 (C2) + key_idx + (octave - 2) * 12
   const kbdKeyIdx = state.key_idx ?? 9; // default A
   const kbdRoot = 36 + kbdKeyIdx + (kbdBaseOctave - 2) * 12;
@@ -114,9 +115,12 @@ export function DevicePanel({ state, catalog, command, onLoadSamples, bpm, prese
     const down = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
-      // Octave shift: [ = down, ] = up
-      if (e.code === "BracketLeft") { e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation?.(); setKbdOctaveShift(v => { const n = Math.max(v - 1, -3); kbdOctaveShiftRef.current = n; return n; }); return; }
-      if (e.code === "BracketRight") { e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation?.(); setKbdOctaveShift(v => { const n = Math.min(v + 1, 3); kbdOctaveShiftRef.current = n; return n; }); return; }
+      // Octave shift: Z = down, X = up
+      if (e.code === "KeyZ") { e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation?.(); setKbdOctaveShift(v => { const n = Math.max(v - 1, -3); kbdOctaveShiftRef.current = n; return n; }); return; }
+      if (e.code === "KeyX") { e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation?.(); setKbdOctaveShift(v => { const n = Math.min(v + 1, 3); kbdOctaveShiftRef.current = n; return n; }); return; }
+      // Velocity: C = down, V = up (steps of 10, range 10-127)
+      if (e.code === "KeyC") { e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation?.(); setKbdVelocity(v => { const n = Math.max(v - 10, 10); kbdVelRef.current = n; return n; }); return; }
+      if (e.code === "KeyV") { e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation?.(); setKbdVelocity(v => { const n = Math.min(v + 10, 127); kbdVelRef.current = n; return n; }); return; }
       const note = getNoteForCode(e.code);
       if (note === null || activeKeysRef.current.has(e.code)) return;
       e.preventDefault();
@@ -127,7 +131,7 @@ export function DevicePanel({ state, catalog, command, onLoadSamples, bpm, prese
       if (kbdHold && heldNotesRef.current.has(note)) {
         stopNote(kbdChannel, note);
       }
-      playNote(kbdChannel, note, 100);
+      playNote(kbdChannel, note, kbdVelRef.current);
       if (kbdHold) heldNotesRef.current.add(note);
     };
     const up = (e: KeyboardEvent) => {
@@ -163,9 +167,12 @@ export function DevicePanel({ state, catalog, command, onLoadSamples, bpm, prese
     const down = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return;
       if (e.metaKey || e.ctrlKey || e.altKey) return;
-      // Octave shift
-      if (e.code === "BracketLeft") { e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation?.(); setKbdOctaveShift(v => { const n = Math.max(v - 1, -3); kbdOctaveShiftRef.current = n; return n; }); return; }
-      if (e.code === "BracketRight") { e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation?.(); setKbdOctaveShift(v => { const n = Math.min(v + 1, 3); kbdOctaveShiftRef.current = n; return n; }); return; }
+      // Octave shift: Z = down, X = up
+      if (e.code === "KeyZ") { e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation?.(); setKbdOctaveShift(v => { const n = Math.max(v - 1, -3); kbdOctaveShiftRef.current = n; return n; }); return; }
+      if (e.code === "KeyX") { e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation?.(); setKbdOctaveShift(v => { const n = Math.min(v + 1, 3); kbdOctaveShiftRef.current = n; return n; }); return; }
+      // Velocity: C = down, V = up
+      if (e.code === "KeyC") { e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation?.(); setKbdVelocity(v => { const n = Math.max(v - 10, 10); kbdVelRef.current = n; return n; }); return; }
+      if (e.code === "KeyV") { e.preventDefault(); e.stopPropagation(); e.stopImmediatePropagation?.(); setKbdVelocity(v => { const n = Math.min(v + 10, 127); kbdVelRef.current = n; return n; }); return; }
       // Backspace = clear step & go back
       if (e.code === "Backspace") {
         e.preventDefault();
@@ -196,7 +203,7 @@ export function DevicePanel({ state, catalog, command, onLoadSamples, bpm, prese
       // Play the note for auditory feedback (match sequencer: root + semi)
       if (playNote) {
         const note = kbdRoot + data.semi;
-        playNote(kbdChannel, note, 100);
+        playNote(kbdChannel, note, kbdVelRef.current);
         if (stopNote) setTimeout(() => stopNote(kbdChannel, note), 200);
       }
       setStepRecCursor(v => (v + 1) % patLen);
@@ -560,13 +567,22 @@ export function DevicePanel({ state, catalog, command, onLoadSamples, bpm, prese
                   <KaosDropdown className="kaos-dropdown-patlen" value={state.patternLength} onChange={(v: number) => command({ type: "set_pattern_length", device, length: v as typeof STEP_LENGTHS[number] })} title="Pattern length in steps" options={STEP_LENGTHS.map(n => ({ label: String(n), value: n }))} />
                   <span className="pattern-tools-label">steps</span>
                   {playNote && (
+                    <>
                     <button
                       className={`device-midi-btn ${kbdActive ? "active" : ""}`}
-                      title={kbdActive ? "Keyboard playing: ON" : "Play with computer keyboard"}
+                      title={kbdActive ? "Keyboard playing: ON (Z/X oct, C/V vel)" : "Play with computer keyboard"}
                       style={kbdActive ? { background: accent, color: "#000" } : undefined}
                       onClick={() => { setKbdActive(v => !v); if (kbdActive) { setKbdHold(false); for (const n of heldNotesRef.current) stopNote?.(kbdChannel, n); heldNotesRef.current.clear(); } }}
                     >⌨</button>
+                    {kbdActive && (
+                      <span style={{ fontSize: 8, opacity: 0.6, whiteSpace: "nowrap" }}>
+                        C{kbdBaseOctave + kbdOctaveShift} v{kbdVelocity}
+                      </span>
+                    )}
+                    </>
                   )}
+                </div>
+                <div className="pattern-tools-row">
                   <div className="pattern-tool-group">
                     <button className="device-midi-btn" title="Tools" onClick={() => setToolsMenu(v => !v)}>&#x2699;</button>
                     {toolsMenu && (
@@ -866,10 +882,15 @@ export function DevicePanel({ state, catalog, command, onLoadSamples, bpm, prese
                   <>
                     <button
                       className={`device-midi-btn ${kbdActive ? "active" : ""}`}
-                      title={kbdActive ? "Keyboard playing: ON" : "Play with computer keyboard"}
+                      title={kbdActive ? "Keyboard playing: ON (Z/X oct, C/V vel)" : "Play with computer keyboard"}
                       style={kbdActive ? { background: accent, color: "#000" } : undefined}
                       onClick={() => { setKbdActive(v => !v); if (kbdActive) { setKbdHold(false); for (const n of heldNotesRef.current) stopNote?.(kbdChannel, n); heldNotesRef.current.clear(); } }}
                     >⌨</button>
+                    {kbdActive && (
+                      <span style={{ fontSize: 8, opacity: 0.6, whiteSpace: "nowrap" }}>
+                        C{kbdBaseOctave + kbdOctaveShift} v{kbdVelocity}
+                      </span>
+                    )}
                     {kbdActive && (
                       <button
                         className={`device-midi-btn ${kbdHold ? "active" : ""}`}
@@ -886,6 +907,8 @@ export function DevicePanel({ state, catalog, command, onLoadSamples, bpm, prese
                   style={stepRecMode ? { background: accent, color: "#000" } : undefined}
                   onClick={() => { setStepRecMode(v => !v); setStepRecCursor(0); }}
                 >✎</button>
+              </div>
+              <div className="pattern-tools-row">
                 <div className="pattern-tool-group">
                   <button className="device-midi-btn" title="Tools" onClick={() => setToolsMenu(v => !v)}>&#x2699;</button>
                   {toolsMenu && (

@@ -316,7 +316,15 @@ export type ClientMessage =
   | { type: "set_mb_exclude"; channel: "drums"; exclude: boolean }
   | { type: "set_width"; width: number }
   | { type: "set_low_cut"; freq: number }
-  | { type: "load_scene"; volumes: Record<number, number>; pans: Record<number, number>; chEQ: Record<number, { low: number; mid: number; high: number }>; masterEQ: { low: number; mid: number; high: number }; drive: number; width: number; lowCut: number; mbOn: boolean; mbAmount: number };
+  | { type: "load_scene"; volumes: Record<number, number>; pans: Record<number, number>; chEQ: Record<number, { low: number; mid: number; high: number }>; masterEQ: { low: number; mid: number; high: number }; drive: number; width: number; lowCut: number; mbOn: boolean; mbAmount: number }
+  // Song mode
+  | { type: "song_capture_scene"; name: string }
+  | { type: "song_delete_scene"; sceneId: string }
+  | { type: "song_set_arrangement"; arrangement: SongArrangementEntry[] }
+  | { type: "song_play" }
+  | { type: "song_stop" }
+  | { type: "song_toggle_loop" }
+  | { type: "song_jump"; index: number };
 
 export type ArpMode = "up" | "down" | "up-down" | "random";
 export type ArpRate = "1/4" | "1/8" | "1/16";
@@ -346,4 +354,56 @@ export interface PresetState {
   setPatternLock: React.Dispatch<React.SetStateAction<PatternLock>>;
   stepPatternLock: PatternLock;
   setStepPatternLock: React.Dispatch<React.SetStateAction<PatternLock>>;
+}
+
+// ── Song mode ───────────────────────────────────────────────────────────
+
+export type TransitionType = "instant" | "fade" | "filter" | "breakdown";
+
+export interface SongScene {
+  id: string;
+  name: string;
+  /** Per-device snapshot: genre/pattern indices + mute state + sound */
+  devices: Record<string, {
+    genreIdx: number;
+    patternIdx: number;
+    bassGenreIdx: number;
+    bassPatternIdx: number;
+    drumsMuted: boolean;
+    bassMuted: boolean;
+    synthParams?: SynthParams;
+  }>;
+  /** Mixer snapshot */
+  mixer: {
+    volumes: Record<number, number>;
+    pans: Record<number, number>;
+    chEQ: Record<number, { low: number; mid: number; high: number }>;
+    masterEQ: { low: number; mid: number; high: number };
+    drive: number;
+    width: number;
+    lowCut: number;
+    mbOn: boolean;
+    mbAmount: number;
+  };
+  bpm: number;
+}
+
+export interface SongArrangementEntry {
+  sceneId: string;
+  bars: number;
+  transition: TransitionType;
+}
+
+export interface SongPlaybackState {
+  playing: boolean;
+  currentIndex: number;
+  barInScene: number;
+  totalBars: number;
+}
+
+export interface SongState {
+  scenes: SongScene[];
+  arrangement: SongArrangementEntry[];
+  loop: boolean;
+  playback: SongPlaybackState;
 }

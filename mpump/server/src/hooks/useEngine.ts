@@ -5,7 +5,7 @@
  * playhead position for a single device (high-frequency, avoids full re-render).
  */
 import { useReducer, useCallback, useState, useRef } from "react";
-import type { Catalog, ClientMessage, EngineState, MidiState } from "../types";
+import type { Catalog, ClientMessage, EngineState, MidiState, SongState } from "../types";
 import { Engine } from "../engine/Engine";
 import { trackEvent } from "../utils/metrics";
 import { isSupported, requestAccess } from "../engine/MidiAccess";
@@ -53,6 +53,7 @@ export function useEngine() {
   );
   const engineRef = useRef<Engine | null>(null);
   const catalogRef = useRef<Catalog | null>(null);
+  const [songState, setSongState] = useState<SongState | null>(null);
 
   const command = useCallback((msg: ClientMessage) => {
     const engine = engineRef.current;
@@ -253,6 +254,28 @@ export function useEngine() {
       case "set_arp":
         engine.setArp(msg.enabled, msg.mode, msg.rate, msg.device);
         break;
+      // Song mode
+      case "song_capture_scene":
+        engine.captureScene(msg.name);
+        break;
+      case "song_delete_scene":
+        engine.deleteScene(msg.sceneId);
+        break;
+      case "song_set_arrangement":
+        engine.setSongArrangement(msg.arrangement);
+        break;
+      case "song_play":
+        engine.songPlay();
+        break;
+      case "song_stop":
+        engine.songStop();
+        break;
+      case "song_toggle_loop":
+        engine.songToggleLoop();
+        break;
+      case "song_jump":
+        engine.songJump(msg.index);
+        break;
     }
   }, []);
 
@@ -274,6 +297,7 @@ export function useEngine() {
       onStateChange: (s) => dispatch({ type: "full_state", data: s }),
       onStep: (device, step) => dispatch({ type: "step", device, step }),
       onCatalogChange: (c) => { catalogRef.current = c; setCatalog(c); },
+      onSongStateChange: setSongState,
     });
     engineRef.current = engine;
     await engine.init();
@@ -287,6 +311,7 @@ export function useEngine() {
       onStateChange: (s) => dispatch({ type: "full_state", data: s }),
       onStep: (device, step) => dispatch({ type: "step", device, step }),
       onCatalogChange: (c) => { catalogRef.current = c; setCatalog(c); },
+      onSongStateChange: setSongState,
     });
     engineRef.current = engine;
 
@@ -327,5 +352,5 @@ export function useEngine() {
 
   const getCpuLoad = useCallback(() => engineRef.current?.getCpuLoad() ?? 0, []);
 
-  return { state, catalog, command, midiState, connectMidi, startPreview, getAnalyser, getChannelAnalyser, loadCustomSamples, getMutedDrumNotes, playNote, stopNote, getMixerState, getCpuLoad };
+  return { state, catalog, command, midiState, connectMidi, startPreview, getAnalyser, getChannelAnalyser, loadCustomSamples, getMutedDrumNotes, playNote, stopNote, getMixerState, getCpuLoad, songState };
 }

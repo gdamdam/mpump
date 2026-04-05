@@ -131,6 +131,7 @@ export class AudioPort {
   readonly perfMode: "normal" | "lite" | "eco";
   /** Multiband compressor: splits into low/mid/high bands with per-band compression. */
   private mbEnabled = false;
+  private _mbAmount = 0.25;
   private mbLowLP: BiquadFilterNode | null = null;
   private mbMidBP: BiquadFilterNode[] | null = null; // LP + HP pair for bandpass
   private mbHighHP: BiquadFilterNode | null = null;
@@ -161,18 +162,18 @@ export class AudioPort {
     this.eqLow = this.ctx.createBiquadFilter();
     this.eqLow.type = "lowshelf";
     this.eqLow.frequency.value = 150;
-    this.eqLow.gain.value = 2; // "Punchy" default: sub boost
+    this.eqLow.gain.value = 2; // Punchy default: sub boost
 
     this.eqMid = this.ctx.createBiquadFilter();
     this.eqMid.type = "peaking";
     this.eqMid.frequency.value = 300; // target mud zone (200-500Hz)
     this.eqMid.Q.value = 0.7; // wide Q covers full mud range
-    this.eqMid.gain.value = -1.5; // "Punchy" default: mid cut (lighter for bass clarity)
+    this.eqMid.gain.value = -2; // Punchy default: mid scoop
 
     this.eqHigh = this.ctx.createBiquadFilter();
     this.eqHigh.type = "highshelf";
     this.eqHigh.frequency.value = 5000;
-    this.eqHigh.gain.value = 2; // "Punchy" default: bright top
+    this.eqHigh.gain.value = 1; // Punchy default: presence (air rolloff compensates)
 
     // Fixed air rolloff — gentle -3dB above 10kHz to tame harsh resonance peaks
     this.airRolloff = this.ctx.createBiquadFilter();
@@ -522,6 +523,7 @@ export class AudioPort {
    *  Scales thresholds and ratios across all 3 bands. */
   setMultibandAmount(amount: number): void {
     const a = Math.max(0, Math.min(1, amount));
+    this._mbAmount = a;
     if (this.mbLowComp && this.mbMidComp && this.mbHighComp) {
       // Low: threshold -6 (gentle) to -18 (heavy), ratio 2 to 4
       this.mbLowComp.threshold.value = -6 - a * 12;
@@ -1582,6 +1584,90 @@ export class AudioPort {
     if (!this.lowCutFilter || this.lowCutFilter.type === "allpass") return 0;
     return this.lowCutFilter.frequency.value;
   }
+
+  // ── Scene capture getters ────────────────────────────────────────────
+
+  getChannelVolumes(): Record<number, number> {
+    const out: Record<number, number> = {};
+    for (const [ch, vol] of this.channelVolumes) out[ch] = vol;
+    return out;
+  }
+
+  getChannelPans(): Record<number, number> {
+    const out: Record<number, number> = {};
+    for (const [ch, panner] of this.channelPanners) out[ch] = panner.pan.value;
+    return out;
+  }
+
+  getChannelEQs(): Record<number, { low: number; mid: number; high: number }> {
+    const out: Record<number, { low: number; mid: number; high: number }> = {};
+    for (const [ch, [lo, mid, hi]] of this.channelEQs) {
+      out[ch] = { low: lo.gain.value, mid: mid.gain.value, high: hi.gain.value };
+    }
+    return out;
+  }
+
+  getMultibandAmount(): number {
+    return this._mbAmount;
+  }
+
+  // ── Song transitions ───────────────────────────────────────────────
+
+  /** Crossfade channel volumes to target over durationSec. */
+  transitionFade(targetVolumes: Record<number, number>, durationSec: number): void {
+    const now = this.ctx.currentTime;
+    for (const [ch, bus] of this.channelBuses) {
+      const target = targetVolumes[ch] ?? bus.gain.value;
+      bus.gain.cancelScheduledValues(now);
+      bus.gain.setValueAtTime(bus.gain.value, now);
+      bus.gain.linearRampToValueAtTime(target, now + durationSec);
+    }
+    // Update stored volumes to match targets
+    for (const [ch, v] of Object.entries(targetVolumes)) {
+      this.channelVolumes.set(Number(ch), v);
+    }
+  }
+
+  /** Filter sweep: LP down to 200Hz then back up over durationSec. */
+  transitionFilter(durationSec: number): void {
+    if (!this.transitionLP) {
+      this.transitionLP = this.ctx.createBiquadFilter();
+      this.transitionLP.type = "lowpass";
+      this.transitionLP.Q.value = 2;
+      this.transitionLP.frequency.value = 20000;
+      // Insert before fxOutput — wire: fxOutput → transitionLP → eqLow
+      // We'll just automate the existing master EQ high shelf as a simpler approach
+    }
+    const now = this.ctx.currentTime;
+    const half = durationSec / 2;
+    // Sweep eqHigh gain down then back up for a filter-sweep effect
+    this.eqHigh.gain.cancelScheduledValues(now);
+    this.eqHigh.gain.setValueAtTime(this.eqHigh.gain.value, now);
+    this.eqHigh.gain.linearRampToValueAtTime(-24, now + half);
+    this.eqHigh.gain.linearRampToValueAtTime(this.eqHigh.gain.value, now + durationSec);
+    // Also sweep low to simulate full LP sweep
+    this.eqMid.gain.cancelScheduledValues(now);
+    this.eqMid.gain.setValueAtTime(this.eqMid.gain.value, now);
+    this.eqMid.gain.linearRampToValueAtTime(-12, now + half);
+    this.eqMid.gain.linearRampToValueAtTime(this.eqMid.gain.value, now + durationSec);
+  }
+
+  /** Breakdown: mute a channel for first half, then restore (the "drop"). */
+  transitionBreakdown(durationSec: number, drumChannel: number): void {
+    const now = this.ctx.currentTime;
+    const half = durationSec / 2;
+    const bus = this.channelBuses.get(drumChannel);
+    if (!bus) return;
+    const origVol = this.channelVolumes.get(drumChannel) ?? 1;
+    bus.gain.cancelScheduledValues(now);
+    bus.gain.setValueAtTime(origVol, now);
+    bus.gain.linearRampToValueAtTime(0, now + 0.05);
+    bus.gain.setValueAtTime(0, now + half - 0.05);
+    bus.gain.linearRampToValueAtTime(origVol, now + half);
+  }
+
+  /** Placeholder for dedicated transition LP filter node. */
+  private transitionLP: BiquadFilterNode | null = null;
 
   /** Apply a full mixer scene atomically — cheap .value mutations first,
    *  then defer the expensive MB graph rebuild to the next frame. */

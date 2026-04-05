@@ -29,7 +29,7 @@ import { HelpModal } from "./HelpModal";
 import { PatternLibrary } from "./PatternLibrary";
 import { PrivacyModal } from "./PrivacyModal";
 import { MixerPanel } from "./MixerPanel";
-import { SongEditor } from "./SongEditor";
+import { SongStrip } from "./SongStrip";
 import { SessionModal } from "./SessionModal";
 import { exportSession, downloadSession, readSessionFile, saveLastSession, getRecentSessions, saveSession, type SessionData } from "../utils/session";
 import { trackEvent } from "../utils/metrics";
@@ -53,6 +53,7 @@ interface Props {
   stopNote?: (ch: number, note: number) => void;
   getMixerState?: () => { drive: number; eq: { low: number; mid: number; high: number }; width: number; lowCut: number; mbOn: boolean; mbExcludeDrums: boolean };
   getCpuLoad?: () => number;
+  songState?: import("../types").SongState | null;
 }
 
 const MODE_LABELS: Record<PreviewMode, string> = {
@@ -90,7 +91,7 @@ function CpuDot({ getCpuLoad }: { getCpuLoad?: () => number }) {
   return <span ref={ref} style={{ fontSize: 7, fontWeight: 700, marginLeft: 4, verticalAlign: "top", color: "var(--border)", opacity: 0.4, letterSpacing: 0.5 }}>CPU</span>;
 }
 
-export function Layout({ state, catalog, command: rawCommand, isPreview, getAnalyser, getChannelAnalyser, onConnectMidi, onStartPreview, onLoadSamples, getMutedDrumNotes, playNote, stopNote, getMixerState, getCpuLoad }: Props) {
+export function Layout({ state, catalog, command: rawCommand, isPreview, getAnalyser, getChannelAnalyser, onConnectMidi, onStartPreview, onLoadSamples, getMutedDrumNotes, playNote, stopNote, getMixerState, getCpuLoad, songState }: Props) {
   // Ref to access current state inside Link callback (avoids stale closure)
   const stateRef = useRef(state);
   stateRef.current = state;
@@ -149,16 +150,16 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
   }, [showScenePicker]);
   const [activeScene, setActiveScene] = useState<string | null>("Punchy");
   const HEADER_SCENES = [
-    { name: "Neutral", desc: "flat, no coloring", eq: { low: 0, mid: 0, high: 0 }, drive: 0, width: 0.5, lowCut: 0, mbOn: true, mbAmount: 0.25 },
-    { name: "Airy", desc: "wide, bright, open", eq: { low: 1, mid: -1, high: 3 }, drive: 0, width: 0.7, lowCut: 25, mbOn: true, mbAmount: 0.35 },
-    { name: "Punchy", desc: "tight kick, clear mids", eq: { low: 2, mid: -2, high: 2 }, drive: 0, width: 0.6, lowCut: 35, mbOn: true, mbAmount: 0.3 },
-    { name: "Warm", desc: "smooth, round, groovy", eq: { low: 2, mid: -1, high: 1 }, drive: 0, width: 0.65, lowCut: 25, mbOn: true, mbAmount: 0.3 },
-    { name: "Tight", desc: "controlled, fast, clean", eq: { low: 1, mid: -2, high: 2 }, drive: 0, width: 0.55, lowCut: 35, mbOn: true, mbAmount: 0.35 },
-    { name: "Heavy", desc: "deep sub, weight", eq: { low: 3, mid: -1, high: 2 }, drive: 1, width: 0.5, lowCut: 20, mbOn: true, mbAmount: 0.35 },
+    { name: "Neutral", desc: "flat, no coloring", eq: { low: 0, mid: 0, high: 0 }, drive: 1, width: 0.5, lowCut: 0, mbOn: true, mbAmount: 0.25 },
+    { name: "Airy", desc: "wide, bright, open", eq: { low: 1, mid: -1, high: 2 }, drive: 1, width: 0.7, lowCut: 25, mbOn: true, mbAmount: 0.35 },
+    { name: "Punchy", desc: "tight kick, clear mids", eq: { low: 2, mid: -2, high: 1 }, drive: 1, width: 0.6, lowCut: 35, mbOn: true, mbAmount: 0.3 },
+    { name: "Warm", desc: "smooth, round, groovy", eq: { low: 2, mid: -1, high: 0 }, drive: 1, width: 0.65, lowCut: 25, mbOn: true, mbAmount: 0.3 },
+    { name: "Tight", desc: "controlled, fast, clean", eq: { low: 1, mid: -2, high: 1 }, drive: 1, width: 0.55, lowCut: 35, mbOn: true, mbAmount: 0.35 },
+    { name: "Heavy", desc: "deep sub, weight", eq: { low: 3, mid: -1, high: 1 }, drive: 2, width: 0.5, lowCut: 20, mbOn: true, mbAmount: 0.35 },
     { name: "Mellow", desc: "dark, soft, relaxed", eq: { low: 1, mid: -1, high: -1 }, drive: 0, width: 0.65, lowCut: 0, mbOn: true, mbAmount: 0.15 },
-    { name: "Spacious", desc: "very wide, minimal", eq: { low: 1, mid: -1, high: 2 }, drive: -1, width: 0.8, lowCut: 20, mbOn: true, mbAmount: 0.1 },
-    { name: "Crisp", desc: "bright, defined, present", eq: { low: 1, mid: -1, high: 3 }, drive: 1, width: 0.55, lowCut: 30, mbOn: true, mbAmount: 0.3 },
-    { name: "Loud", desc: "full, compressed, big", eq: { low: 2, mid: -1, high: 2 }, drive: 1, width: 0.65, lowCut: 25, mbOn: true, mbAmount: 0.4 },
+    { name: "Spacious", desc: "very wide, minimal", eq: { low: 1, mid: -1, high: 1 }, drive: 0, width: 0.8, lowCut: 20, mbOn: true, mbAmount: 0.1 },
+    { name: "Crisp", desc: "bright, defined, present", eq: { low: 1, mid: -1, high: 2 }, drive: 2, width: 0.55, lowCut: 30, mbOn: true, mbAmount: 0.3 },
+    { name: "Loud", desc: "full, compressed, big", eq: { low: 2, mid: -1, high: 1 }, drive: 2, width: 0.65, lowCut: 25, mbOn: true, mbAmount: 0.4 },
   ];
   const loadHeaderScene = (s: typeof HEADER_SCENES[0]) => {
     setActiveScene(s.name);
@@ -1778,6 +1779,7 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
                         input.onchange = () => { if (input.files?.[0]) handleImportSession(input.files[0]); };
                         input.click();
                       }}>↑ Import session</button>
+                      <button onClick={() => { setSongModeOn(v => { const next = !v; setItem("mpump-song-mode", next ? "1" : ""); return next; }); }}>{songModeOn ? "✓" : " "} Song Mode</button>
                       {onConnectMidi && <button onClick={onConnectMidi}>🎹 Connect MIDI</button>}
                       <button className="more-menu-help" onClick={() => { setShowMoreMenu(false); setShowHelp(true); }}>? Help</button>
                       <button onClick={() => { setShowMoreMenu(false); setShowSettings(true); }}>⚙ Settings</button>
@@ -1790,6 +1792,13 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
         </div>
       </header>
 
+      {/* Song strip — right below header, centered */}
+      {isPreview && songModeOn && (
+        <div style={{ padding: "4px 8px" }}>
+          <SongStrip accent={connectedDevices[0]?.accent ?? "#66ff99"} songState={songState ?? { scenes: [], arrangement: [], loop: true, playback: { playing: false, currentIndex: 0, barInScene: 0, totalBars: 0 } }} command={command} />
+        </div>
+      )}
+
       {/* Update banner */}
       {updateAvailable && (
         <div className="update-banner">
@@ -1799,20 +1808,6 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
       )}
 
 
-
-      {/* Song editor at top (preview only, drums device) */}
-      {isPreview && songModeOn && catalog && (() => {
-        const drums = connectedDevices.find(d => d.id === "preview_drums");
-        if (!drums) return null;
-        const genres = getDeviceGenres(catalog, drums.id, drums.mode);
-        const bassGenres = getDeviceBassGenres(catalog);
-        const bassPatterns = bassGenres[drums.bass_genre_idx]?.patterns;
-        return (
-          <div style={{ padding: "0 16px 8px" }}>
-            <SongEditor accent={drums.accent} device={drums.id} genreList={genres} genreIdx={drums.genre_idx} patternIdx={drums.pattern_idx} bassPatterns={bassPatterns} bassPatternIdx={drums.bass_pattern_idx} hasBass={true} bpm={state.bpm} patternLength={drums.patternLength} command={command} />
-          </div>
-        );
-      })()}
 
       <main className="panels">
         {!anyConnected && !isPreview && (

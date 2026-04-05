@@ -24,7 +24,7 @@ export function getPerfMode(): PerfMode {
 export const PERF_MODE = getPerfMode();
 
 export function App() {
-  const { state, catalog, command, midiState, connectMidi, startPreview, getAnalyser, getChannelAnalyser, loadCustomSamples, getMutedDrumNotes, playNote, stopNote, getMixerState, getCpuLoad } = useEngine();
+  const { state, catalog, command, midiState, connectMidi, startPreview, getAnalyser, getChannelAnalyser, loadCustomSamples, getMutedDrumNotes, playNote, stopNote, getMixerState, getCpuLoad, songState } = useEngine();
   const autoStarted = useRef(false);
   const [loadTimeout, setLoadTimeout] = useState(false);
   const [showContinueModal, setShowContinueModal] = useState(false);
@@ -301,6 +301,7 @@ export function App() {
         stopNote={stopNote}
         getMixerState={getMixerState}
         getCpuLoad={getCpuLoad}
+        songState={songState}
       />
       {shareCardOverlay && (
         <ShareModal
