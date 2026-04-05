@@ -646,6 +646,26 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
   const [shareQrUrl, setShareQrUrl] = useState<string | null>(null);
   const [shareGestureNote, setShareGestureNote] = useState(false);
   const [parentId, setParentId] = useState<string | null>(() => getParentId());
+
+  // Contextual hints — shown once per view for first 3 sessions
+  const HINT_TEXTS: Record<PreviewMode, string> = {
+    kaos: "XY pad shapes the sound · effects below, hold to edit",
+    synth: "Tap grid to edit · browse genres and patterns · sounds in the dropdowns",
+    mixer: "Per-channel volume, EQ, pan · 🎛 for mix scenes",
+  };
+  const hintSessionCount = parseInt(getItem("mpump-hint-sessions", "0"));
+  const [hintDismissed, setHintDismissed] = useState<Set<string>>(() => new Set(getJSON("mpump-hints-seen", [])));
+  const showHint = isPreview && hintSessionCount < 3 && !hintDismissed.has(previewMode);
+  useEffect(() => {
+    const count = parseInt(getItem("mpump-hint-sessions", "0"));
+    setItem("mpump-hint-sessions", String(count + 1));
+  }, []);
+  const dismissHint = () => {
+    const updated = new Set(hintDismissed);
+    updated.add(previewMode);
+    setHintDismissed(updated);
+    setJSON("mpump-hints-seen", [...updated]);
+  };
   const [remixCopied, setRemixCopied] = useState(false);
   const [remixDirty, setRemixDirty] = useState(false);
   const remixReadyRef = useRef(false);
@@ -1903,15 +1923,20 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
 
       {/* Remix banner */}
       {parentId && (
-        <div style={{ textAlign: "center", fontSize: 10, padding: "3px 8px", background: "rgba(102,255,153,0.06)", borderBottom: "1px solid rgba(102,255,153,0.1)" }}>
-          🔀 Based on <a href={`https://s.mpump.live/${parentId}`} target="_blank" rel="noopener noreferrer" style={{ color: "var(--preview)", textDecoration: "none" }}>s.mpump.live/{parentId}</a>
-          {remixDirty && (<>
-            <span style={{ opacity: 0.4, margin: "0 6px" }}>·</span>
-            <button
-              style={{ fontSize: 10, background: "none", border: "none", color: "var(--preview)", cursor: "pointer", textDecoration: "underline", padding: 0 }}
-              onClick={quickShareRemix}
-            >{remixCopied ? "✓ Link copied!" : "Share your remix ⤴"}</button>
-          </>)}
+        <div className="remix-banner">
+          <span>🔀 Based on <a href={`https://s.mpump.live/${parentId}`} target="_blank" rel="noopener noreferrer">s.mpump.live/{parentId}</a></span>
+          {remixDirty && (
+            <button onClick={quickShareRemix}>{remixCopied ? "✓ Copied!" : "Share remix ⤴"}</button>
+          )}
+          <button className="remix-banner-close" onClick={() => setParentId(null)}>✕</button>
+        </div>
+      )}
+
+      {/* Contextual hint */}
+      {showHint && (
+        <div className="hint-banner" onClick={dismissHint} style={{ cursor: "pointer" }}>
+          <span>{HINT_TEXTS[previewMode]}</span>
+          <button className="hint-banner-close">✕</button>
         </div>
       )}
 
