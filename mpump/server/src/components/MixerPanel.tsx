@@ -313,31 +313,31 @@ export function MixerPanel({
     mbAmount: number;
   }
   // Built-in mixer scenes — same 10 as header, with per-channel defaults
-  const defaultVols = { 9: 0.7, 1: 0.7, 0: 0.7 };
+  const defaultVols = { 9: 0.56, 1: 0.56, 0: 0.56 };
   const defaultPans = { 9: 0, 1: 0, 0: 0 };
   const noMono = {};
-  const defaultChEQ = { 9: { low: 4, mid: 0, high: -1 }, 1: { low: 0, mid: -4, high: -1 }, 0: { low: 0, mid: -1.5, high: 0 } };
+  const defaultChEQ = { 9: { low: 2, mid: 0, high: -1 }, 1: { low: 0, mid: -2, high: -1 }, 0: { low: 0, mid: -1, high: 0 } };
   const BUILTIN_SCENES: MixProfile[] = [
     { name: "Neutral", volumes: defaultVols, pans: defaultPans, chMono: noMono, chEQ: defaultChEQ,
-      masterEQ: { low: 0, mid: 0, high: 0 }, drive: 0, width: 0.5, lowCut: 0, mbOn: true, mbAmount: 0.25 },
+      masterEQ: { low: 0, mid: 0, high: 0 }, drive: 1, width: 0.5, lowCut: 0, mbOn: true, mbAmount: 0.25 },
     { name: "Punchy", volumes: defaultVols, pans: defaultPans, chMono: noMono, chEQ: defaultChEQ,
-      masterEQ: { low: 2, mid: -2, high: 2 }, drive: 0, width: 0.6, lowCut: 35, mbOn: true, mbAmount: 0.3 },
+      masterEQ: { low: 2, mid: -2, high: 1 }, drive: 1, width: 0.6, lowCut: 35, mbOn: true, mbAmount: 0.3 },
     { name: "Warm", volumes: defaultVols, pans: defaultPans, chMono: noMono, chEQ: defaultChEQ,
-      masterEQ: { low: 2, mid: -1, high: 1 }, drive: 0, width: 0.65, lowCut: 25, mbOn: true, mbAmount: 0.3 },
+      masterEQ: { low: 2, mid: -1, high: 0 }, drive: 1, width: 0.65, lowCut: 25, mbOn: true, mbAmount: 0.3 },
     { name: "Airy", volumes: defaultVols, pans: defaultPans, chMono: noMono, chEQ: defaultChEQ,
-      masterEQ: { low: 1, mid: -1, high: 3 }, drive: 0, width: 0.7, lowCut: 25, mbOn: true, mbAmount: 0.35 },
+      masterEQ: { low: 1, mid: -1, high: 2 }, drive: 1, width: 0.7, lowCut: 25, mbOn: true, mbAmount: 0.35 },
     { name: "Tight", volumes: defaultVols, pans: defaultPans, chMono: noMono, chEQ: defaultChEQ,
-      masterEQ: { low: 1, mid: -2, high: 2 }, drive: 0, width: 0.55, lowCut: 35, mbOn: true, mbAmount: 0.35 },
+      masterEQ: { low: 1, mid: -2, high: 1 }, drive: 1, width: 0.55, lowCut: 35, mbOn: true, mbAmount: 0.35 },
     { name: "Heavy", volumes: defaultVols, pans: defaultPans, chMono: noMono, chEQ: defaultChEQ,
-      masterEQ: { low: 3, mid: -1, high: 2 }, drive: 1, width: 0.5, lowCut: 20, mbOn: true, mbAmount: 0.35 },
+      masterEQ: { low: 3, mid: -1, high: 1 }, drive: 2, width: 0.5, lowCut: 20, mbOn: true, mbAmount: 0.35 },
     { name: "Mellow", volumes: defaultVols, pans: defaultPans, chMono: noMono, chEQ: defaultChEQ,
       masterEQ: { low: 1, mid: -1, high: -1 }, drive: 0, width: 0.65, lowCut: 0, mbOn: true, mbAmount: 0.15 },
     { name: "Spacious", volumes: defaultVols, pans: defaultPans, chMono: noMono, chEQ: defaultChEQ,
-      masterEQ: { low: 1, mid: -1, high: 2 }, drive: -1, width: 0.8, lowCut: 20, mbOn: true, mbAmount: 0.1 },
+      masterEQ: { low: 1, mid: -1, high: 1 }, drive: 0, width: 0.8, lowCut: 20, mbOn: true, mbAmount: 0.1 },
     { name: "Crisp", volumes: defaultVols, pans: defaultPans, chMono: noMono, chEQ: defaultChEQ,
-      masterEQ: { low: 1, mid: -1, high: 3 }, drive: 1, width: 0.55, lowCut: 30, mbOn: true, mbAmount: 0.3 },
+      masterEQ: { low: 1, mid: -1, high: 2 }, drive: 2, width: 0.55, lowCut: 30, mbOn: true, mbAmount: 0.3 },
     { name: "Loud", volumes: defaultVols, pans: defaultPans, chMono: noMono, chEQ: defaultChEQ,
-      masterEQ: { low: 2, mid: -1, high: 2 }, drive: 1, width: 0.65, lowCut: 25, mbOn: true, mbAmount: 0.4 },
+      masterEQ: { low: 2, mid: -1, high: 1 }, drive: 2, width: 0.65, lowCut: 25, mbOn: true, mbAmount: 0.4 },
   ];
 
   const [showProfileModal, setShowProfileModal] = useState(false);

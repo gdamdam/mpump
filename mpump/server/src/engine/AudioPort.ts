@@ -162,18 +162,18 @@ export class AudioPort {
     this.eqLow = this.ctx.createBiquadFilter();
     this.eqLow.type = "lowshelf";
     this.eqLow.frequency.value = 150;
-    this.eqLow.gain.value = 2; // "Punchy" default: sub boost
+    this.eqLow.gain.value = 2; // Punchy default: sub boost
 
     this.eqMid = this.ctx.createBiquadFilter();
     this.eqMid.type = "peaking";
     this.eqMid.frequency.value = 300; // target mud zone (200-500Hz)
     this.eqMid.Q.value = 0.7; // wide Q covers full mud range
-    this.eqMid.gain.value = -1.5; // "Punchy" default: mid cut (lighter for bass clarity)
+    this.eqMid.gain.value = -2; // Punchy default: mid scoop
 
     this.eqHigh = this.ctx.createBiquadFilter();
     this.eqHigh.type = "highshelf";
     this.eqHigh.frequency.value = 5000;
-    this.eqHigh.gain.value = 2; // "Punchy" default: bright top
+    this.eqHigh.gain.value = 1; // Punchy default: presence (air rolloff compensates)
 
     // Fixed air rolloff — gentle -3dB above 10kHz to tame harsh resonance peaks
     this.airRolloff = this.ctx.createBiquadFilter();

@@ -150,16 +150,16 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
   }, [showScenePicker]);
   const [activeScene, setActiveScene] = useState<string | null>("Punchy");
   const HEADER_SCENES = [
-    { name: "Neutral", desc: "flat, no coloring", eq: { low: 0, mid: 0, high: 0 }, drive: 0, width: 0.5, lowCut: 0, mbOn: true, mbAmount: 0.25 },
-    { name: "Airy", desc: "wide, bright, open", eq: { low: 1, mid: -1, high: 3 }, drive: 0, width: 0.7, lowCut: 25, mbOn: true, mbAmount: 0.35 },
-    { name: "Punchy", desc: "tight kick, clear mids", eq: { low: 2, mid: -2, high: 2 }, drive: 0, width: 0.6, lowCut: 35, mbOn: true, mbAmount: 0.3 },
-    { name: "Warm", desc: "smooth, round, groovy", eq: { low: 2, mid: -1, high: 1 }, drive: 0, width: 0.65, lowCut: 25, mbOn: true, mbAmount: 0.3 },
-    { name: "Tight", desc: "controlled, fast, clean", eq: { low: 1, mid: -2, high: 2 }, drive: 0, width: 0.55, lowCut: 35, mbOn: true, mbAmount: 0.35 },
-    { name: "Heavy", desc: "deep sub, weight", eq: { low: 3, mid: -1, high: 2 }, drive: 1, width: 0.5, lowCut: 20, mbOn: true, mbAmount: 0.35 },
+    { name: "Neutral", desc: "flat, no coloring", eq: { low: 0, mid: 0, high: 0 }, drive: 1, width: 0.5, lowCut: 0, mbOn: true, mbAmount: 0.25 },
+    { name: "Airy", desc: "wide, bright, open", eq: { low: 1, mid: -1, high: 2 }, drive: 1, width: 0.7, lowCut: 25, mbOn: true, mbAmount: 0.35 },
+    { name: "Punchy", desc: "tight kick, clear mids", eq: { low: 2, mid: -2, high: 1 }, drive: 1, width: 0.6, lowCut: 35, mbOn: true, mbAmount: 0.3 },
+    { name: "Warm", desc: "smooth, round, groovy", eq: { low: 2, mid: -1, high: 0 }, drive: 1, width: 0.65, lowCut: 25, mbOn: true, mbAmount: 0.3 },
+    { name: "Tight", desc: "controlled, fast, clean", eq: { low: 1, mid: -2, high: 1 }, drive: 1, width: 0.55, lowCut: 35, mbOn: true, mbAmount: 0.35 },
+    { name: "Heavy", desc: "deep sub, weight", eq: { low: 3, mid: -1, high: 1 }, drive: 2, width: 0.5, lowCut: 20, mbOn: true, mbAmount: 0.35 },
     { name: "Mellow", desc: "dark, soft, relaxed", eq: { low: 1, mid: -1, high: -1 }, drive: 0, width: 0.65, lowCut: 0, mbOn: true, mbAmount: 0.15 },
-    { name: "Spacious", desc: "very wide, minimal", eq: { low: 1, mid: -1, high: 2 }, drive: -1, width: 0.8, lowCut: 20, mbOn: true, mbAmount: 0.1 },
-    { name: "Crisp", desc: "bright, defined, present", eq: { low: 1, mid: -1, high: 3 }, drive: 1, width: 0.55, lowCut: 30, mbOn: true, mbAmount: 0.3 },
-    { name: "Loud", desc: "full, compressed, big", eq: { low: 2, mid: -1, high: 2 }, drive: 1, width: 0.65, lowCut: 25, mbOn: true, mbAmount: 0.4 },
+    { name: "Spacious", desc: "very wide, minimal", eq: { low: 1, mid: -1, high: 1 }, drive: 0, width: 0.8, lowCut: 20, mbOn: true, mbAmount: 0.1 },
+    { name: "Crisp", desc: "bright, defined, present", eq: { low: 1, mid: -1, high: 2 }, drive: 2, width: 0.55, lowCut: 30, mbOn: true, mbAmount: 0.3 },
+    { name: "Loud", desc: "full, compressed, big", eq: { low: 2, mid: -1, high: 1 }, drive: 2, width: 0.65, lowCut: 25, mbOn: true, mbAmount: 0.4 },
   ];
   const loadHeaderScene = (s: typeof HEADER_SCENES[0]) => {
     setActiveScene(s.name);
