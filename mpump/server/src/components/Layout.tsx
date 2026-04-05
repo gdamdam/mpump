@@ -646,7 +646,7 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [shareQrUrl, setShareQrUrl] = useState<string | null>(null);
   const [shareGestureNote, setShareGestureNote] = useState(false);
-  const [parentId] = useState<string | null>(() => getParentId());
+  const [parentId, setParentId] = useState<string | null>(() => getParentId());
   const [remixCopied, setRemixCopied] = useState(false);
   const [remixDirty, setRemixDirty] = useState(false);
   const remixReadyRef = useRef(false);
@@ -1411,6 +1411,8 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
     }
     mixCountRef.current++;
     setMixCount(c => c + 1);
+    // MIX creates a fresh beat — no longer a remix
+    if (parentId) { setParentId(null); setRemixDirty(false); }
     // Reset key/octave/scale to defaults unless locked
     if (!keyLocked) {
       command({ type: "set_key", device: "preview_synth", idx: 0 });
