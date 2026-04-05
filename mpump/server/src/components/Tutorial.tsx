@@ -26,7 +26,6 @@ const STEPS: Step[] = [
   { title: "Go make something", body: "Everything you make is yours.\nNo install. No account. No personal data.", last: true },
 ];
 
-const MOBILE_BREAKPOINT = 700;
 const SPOTLIGHT_PADDING = 8;
 const CARD_GAP = 12;
 
@@ -109,11 +108,9 @@ export function Tutorial({ onDismiss }: Props) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [clipPath, setClipPath] = useState<string | null>(null);
   const [cardStyle, setCardStyle] = useState<React.CSSProperties>({});
-  const isMobile = typeof window !== "undefined" && window.innerWidth < MOBILE_BREAKPOINT;
-
   const positionSpotlight = useCallback(() => {
     const s = STEPS[step];
-    if (isMobile || !s.target) {
+    if (!s.target) {
       setClipPath(null);
       setCardStyle({});
       return;
@@ -134,7 +131,7 @@ export function Tutorial({ onDismiss }: Props) {
       const cardHeight = cardRef.current?.offsetHeight ?? 200;
       setCardStyle(computeCardPos(rect, cardHeight));
     });
-  }, [step, isMobile]);
+  }, [step]);
 
   // Add/remove highlight class on target element
   useEffect(() => {
@@ -155,7 +152,7 @@ export function Tutorial({ onDismiss }: Props) {
 
   const s = STEPS[step];
   const isLast = step === STEPS.length - 1;
-  const hasSpotlight = !isMobile && !!clipPath;
+  const hasSpotlight = !!clipPath;
 
   const cardContent = (
     <>
