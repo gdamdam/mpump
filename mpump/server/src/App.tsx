@@ -222,7 +222,7 @@ export function App() {
             startPreview();
             return;
           }
-          if (lastSession && !initParams.get("jam")) {
+          if (lastSession && !initParams.get("jam") && !initParams.get("song")) {
             setShowContinueModal(true);
           } else {
             trackEvent("play-start");
