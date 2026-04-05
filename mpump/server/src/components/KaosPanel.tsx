@@ -682,27 +682,6 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
     return () => window.clearInterval(id);
   }, [chaos, bpm, onMix]);
 
-  // Double-tap cycles visualizer, triple-tap randomizes
-  const tapTimes = useRef<number[]>([]);
-  const tapTimer = useRef(0);
-  const VIZ_MODES = ["bars-mirror", "wave-glow", "circular", "spectrum", "off"] as const;
-  const handlePadTap = () => {
-    const now = Date.now();
-    tapTimes.current = tapTimes.current.filter(t => now - t < 400);
-    tapTimes.current.push(now);
-    clearTimeout(tapTimer.current);
-    tapTimer.current = window.setTimeout(() => {
-      const count = tapTimes.current.length;
-      if (count >= 3) {
-        // Triple-tap: cycle visualizer
-        const current = getItem("mpump-kaos-wave", "bars-mirror");
-        const idx = VIZ_MODES.indexOf(current as typeof VIZ_MODES[number]);
-        const next = VIZ_MODES[(idx + 1) % VIZ_MODES.length];
-        setItem("mpump-kaos-wave", next);
-      }
-      tapTimes.current = [];
-    }, 420);
-  };
 
   const saveFx = (updated: EffectParams) => {
     setFx(updated);
@@ -973,7 +952,6 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
         onTouchStart={isListener ? undefined : onTouchStart}
         onTouchMove={isListener ? undefined : onTouchMove}
         onTouchEnd={isListener ? undefined : onTouchEnd}
-        onClick={isListener ? undefined : handlePadTap}
         style={isListener ? { cursor: "default" } : undefined}
       >
         <canvas ref={waveCanvasRef} className="kaos-wave-bg" />
