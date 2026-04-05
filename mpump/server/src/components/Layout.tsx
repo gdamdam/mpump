@@ -7,7 +7,7 @@ import { DrumKitEditor } from "./DrumKitEditor";
 import { snapToScale } from "../data/keys";
 import { getItem, setItem, getBool, setBool, getJSON, setJSON } from "../utils/storage";
 import { DevicePanel } from "./DevicePanel";
-import { JadePanel } from "./JadePanel";
+
 import { KaosPanel } from "./KaosPanel";
 import { BpmControl } from "./BpmControl";
 import { TapTempo } from "./TapTempo";
@@ -61,7 +61,6 @@ interface Props {
 const MODE_LABELS: Record<PreviewMode, string> = {
   kaos: "KAOS",
   synth: "SYNTH",
-  ease: "SIMPLE",
   mixer: "MIXER",
 };
 
@@ -2006,16 +2005,6 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
           />
         ) : (
           connectedDevices.map(ds =>
-            isPreview && previewMode === "ease" ? (
-              <JadePanel
-                key={ds.id}
-                state={ds}
-                catalog={catalog}
-                command={command}
-                bpm={state.bpm}
-                presetState={presetState}
-              />
-            ) : (
               <DevicePanel
                 key={ds.id}
                 state={ds}
@@ -2040,7 +2029,6 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
                 keyLocked={keyLocked}
                 onKeyLockedChange={setKeyLocked}
               />
-            )
           )
         )}
       </main>

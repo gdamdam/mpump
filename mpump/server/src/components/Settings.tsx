@@ -100,7 +100,7 @@ interface Props {
   swing?: number;
   onSwingChange?: (sw: number) => void;
   previewMode?: string;
-  onPreviewModeChange?: (mode: "kaos" | "synth" | "ease" | "mixer") => void;
+  onPreviewModeChange?: (mode: "kaos" | "synth" | "mixer") => void;
   shareData?: string;
   cvEnabled?: boolean;
   onCVChange?: (on: boolean) => void;
@@ -394,19 +394,12 @@ export function Settings({ volume, onVolumeChange, onClose, swing, onSwingChange
           )}
         </div>
 
-        {/* ── Advanced (only with ?beta URL param) ─────── */}
-        {new URLSearchParams(window.location.search).has("beta") && <div className="settings-accordion">
-          <SectionHeader title="Advanced" expanded={expanded === "advanced"} onClick={() => toggle("advanced")} tag="BETA" />
-          {expanded === "advanced" && (
+        {/* ── Layout ─────── */}
+        <div className="settings-accordion">
+          <SectionHeader title="Layout" expanded={expanded === "layout"} onClick={() => toggle("layout")} />
+          {expanded === "layout" && (
             <div className="settings-accordion-body">
               <div className="settings-toggles">
-                {onPreviewModeChange && (
-                  <button className={`settings-toggle ${previewMode === "ease" ? "on" : ""}`}
-                    title="Simplified interface with larger controls"
-                    onClick={() => onPreviewModeChange(previewMode === "ease" ? "kaos" : "ease")}>
-                    <span className="settings-toggle-dot" />Simple Mode
-                  </button>
-                )}
                 <button className={`settings-toggle ${getBool("mpump-bottom-transport") ? "on" : ""}`} title="Pin transport to bottom on mobile"
                   onClick={() => { const next = !getBool("mpump-bottom-transport"); setBool("mpump-bottom-transport", next); window.dispatchEvent(new Event("mpump-settings-changed")); refreshToggles(); }}>
                   <span className="settings-toggle-dot" />Bottom Transport
@@ -414,7 +407,7 @@ export function Settings({ volume, onVolumeChange, onClose, swing, onSwingChange
               </div>
             </div>
           )}
-        </div>}
+        </div>
 
         <button className="settings-reset-btn" style={{ marginBottom: 12 }} title="Reset all settings to defaults"
           onClick={() => { if (confirm("Reset all settings, presets, and effects to defaults?")) { localStorage.clear(); location.reload(); } }}>

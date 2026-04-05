@@ -219,7 +219,7 @@ export interface Catalog {
 
 export type MidiState = "idle" | "pending" | "granted" | "denied" | "unsupported" | "preview";
 
-export type PreviewMode = "kaos" | "synth" | "ease" | "mixer";
+export type PreviewMode = "kaos" | "synth" | "mixer";
 
 // ── Effects (audio preview only) ─────────────────────────────────────────
 
