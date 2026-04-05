@@ -13,7 +13,7 @@
 
 You make a groove, send the link, and the other person opens it in their browser — same beat, same sounds. They change it and send it back different. Or they join live and you play together.
 
-It starts fast, sounds good, and stays out of the way.
+It starts fast and sounds good.
 
 No install, no account, no personal data. Your stuff stays in your browser. Free forever.
 
@@ -28,7 +28,7 @@ No install, no account, no personal data. Your stuff stays in your browser. Free
 
 ## What you can do
 
-- **Make a groove in seconds** — hit MIX and a beat is already playing. Drums, bass, synth, effects — all ready.
+- **Make a groove in seconds** — hit MIX and a beat is already playing. Drums, bass, synth, effects.
 - **Send it as a link** — share the URL. The other person opens it and hears exactly what you made.
 - **Let them change it** — they can tweak the beat, switch genres, change sounds, and send it back different.
 - **Play together live** — start a Jam session with up to 4 friends, or a Live Set for up to 49 listeners.
@@ -59,7 +59,7 @@ No install. No account. Works offline. Your stuff stays in your browser.
 |---|---|
 | **KAOS** | Performance XY pad (remappable axes), neon touch trails, chaos auto-randomizer, 10-effect rack with long-press editing |
 | **SYNTH** | Full step-grid editor with drum/bass/synth sections, ADSR/filter/LFO controls, Euclidean rhythm generator, arpeggiator, scale lock |
-| **MIXER** | Console with per-channel faders, EQ, pan, mute/solo, clip LEDs. Master EQ, multiband compressor, stereo width, low cut, drive (ON/OFF toggle), trance gate. Mix scenes (10 profiles: Neutral, Punchy, Warm, Airy, Tight, Heavy, Mellow, Spacious, Crisp, Loud + user saves). Analog needle VU meter with dB readout and clip indicator |
+| **MIXER** | Console with per-channel faders, EQ, pan, mute/solo, clip LEDs. Master EQ, multiband compressor, stereo width, low cut, drive (ON/OFF toggle), trance gate. Mix scenes (10 profiles: Neutral, Punchy, Warm, Airy, Tight, Heavy, Mellow, Spacious, Crisp, Loud + user saves) |
 
 ---
 
@@ -86,8 +86,8 @@ All sounds are synthesized in real-time via the Web Audio API. No sample files n
 | Type | Count | Examples |
 |---|---|---|
 | Synth | 33 | Classic Saw, Acid Squelch (303 filter), Supersaw, PWM Pad, Sync Lead, FM Bell, FM Metallic, Wavetable Pad, Organ, Hoover, Vocal Pad, Gritty PWM, Neuro (MOG filter), Screamer, Sync Sweep, and more |
-| Bass | 23 | Acid Bass (303 filter), Deep Sub, Reese (MOG filter), 303 Acid, FM Bass, PWM Bass, Jungle Bass, Sync Bass, Dub Bass, Wobble, UK Sub, and more |
-| Drum Kits | 15 | Default, Boom Box, DnB, Dub, Electro, Garage, Glitch, Heavy, House, Industrial, Lo-Fi, Minimal, mloop, Tight, Trance |
+| Bass | 26 | Acid Bass (303 filter), Deep Sub, Reese (MOG filter), 303 Acid, FM Bass, PWM Bass, Jungle Bass, Sync Bass, Dub Bass, Wobble, UK Sub, and more |
+| Drum Kits | 16 | Default, Boom Box, DnB, Dub, Electro, Garage, Glitch, Heavy, House, Industrial, Lo-Fi, Minimal, mloop, Tight, Trance, and more |
 | Mix Scenes | 10 | Neutral, Punchy, Warm, Airy, Tight, Heavy, Mellow, Spacious, Crisp, Loud |
 | Sample Packs | 7 | CR-78, DMX, LinnDrum, TR-606, TR-707, TR-808, TR-909 |
 
@@ -111,7 +111,6 @@ All sounds are synthesized in real-time via the Web Audio API. No sample files n
 - Genre lock (lock icon, restrict MIX to a single genre)
 - MIX visual feedback (shake, flash, or both, configurable)
 - 4 KAOS visualizers (mirrored bars, waveform glow, circular, spectrum)
-- Waveform tap tempo (click the waveform bar to set BPM)
 - Haptic feedback on mobile (Android)
 
 **Editing**
@@ -137,7 +136,6 @@ All sounds are synthesized in real-time via the Web Audio API. No sample files n
 - Full state sync on join (genres, patterns, sounds, effects, volumes)
 
 **Mixer**
-- Analog needle VU meter with dB scale (-40 to +3), peak hold, clip indicator
 - Independent volume for drums, synth, bass, and master
 - Per-channel mute, solo, pan, mono buttons and activity LEDs
 - Per-channel 3-band EQ (low shelf 200 Hz, mid peak 1 kHz, high shelf 5 kHz, ±12 dB)
@@ -208,7 +206,7 @@ Features: tick-driven stepping (6 ticks = 1 sixteenth note at 24 PPQN), Start/St
 | Source | Patterns | Genres | Notes |
 |---|---|---|---|
 | Melodic (S-1) | 410 | 20 | Semitone offsets, transposable via key/octave |
-| Drums (T-8) | 400 | 20 | 6-voice drum hits per step |
+| Drums (T-8) | 400 | 20 | 9-voice drum hits per step |
 | Bass (T-8) | 400 | 20 | Independent from drums |
 | **Total** | **1210+** | **20** | |
 

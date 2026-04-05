@@ -52,7 +52,7 @@ const LINES = [
   "Sound design tools",
   "",
   "MIXER",
-  "Needle VU meter",
+  "Per-channel metering",
   "Per-channel mixing",
   "",
   "",

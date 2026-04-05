@@ -27,7 +27,7 @@ const SECTIONS = [
     items: [
       "**KAOS** — XY performance pad. Drag to control filter cutoff and resonance. Toggle effects, reorder the chain",
       "**SYNTH** — Full step-grid editor. Edit patterns, tweak oscillator, ADSR, filter, drum kit, Euclidean rhythms, arpeggiator",
-      "**MIXER** — Analog needle VU meter, per-channel volume faders, mute/solo, pan, mono, 3-band EQ, drive, anti-clip limiter",
+      "**MIXER** — Per-channel volume faders, mute/solo, pan, mono, 3-band EQ, drive, anti-clip limiter",
     ],
   },
   {
