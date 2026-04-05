@@ -11,7 +11,7 @@ import { tapVibrate, pressVibrate } from "../utils/haptic";
 import { ChainEditor } from "./ChainEditor";
 import { KaosDropdown } from "./KaosDropdown";
 import { DrumKitEditor } from "./DrumKitEditor";
-import { startVideoRecording, saveVideo, type VideoRecorderHandle } from "../utils/videoRecorder";
+
 
 const DEFAULT_EFFECT_ORDER: EffectName[] = ["compressor", "highpass", "distortion", "bitcrusher", "chorus", "phaser", "flanger", "delay", "reverb", "tremolo"];
 
@@ -195,34 +195,6 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
   const [xyX, setXyX] = useState<XYTarget>("cutoff");
   const [xyY, setXyY] = useState<XYTarget>("resonance");
 
-  // Video recording
-  const [videoRec, setVideoRec] = useState(false);
-  const videoHandle = useRef<VideoRecorderHandle | null>(null);
-  const videoRecRef = useRef(false);
-
-  // Facecam
-  const facecamVideoRef = useRef<HTMLVideoElement | null>(null);
-  const facecamStreamRef = useRef<MediaStream | null>(null);
-
-  const startFacecam = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 320, facingMode: "user" } });
-      facecamStreamRef.current = stream;
-      const video = document.createElement("video");
-      video.srcObject = stream;
-      video.muted = true;
-      video.playsInline = true;
-      await video.play();
-      facecamVideoRef.current = video;
-    } catch { /* camera denied — silently skip */ }
-  };
-
-  const stopFacecam = () => {
-    facecamStreamRef.current?.getTracks().forEach(t => t.stop());
-    facecamStreamRef.current = null;
-    facecamVideoRef.current = null;
-  };
-
   // volume is passed via props from Layout (shared across all views)
   const longPressTimer = useRef<number>(0);
   const waveCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -401,109 +373,6 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
         ctx2d.globalAlpha = 1;
       }
 
-      // Draw video overlay (border, info, grid, trails, cursor, crosshairs, watermark)
-      if (videoRecRef.current) {
-        // Border
-        ctx2d.strokeStyle = accentCache;
-        ctx2d.globalAlpha = 0.4;
-        ctx2d.lineWidth = 2;
-        ctx2d.strokeRect(1, 1, w - 2, h - 2);
-        ctx2d.globalAlpha = 1;
-
-        // Genre/pattern info at top
-        const info = videoInfoRef.current;
-        const infoFont = Math.max(10, Math.round(w * 0.025));
-        ctx2d.font = `bold ${infoFont}px monospace`;
-        ctx2d.globalAlpha = 0.6;
-        ctx2d.textBaseline = "top";
-        ctx2d.fillStyle = "#fff";
-        ctx2d.textAlign = "left";
-        ctx2d.fillText(`DRUMS: ${info.drums}`, 10, 10);
-        ctx2d.fillText(`SYNTH: ${info.synth}`, 10, 10 + infoFont * 1.4);
-        ctx2d.fillText(`BASS: ${info.bass}`, 10, 10 + infoFont * 2.8);
-        ctx2d.globalAlpha = 1;
-
-        // Grid lines
-        ctx2d.strokeStyle = accentCache;
-        ctx2d.globalAlpha = 0.06;
-        ctx2d.lineWidth = 1;
-        for (let i = 1; i < 4; i++) {
-          ctx2d.beginPath(); ctx2d.moveTo(w * i / 4, 0); ctx2d.lineTo(w * i / 4, h); ctx2d.stroke();
-          ctx2d.beginPath(); ctx2d.moveTo(0, h * i / 4); ctx2d.lineTo(w, h * i / 4); ctx2d.stroke();
-        }
-
-        // Trails
-        const now = Date.now();
-        for (const t of trailsRef.current) {
-          const age = (now - t.age) / 800;
-          if (age > 1) continue;
-          ctx2d.beginPath();
-          ctx2d.arc(t.x * w, t.y * h, 6 * (1 - age), 0, Math.PI * 2);
-          ctx2d.fillStyle = accentCache;
-          ctx2d.globalAlpha = (1 - age) * 0.6;
-          ctx2d.fill();
-        }
-
-        // Cursor + crosshairs
-        const p = posRef.current;
-        if (p) {
-          ctx2d.strokeStyle = accentCache;
-          ctx2d.globalAlpha = 0.2;
-          ctx2d.lineWidth = 1;
-          ctx2d.beginPath(); ctx2d.moveTo(0, p.y * h); ctx2d.lineTo(w, p.y * h); ctx2d.stroke();
-          ctx2d.beginPath(); ctx2d.moveTo(p.x * w, 0); ctx2d.lineTo(p.x * w, h); ctx2d.stroke();
-          // Cursor dot
-          ctx2d.beginPath();
-          ctx2d.arc(p.x * w, p.y * h, 8, 0, Math.PI * 2);
-          ctx2d.fillStyle = accentCache;
-          ctx2d.globalAlpha = 0.8;
-          ctx2d.fill();
-        }
-        ctx2d.globalAlpha = 1;
-      }
-
-      // Facecam bubble during video recording
-      if (videoRecRef.current && facecamVideoRef.current) {
-        const vid = facecamVideoRef.current;
-        const radius = Math.round(Math.min(w, h) * 0.12);
-        const cx = radius + 14;
-        const cy = h - radius - 14;
-        ctx2d.save();
-        ctx2d.beginPath();
-        ctx2d.arc(cx, cy, radius, 0, Math.PI * 2);
-        ctx2d.clip();
-        // Draw mirrored camera
-        ctx2d.translate(cx + radius, cy - radius);
-        ctx2d.scale(-1, 1);
-        const size = radius * 2;
-        const vw = vid.videoWidth || size;
-        const vh = vid.videoHeight || size;
-        const scale = Math.max(size / vw, size / vh);
-        const sw = vw * scale;
-        const sh = vh * scale;
-        ctx2d.drawImage(vid, (size - sw) / 2, (size - sh) / 2, sw, sh);
-        ctx2d.restore();
-        // Circle border
-        ctx2d.beginPath();
-        ctx2d.arc(cx, cy, radius, 0, Math.PI * 2);
-        ctx2d.strokeStyle = accentCache;
-        ctx2d.lineWidth = 2;
-        ctx2d.globalAlpha = 0.7;
-        ctx2d.stroke();
-        ctx2d.globalAlpha = 1;
-      }
-
-      // Watermark during video recording
-      if (videoRecRef.current) {
-        const fontSize = Math.max(14, Math.round(w * 0.035));
-        ctx2d.font = `bold ${fontSize}px monospace`;
-        ctx2d.fillStyle = "#ffffff";
-        ctx2d.globalAlpha = 0.5;
-        ctx2d.textAlign = "right";
-        ctx2d.textBaseline = "bottom";
-        ctx2d.fillText("mpump.live", w - 10, h - 10);
-        ctx2d.globalAlpha = 1;
-      }
     };
 
     draw();
@@ -515,14 +384,6 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
   const synthGenres = catalog && synthDevice ? getDeviceGenres(catalog, synthDevice.id, synthDevice.mode) : [];
   const bassGenres = catalog && bassDevice ? getDeviceGenres(catalog, bassDevice.id, bassDevice.mode) : [];
 
-  const videoInfoRef = useRef({ drums: "", synth: "", bass: "" });
-  const dGenre = drumsGenres[drumsDevice?.genre_idx ?? 0]?.name ?? "---";
-  const dPat = drumsGenres[drumsDevice?.genre_idx ?? 0]?.patterns[drumsDevice?.pattern_idx ?? 0]?.name ?? "---";
-  const sGenre = synthGenres[synthDevice?.genre_idx ?? 0]?.name ?? "---";
-  const sPat = synthGenres[synthDevice?.genre_idx ?? 0]?.patterns[synthDevice?.pattern_idx ?? 0]?.name ?? "---";
-  const bGenre = bassGenres[bassDevice?.genre_idx ?? 0]?.name ?? "---";
-  const bPat = bassGenres[bassDevice?.genre_idx ?? 0]?.patterns[bassDevice?.pattern_idx ?? 0]?.name ?? "---";
-  videoInfoRef.current = { drums: `${dGenre} · ${dPat}`, synth: `${sGenre} · ${sPat}`, bass: `${bGenre} · ${bPat}` };
 
   // Nav helpers
   const navGenre = (deviceId: string, genres: { name: string }[], currentIdx: number, delta: number) => {
@@ -1099,57 +960,6 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
             command({ type: "set_humanize", on: next });
           }}
         >{getBool("mpump-humanize") ? "● HUM" : "HUM"}</button>
-        {getBool("mpump-video-rec") && <button
-          className={`kaos-btn ${videoRec ? "active" : ""}`}
-          title={videoRec ? "Stop video recording" : "Record video (canvas + audio)"}
-          onClick={() => {
-            if (videoRec) {
-              videoHandle.current?.stop();
-              videoHandle.current = null;
-              videoRecRef.current = false;
-              setVideoRec(false);
-              stopFacecam();
-            } else {
-              const canvas = waveCanvasRef.current;
-              const analyser = getAnalyser?.();
-              if (!canvas || !analyser) return;
-              setVideoRec(true);
-              videoRecRef.current = true;
-              startFacecam();
-              const handle = startVideoRecording(canvas, analyser, (blob, ext) => {
-                saveVideo(blob, ext);
-                onExport?.();
-              });
-              videoHandle.current = handle;
-              if (!handle) { setVideoRec(false); videoRecRef.current = false; }
-              // Auto-stop after N bars (synced to beat)
-              const bars = parseInt(getItem("mpump-video-bars", "64"));
-              if (bars > 0 && handle) {
-                const barMs = (60000 / bpm) * 4 * bars;
-                setTimeout(() => {
-                  if (videoRecRef.current) {
-                    videoHandle.current?.stop();
-                    videoHandle.current = null;
-                    videoRecRef.current = false;
-                    setVideoRec(false);
-                    stopFacecam();
-                  }
-                }, barMs);
-              }
-            }
-          }}
-        >{videoRec ? "🔴 REC" : "Video REC"} · <span
-          onClick={(e) => {
-            e.stopPropagation();
-            if (videoRec) return;
-            const opts = ["4", "8", "16", "64", "0"];
-            const cur = getItem("mpump-video-bars", "64");
-            const next = opts[(opts.indexOf(cur) + 1) % opts.length];
-            setItem("mpump-video-bars", next);
-          }}
-          title="Click to cycle: 4/8/16/64/∞ bars"
-          style={{ cursor: videoRec ? "default" : "pointer" }}
-        >{(() => { const b = getItem("mpump-video-bars", "64"); return b === "0" ? "∞" : b; })()}</span></button>}
       </div>
 
       {/* Effect editor modal */}

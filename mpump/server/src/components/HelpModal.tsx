@@ -145,7 +145,7 @@ const SECTIONS = [
       "**Record (REC)** — captures mixed audio output as WAV",
       "**MIDI export** — downloads the current pattern as a .mid file",
       "**Pattern Library (♫)** — browse all 1210+ patterns with search",
-      "**Presets** — save/load named presets from the sub-header bar",
+      "**Grooves** — save/load named grooves (BPM + genre + patterns) from the sub-header bar",
     ],
   },
   {

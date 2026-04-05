@@ -1,6 +1,6 @@
 /**
- * PresetManager — built-in + user-saved session presets.
- * Custom dropdown with inline rename/delete for user presets.
+ * PresetManager — built-in + user-saved grooves (BPM + genre + pattern combos).
+ * Custom dropdown with inline rename/delete for user grooves.
  */
 
 import { useState, useCallback, useRef, useEffect } from "react";
@@ -78,7 +78,7 @@ export function PresetManager({ state, onLoad, accent, mixCount }: Props) {
   const handleQuickSave = useCallback(() => {
     const currentTrack = getItem("mpump-track-name", "") || `Mix ${state.bpm}`;
     const defaultName = `${currentTrack} · ${state.bpm}`;
-    const inputName = prompt("Name this preset:", defaultName);
+    const inputName = prompt("Name this groove:", defaultName);
     if (inputName === null) return;
     const finalName = inputName.trim() || defaultName;
     const genres: SavedPreset["state"]["genres"] = {};
@@ -115,7 +115,7 @@ export function PresetManager({ state, onLoad, accent, mixCount }: Props) {
     e.stopPropagation();
     const entry = userPresets[idx];
     if (!entry) return;
-    const newName = prompt("Rename preset:", entry.name);
+    const newName = prompt("Rename:", entry.name);
     if (!newName?.trim()) return;
     const updated = [...userPresets];
     updated[idx] = { ...entry, name: newName.trim() };
@@ -133,7 +133,7 @@ export function PresetManager({ state, onLoad, accent, mixCount }: Props) {
         </button>
         <button
           className={`preset-save-btn ${heartLit ? "heart-lit" : ""}`}
-          title="Save preset" aria-label="Save preset"
+          title="Save groove" aria-label="Save groove"
           style={accent ? { borderColor: accent, color: accent } : undefined}
           onClick={handleQuickSave}
         >
@@ -142,7 +142,7 @@ export function PresetManager({ state, onLoad, accent, mixCount }: Props) {
       </div>
       {open && (
         <div className="preset-dropdown">
-          <div className="preset-group-label">Built-in</div>
+          <div className="preset-group-label">Grooves</div>
           {BUILT_IN.map((p, i) => (
             <div key={`b${i}`} className={`preset-item ${activeLabel === p.name ? "active" : ""}`} onClick={() => handleLoad(p, p.name)}>
               <span className="preset-item-name">{p.name}</span>
@@ -150,7 +150,7 @@ export function PresetManager({ state, onLoad, accent, mixCount }: Props) {
           ))}
           {userPresets.length > 0 && (
             <>
-              <div className="preset-group-label">My presets</div>
+              <div className="preset-group-label">Saved</div>
               {userPresets.map((p, i) => (
                 <div key={`u${i}`} className={`preset-item ${activeLabel === p.name ? "active" : ""}`} onClick={() => handleLoad(p, p.name)}>
                   <span className="preset-item-name">{p.name}</span>

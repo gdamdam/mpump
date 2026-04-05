@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import QRCode from "qrcode";
 import { decodeSteps, decodeDrumSteps, decodeGesture } from "../utils/patternCodec";
 import { decodeSharePayload } from "../utils/shareCodec";
-import { startVideoRecording, saveVideo, type VideoRecorderHandle } from "../utils/videoRecorder";
+
 import type { StepData, DrumHit } from "../types";
 import { trackEvent } from "../utils/metrics";
 
@@ -39,12 +39,6 @@ export function ShareModal({ url, longUrl, parentId, qrUrl, gestureNote, getAnal
   const staticCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const rafRef = useRef(0);
   const [showInfo, setShowInfo] = useState(false);
-  const [recording, setRecording] = useState(false);
-  const [recordCountdown, setRecordCountdown] = useState(0);
-  const videoHandleRef = useRef<VideoRecorderHandle | null>(null);
-  const recordTimerRef = useRef(0);
-  const recordStartRef = useRef(0);
-  const RECORD_DURATION = 10; // seconds
 
   const copyToClipboard = () => {
     const textToCopy = showLongUrl && longUrl ? longUrl : url;
@@ -623,58 +617,6 @@ export function ShareModal({ url, longUrl, parentId, qrUrl, gestureNote, getAnal
     link.click();
   };
 
-  /** Stop recording snapped to the next bar boundary for clean looping. */
-  const stopAtBarBoundary = (handle: VideoRecorderHandle) => {
-    const bpm = vizBoundsRef.current.bpmNum || 120;
-    const barMs = (60000 / bpm) * 4; // 1 bar = 4 beats
-    const elapsed = performance.now() - recordStartRef.current;
-    const barsElapsed = elapsed / barMs;
-    const nextBar = Math.ceil(barsElapsed);
-    const waitMs = (nextBar * barMs) - elapsed;
-    // Wait for next bar boundary, then stop
-    setTimeout(() => {
-      handle.stop();
-    }, Math.min(waitMs, barMs)); // cap at 1 bar max wait
-  };
-
-  const startRecording = () => {
-    const canvas = cardCanvasRef.current;
-    const analyser = getAnalyser?.();
-    if (!canvas || !analyser) return;
-    const handle = startVideoRecording(canvas, analyser, (blob, ext) => {
-      setRecording(false);
-      setRecordCountdown(0);
-      clearInterval(recordTimerRef.current);
-      saveVideo(blob, ext);
-    });
-    if (!handle) {
-      alert("Video recording is not supported in this browser.");
-      return;
-    }
-    videoHandleRef.current = handle;
-    recordStartRef.current = performance.now();
-    setRecording(true);
-    setRecordCountdown(RECORD_DURATION);
-    let remaining = RECORD_DURATION;
-    recordTimerRef.current = window.setInterval(() => {
-      remaining--;
-      setRecordCountdown(remaining);
-      if (remaining <= 0) {
-        clearInterval(recordTimerRef.current);
-        stopAtBarBoundary(handle);
-      }
-    }, 1000);
-  };
-
-  const stopRecording = () => {
-    clearInterval(recordTimerRef.current);
-    if (videoHandleRef.current) {
-      stopAtBarBoundary(videoHandleRef.current);
-      videoHandleRef.current = null;
-    }
-    setRecording(false);
-    setRecordCountdown(0);
-  };
 
   // Decode for info panel
   const decodeFullPayload = (): Record<string, string> => {
@@ -733,11 +675,6 @@ export function ShareModal({ url, longUrl, parentId, qrUrl, gestureNote, getAnal
             <button className={`share-card-action ${showQR ? "share-qr-active" : ""}`} onClick={() => setShowQR(!showQR)}>
               {showQR ? "▣ Grid" : "▣ QR"}
             </button>
-            {getAnalyser && (
-              <button className={`share-card-action share-record-desktop ${recording ? "share-recording" : ""}`} onClick={recording ? stopRecording : startRecording}>
-                {recording ? `⏹ ${recordCountdown}s` : "● Record"}
-              </button>
-            )}
           </div>
 
           {/* Link row */}

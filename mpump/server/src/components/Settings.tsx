@@ -135,7 +135,6 @@ export function Settings({ volume, onVolumeChange, onClose, swing, onSwingChange
   });
   const [midiClockSync, setMidiClockSync] = useState(false);
   const [songMode, setSongMode] = useState(() => getItem("mpump-song-mode") === "true");
-  const [videoRec, setVideoRec] = useState(() => getBool("mpump-video-rec"));
   const [showMidiGuide, setShowMidiGuide] = useState(false);
   const [linkEnabled, setLinkEnabled] = useState(() => getBool("mpump-link-bridge", false));
   const [linkState, setLinkState] = useState<LinkState>(getLinkState);
@@ -411,10 +410,6 @@ export function Settings({ volume, onVolumeChange, onClose, swing, onSwingChange
                 <button className={`settings-toggle ${getBool("mpump-bottom-transport") ? "on" : ""}`} title="Pin transport to bottom on mobile"
                   onClick={() => { const next = !getBool("mpump-bottom-transport"); setBool("mpump-bottom-transport", next); window.dispatchEvent(new Event("mpump-settings-changed")); refreshToggles(); }}>
                   <span className="settings-toggle-dot" />Bottom Transport
-                </button>
-                <button className={`settings-toggle ${videoRec ? "on" : ""}`} title="Show video recording button in KAOS pad"
-                  onClick={() => { const next = !getBool("mpump-video-rec"); setBool("mpump-video-rec", next); setVideoRec(next); }}>
-                  <span className="settings-toggle-dot" />Video REC
                 </button>
               </div>
             </div>

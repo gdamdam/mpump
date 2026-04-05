@@ -344,7 +344,9 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
   ]);
 
   // Wrap command to broadcast to jam peers — all existing command() calls go through this
+  const REMIX_DIRTY_TYPES = new Set(["set_bpm", "set_genre", "set_pattern", "set_synth_params", "set_bass_synth_params", "load_preset", "set_step", "set_drum_step", "set_effect", "set_effect_order", "set_swing", "toggle_drums_mute", "toggle_bass_mute", "set_drums_mute", "set_bass_mute"]);
   const command = useCallback((msg: ClientMessage) => {
+    if (parentId && remixReadyRef.current && !remixDirty && REMIX_DIRTY_TYPES.has(msg.type)) setRemixDirty(true);
     // Don't broadcast until joiner has received sync from host
     if (jam.status === "connected" && !jamSyncedRef.current) {
       rawCommand(msg); // apply locally only
@@ -645,6 +647,10 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
   const [shareQrUrl, setShareQrUrl] = useState<string | null>(null);
   const [shareGestureNote, setShareGestureNote] = useState(false);
   const [parentId] = useState<string | null>(() => getParentId());
+  const [remixCopied, setRemixCopied] = useState(false);
+  const [remixDirty, setRemixDirty] = useState(false);
+  const remixReadyRef = useRef(false);
+  useEffect(() => { if (parentId) { const t = setTimeout(() => { remixReadyRef.current = true; }, 3000); return () => clearTimeout(t); } }, [parentId]);
   const [showLibrary, setShowLibrary] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
   const [showMegaKaos, setShowMegaKaos] = useState(false);
@@ -1177,6 +1183,75 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
       el.classList.add("blink");
     });
   }, []);
+
+  // Build the current share payload object
+  const buildSharePayload = useCallback(() => {
+    const g: Record<string, { gi: number; pi: number; bgi?: number; bpi?: number }> = {};
+    const cd = Object.values(stateRef.current.devices).filter(d => d.connected);
+    for (const d of cd) g[d.id] = { gi: d.genre_idx, pi: d.pattern_idx, bgi: d.bass_genre_idx, bpi: d.bass_pattern_idx };
+    const synthDev2 = cd.find(d => d.id === "preview_synth");
+    const base: Record<string, unknown> = {
+      bpm: stateRef.current.bpm, sw: stateRef.current.swing, dk: activeDrumKitRef.current, sp: activeSynthRef.current, bp: activeBassRef.current, g,
+      tn: getItem("mpump-track-name", "mix"),
+      ki: synthDev2?.key_idx ?? 0, oc: synthDev2?.octave ?? 2,
+    };
+    const synthDev = cd.find(d => d.id === "preview_synth");
+    const bassDev = cd.find(d => d.id === "preview_bass");
+    if (synthDev?.synthParams) base.spp = encodeSynthParamsCompact(synthDev.synthParams as unknown as Record<string, unknown>);
+    if (bassDev?.synthParams) base.bpp = encodeSynthParamsCompact(bassDev.synthParams as unknown as Record<string, unknown>);
+    const drumsDev = cd.find(d => d.id === "preview_drums");
+    const muBits = `${drumsDev?.drumsMuted ? "1" : "0"}${bassDev?.drumsMuted ? "1" : "0"}${synthDev?.drumsMuted ? "1" : "0"}`;
+    if (muBits !== "000") base.mu = muBits;
+    const cv = `${Math.round((channelVolumesRef.current[9] ?? 0.7) * 100)},${Math.round((channelVolumesRef.current[1] ?? 0.7) * 100)},${Math.round((channelVolumesRef.current[0] ?? 0.7) * 100)}`;
+    if (cv !== "70,70,70") base.cv = cv;
+    if (getMixerState) {
+      const mx = getMixerState();
+      const meq = `${mx.eq.low},${mx.eq.mid},${mx.eq.high}`;
+      if (meq !== "1,0,0") base.meq = meq;
+      if (mx.drive !== 0) base.drv = mx.drive;
+      if (mx.width !== 0.5) base.wid = Math.round(mx.width * 100);
+      if (mx.lowCut > 0) base.lc = mx.lowCut;
+      if (!mx.mbOn) base.mb = 0;
+    }
+    const fx = { ...JSON.parse(JSON.stringify(DEFAULT_EFFECTS)), ...getJSON<Partial<EffectParams>>("mpump-effects", {}) } as EffectParams;
+    const fxBits = EFFECT_ORDER.map(n => (fx as unknown as Record<string, { on: boolean }>)[n]?.on ? "1" : "0").join("");
+    if (fxBits !== "0000000000") base.fx = fxBits;
+    const fxOn: Record<string, Record<string, unknown>> = {};
+    for (const n of EFFECT_ORDER) {
+      const ep = (fx as unknown as Record<string, Record<string, unknown>>)[n];
+      if (ep?.on) { const { on: _, ...params } = ep; fxOn[n] = params; }
+    }
+    if (Object.keys(fxOn).length > 0) base.fp = fxOn;
+    const eo = getJSON<EffectName[]>("mpump-effect-order", EFFECT_ORDER);
+    if (JSON.stringify(eo) !== JSON.stringify(EFFECT_ORDER)) base.eo = eo;
+    for (const d of cd) {
+      if (!d.editing) continue;
+      if (d.mode === "synth") base.me = encodeSteps(d.pattern_data);
+      if (d.mode === "drums" || d.mode === "drums+bass") base.de = encodeDrumSteps(d.drum_data);
+      if (d.mode === "bass") base.be = encodeSteps(d.pattern_data);
+      if (d.mode === "drums+bass") base.be = encodeSteps(d.bass_data);
+    }
+    if (parentId) base.p = parentId;
+    return base;
+  }, [parentId, getMixerState]);
+
+  // Quick-share remix: build link, shorten, copy to clipboard in one tap
+  const quickShareRemix = useCallback(async () => {
+    const base = buildSharePayload();
+    const shareLink = buildShareUrl(base);
+    let url = shareLink;
+    try {
+      const up = await checkRelayHealth();
+      if (up) {
+        const result = await shortenBeat(shareLink, parentId ?? undefined);
+        if (result) url = result.short;
+      }
+    } catch { /* use long URL */ }
+    try { await navigator.clipboard.writeText(url); } catch { /* fallback: open share modal */ setShareQrUrl(shareLink); setShareUrl(url); return; }
+    setRemixCopied(true);
+    setTimeout(() => setRemixCopied(false), 2000);
+    trackEvent("remix-share");
+  }, [buildSharePayload, parentId]);
 
   // Auto-save: persist session to localStorage every 3s and on tab close/hide
   const doAutoSave = useCallback(() => {
@@ -1712,71 +1787,11 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
               {isPreview && getAnalyser && <Recorder getAnalyser={getAnalyser} onExport={support.onExport} />}
               {isPreview && (
                 <button className="header-settings-btn header-share-btn" title="Share setup" aria-label="Share setup" onClick={() => {
-                  const g: Record<string, { gi: number; pi: number; bgi?: number; bpi?: number }> = {};
-                  for (const d of connectedDevices) {
-                    g[d.id] = { gi: d.genre_idx, pi: d.pattern_idx, bgi: d.bass_genre_idx, bpi: d.bass_pattern_idx };
-                  }
-                  const synthDev2 = connectedDevices.find(d => d.id === "preview_synth");
-                  const base: Record<string, unknown> = {
-                    bpm: state.bpm, sw: state.swing, dk: activeDrumKit, sp: activeSynth, bp: activeBass, g,
-                    tn: trackName,
-                    ki: synthDev2?.key_idx ?? 0, oc: synthDev2?.octave ?? 2,
-                  };
-                  // Synth params
-                  const synthDev = connectedDevices.find(d => d.id === "preview_synth");
-                  const bassDev = connectedDevices.find(d => d.id === "preview_bass");
-                  if (synthDev?.synthParams) base.spp = encodeSynthParamsCompact(synthDev.synthParams as unknown as Record<string, unknown>);
-                  if (bassDev?.synthParams) base.bpp = encodeSynthParamsCompact(bassDev.synthParams as unknown as Record<string, unknown>);
-                  // Mute states (drums/bass/synth)
-                  const drumsDev = connectedDevices.find(d => d.id === "preview_drums");
-                  const muBits = `${drumsDev?.drumsMuted ? "1" : "0"}${bassDev?.drumsMuted ? "1" : "0"}${synthDev?.drumsMuted ? "1" : "0"}`;
-                  if (muBits !== "000") base.mu = muBits;
-                  // Channel volumes (drums=ch9, bass=ch1, synth=ch0)
-                  const cv = `${Math.round((channelVolumes[9] ?? 0.7) * 100)},${Math.round((channelVolumes[1] ?? 0.7) * 100)},${Math.round((channelVolumes[0] ?? 0.7) * 100)}`;
-                  if (cv !== "70,70,70") base.cv = cv;
-                  // Mixer settings (master EQ, drive, width, lowCut, multiband)
-                  if (getMixerState) {
-                    const mx = getMixerState();
-                    const meq = `${mx.eq.low},${mx.eq.mid},${mx.eq.high}`;
-                    if (meq !== "1,0,0") base.meq = meq;
-                    if (mx.drive !== 0) base.drv = mx.drive;
-                    if (mx.width !== 0.5) base.wid = Math.round(mx.width * 100);
-                    if (mx.lowCut > 0) base.lc = mx.lowCut;
-                    if (!mx.mbOn) base.mb = 0;
-                  }
-                  // Effects (on/off bits + full params + chain order)
-                  const fx = { ...JSON.parse(JSON.stringify(DEFAULT_EFFECTS)), ...getJSON<Partial<EffectParams>>("mpump-effects", {}) } as EffectParams;
-                  const fxBits = EFFECT_ORDER.map(n => (fx as unknown as Record<string, { on: boolean }>)[n]?.on ? "1" : "0").join("");
-                  if (fxBits !== "0000000000") base.fx = fxBits;
-                  // Full effect params (only for effects that are ON, strip 'on' key)
-                  const fxOn: Record<string, Record<string, unknown>> = {};
-                  for (const n of EFFECT_ORDER) {
-                    const ep = (fx as unknown as Record<string, Record<string, unknown>>)[n];
-                    if (ep?.on) {
-                      const { on: _, ...params } = ep;
-                      fxOn[n] = params;
-                    }
-                  }
-                  if (Object.keys(fxOn).length > 0) base.fp = fxOn;
-                  // Effect chain order (only if non-default)
-                  const eo = getJSON<EffectName[]>("mpump-effect-order", EFFECT_ORDER);
-                  if (JSON.stringify(eo) !== JSON.stringify(EFFECT_ORDER)) base.eo = eo;
-                  // Pattern edits
-                  for (const d of connectedDevices) {
-                    if (!d.editing) continue;
-                    if (d.mode === "synth") base.me = encodeSteps(d.pattern_data);
-                    if (d.mode === "drums" || d.mode === "drums+bass") base.de = encodeDrumSteps(d.drum_data);
-                    if (d.mode === "bass") base.be = encodeSteps(d.pattern_data);
-                    if (d.mode === "drums+bass") base.be = encodeSteps(d.bass_data);
-                  }
-                  // Include parent lineage if this beat was opened from a share link
-                  if (parentId) base.p = parentId;
-                  // Build URLs (no gesture — too large, not shareable)
+                  const base = buildSharePayload();
                   const shareLink = buildShareUrl(base);
                   setShareQrUrl(shareLink);
                   setShareGestureNote(false);
                   support.onShare();
-                  // Try to shorten via relay; fall back to long URL
                   checkRelayHealth().then(async (up) => {
                     if (up) {
                       const result = await shortenBeat(shareLink, parentId ?? undefined);
@@ -1852,12 +1867,14 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
       {/* Remix banner */}
       {parentId && (
         <div style={{ textAlign: "center", fontSize: 10, padding: "3px 8px", background: "rgba(102,255,153,0.06)", borderBottom: "1px solid rgba(102,255,153,0.1)" }}>
-          🔀 Remixed from <a href={`https://s.mpump.live/${parentId}`} target="_blank" rel="noopener noreferrer" style={{ color: "var(--preview)", textDecoration: "none" }}>s.mpump.live/{parentId}</a>
-          <span style={{ opacity: 0.4, margin: "0 6px" }}>·</span>
-          <button
-            style={{ fontSize: 10, background: "none", border: "none", color: "var(--preview)", cursor: "pointer", textDecoration: "underline", padding: 0 }}
-            onClick={() => { document.querySelector<HTMLButtonElement>(".header-share-btn")?.click(); }}
-          >Share your remix</button>
+          🔀 Based on <a href={`https://s.mpump.live/${parentId}`} target="_blank" rel="noopener noreferrer" style={{ color: "var(--preview)", textDecoration: "none" }}>s.mpump.live/{parentId}</a>
+          {remixDirty && (<>
+            <span style={{ opacity: 0.4, margin: "0 6px" }}>·</span>
+            <button
+              style={{ fontSize: 10, background: "none", border: "none", color: "var(--preview)", cursor: "pointer", textDecoration: "underline", padding: 0 }}
+              onClick={quickShareRemix}
+            >{remixCopied ? "✓ Link copied!" : "Share your remix ⤴"}</button>
+          </>)}
         </div>
       )}
 
