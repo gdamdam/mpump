@@ -9,4 +9,4 @@ compatibility_date = "2024-01-01"
 # Create with: wrangler kv:namespace create BEATS
 [[kv_namespaces]]
 binding = "BEATS"
-id = "PLACEHOLDER"
+id = "d7f3e2fbf49d4b42baa5bc7d7a829144"
