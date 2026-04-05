@@ -29,7 +29,7 @@ import { HelpModal } from "./HelpModal";
 import { PatternLibrary } from "./PatternLibrary";
 import { PrivacyModal } from "./PrivacyModal";
 import { MixerPanel } from "./MixerPanel";
-import { SongEditor } from "./SongEditor";
+import { SongStrip } from "./SongStrip";
 import { SessionModal } from "./SessionModal";
 import { exportSession, downloadSession, readSessionFile, saveLastSession, getRecentSessions, saveSession, type SessionData } from "../utils/session";
 import { trackEvent } from "../utils/metrics";
@@ -53,6 +53,7 @@ interface Props {
   stopNote?: (ch: number, note: number) => void;
   getMixerState?: () => { drive: number; eq: { low: number; mid: number; high: number }; width: number; lowCut: number; mbOn: boolean; mbExcludeDrums: boolean };
   getCpuLoad?: () => number;
+  songState?: import("../types").SongState | null;
 }
 
 const MODE_LABELS: Record<PreviewMode, string> = {
@@ -90,7 +91,7 @@ function CpuDot({ getCpuLoad }: { getCpuLoad?: () => number }) {
   return <span ref={ref} style={{ fontSize: 7, fontWeight: 700, marginLeft: 4, verticalAlign: "top", color: "var(--border)", opacity: 0.4, letterSpacing: 0.5 }}>CPU</span>;
 }
 
-export function Layout({ state, catalog, command: rawCommand, isPreview, getAnalyser, getChannelAnalyser, onConnectMidi, onStartPreview, onLoadSamples, getMutedDrumNotes, playNote, stopNote, getMixerState, getCpuLoad }: Props) {
+export function Layout({ state, catalog, command: rawCommand, isPreview, getAnalyser, getChannelAnalyser, onConnectMidi, onStartPreview, onLoadSamples, getMutedDrumNotes, playNote, stopNote, getMixerState, getCpuLoad, songState }: Props) {
   // Ref to access current state inside Link callback (avoids stale closure)
   const stateRef = useRef(state);
   stateRef.current = state;
@@ -1800,20 +1801,6 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
 
 
 
-      {/* Song editor at top (preview only, drums device) */}
-      {isPreview && songModeOn && catalog && (() => {
-        const drums = connectedDevices.find(d => d.id === "preview_drums");
-        if (!drums) return null;
-        const genres = getDeviceGenres(catalog, drums.id, drums.mode);
-        const bassGenres = getDeviceBassGenres(catalog);
-        const bassPatterns = bassGenres[drums.bass_genre_idx]?.patterns;
-        return (
-          <div style={{ padding: "0 16px 8px" }}>
-            <SongEditor accent={drums.accent} device={drums.id} genreList={genres} genreIdx={drums.genre_idx} patternIdx={drums.pattern_idx} bassPatterns={bassPatterns} bassPatternIdx={drums.bass_pattern_idx} hasBass={true} bpm={state.bpm} patternLength={drums.patternLength} command={command} />
-          </div>
-        );
-      })()}
-
       <main className="panels">
         {!anyConnected && !isPreview && (
           <div className="no-devices">
@@ -1925,6 +1912,13 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
           )
         )}
       </main>
+
+      {/* Song strip — below instruments, above effects */}
+      {isPreview && songModeOn && (
+        <div style={{ padding: "0 8px 8px" }}>
+          <SongStrip accent={connectedDevices[0]?.accent ?? "#66ff99"} songState={songState ?? { scenes: [], arrangement: [], loop: true, playback: { playing: false, currentIndex: 0, barInScene: 0, totalBars: 0 } }} command={command} />
+        </div>
+      )}
 
       {showSessionModal && (() => {
         const sessionDur = sessionMin < 1 ? "<1 min" : sessionMin < 60 ? `${sessionMin} min` : `${Math.floor(sessionMin / 60)}h ${sessionMin % 60 > 0 ? `${sessionMin % 60}m` : ""}`;
