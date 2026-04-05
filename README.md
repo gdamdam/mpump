@@ -123,11 +123,10 @@ All sounds are synthesized in real-time via the Web Audio API. No sample files n
 
 **Session**
 - Full session export/import (JSON with patterns, sounds, effects, volumes, settings)
-- Save/load presets (15 built-in including scene presets + user presets)
+- Save/load grooves (20 built-in + user grooves for quick genre/pattern combos)
 - Share link via short URL (`s.mpump.live/{id}`) with full offline fallback
-- Remix lineage — shared beats track their parent, visible in the share modal
+- Remix lineage — shared beats track their parent; one-tap remix share when you change something
 - Record to WAV
-- Video recording with facecam overlay (beta, enable in Settings)
 
 **Jam & Live Set**
 - Live Jam: up to 4 peers, everyone controls the music together
@@ -161,11 +160,12 @@ All sounds are synthesized in real-time via the Web Audio API. No sample files n
 ## Song Mode
 
 - Capture scenes (snapshot of patterns, sounds, mixer, BPM) and arrange them into a song
-- Horizontal arrangement strip with configurable bar counts (1/2/4/8/16/32) per scene
+- Horizontal arrangement strip with progress bar and configurable bar counts (1/2/4/8/16/32) per scene
 - 4 transition types between scenes: instant cut, volume crossfade, filter sweep, drum breakdown
 - Loop the arrangement or play once through
 - Sound changes use release-tail crossfade — old notes finish naturally, new notes use the new preset
 - Save/load songs to browser storage (+Save / Songs buttons)
+- Share songs as links (⤴ button in song strip)
 - Enable via ⋯ more menu
 
 ---
@@ -288,7 +288,7 @@ mpump collects no personal data. No account. No tracking.
 
 - **No cookies, no fingerprinting, no tracking IDs**
 - **No third-party trackers**: no Google, no Facebook, no ad networks
-- **Local storage only**: presets, settings, and patterns stay in your browser. Nothing is sent to any server
+- **Local storage only**: grooves, settings, and patterns stay in your browser. Nothing is sent to any server
 - **Anonymous counters**: page views and events (play, share) counted via [GoatCounter](https://goatcounter.com), a privacy-first, cookie-free analytics tool
 - **Open source**: full codebase on [GitHub](https://github.com/gdamdam/mpump)
 
