@@ -32,9 +32,9 @@ export function PrivacyModal({ onClose }: Props) {
           <p style={{ marginTop: 14, marginBottom: 6, fontWeight: 700, fontSize: 13 }}>Sharing</p>
           <ul style={{ paddingLeft: 18, margin: 0 }}>
             <li>When you share a beat, the link contains only beat settings (BPM, genre, patterns). No personal data</li>
-            <li>Share links pass through a lightweight relay (<a href="https://s.mpump.live" target="_blank" rel="noopener noreferrer" style={{ color: "var(--preview)" }}>s.mpump.live</a>) that adds preview metadata so messaging apps can show a card</li>
-            <li>The relay is stateless. It logs nothing, stores nothing, sets no cookies</li>
-            <li>Only messaging app crawlers hit the relay; your browser is redirected straight to mpump</li>
+            <li>Share links pass through a relay (<a href="https://s.mpump.live" target="_blank" rel="noopener noreferrer" style={{ color: "var(--preview)" }}>s.mpump.live</a>) that provides short URLs and preview cards for messaging apps</li>
+            <li>The relay stores three things: <strong>beat settings</strong> (the same data in the link), <strong>which beat was remixed from which</strong> (parent→child), and <strong>anonymous counters</strong> (play count, remix count). No IPs, no user identifiers, no cookies</li>
+            <li>Short URLs (<code style={{ fontSize: 12 }}>s.mpump.live/abc123</code>) redirect to the full self-contained link. You can always use the offline-compatible full link instead</li>
             <li>The relay code is open source in the same <a href="https://github.com/gdamdam/mpump/tree/main/worker" target="_blank" rel="noopener noreferrer" style={{ color: "var(--preview)" }}>GitHub repo</a></li>
           </ul>
           <p style={{ marginTop: 14, marginBottom: 6, fontWeight: 700, fontSize: 13 }}>Jam &amp; Live Set</p>
@@ -45,7 +45,7 @@ export function PrivacyModal({ onClose }: Props) {
             <li>The jam relay is <a href="https://github.com/gdamdam/mpump/tree/main/worker/jam-relay" target="_blank" rel="noopener noreferrer" style={{ color: "var(--preview)" }}>open source</a></li>
           </ul>
           <p style={{ marginTop: 12, fontSize: 12, lineHeight: 1.6 }}>mpump is hosted on <a href="https://pages.github.com" target="_blank" rel="noopener noreferrer" style={{ color: "var(--preview)" }}>GitHub Pages</a>.<br />The share relay runs on <a href="https://workers.cloudflare.com" target="_blank" rel="noopener noreferrer" style={{ color: "var(--preview)" }}>Cloudflare Workers</a>.<br />The jam relay runs on <a href="https://fly.io" target="_blank" rel="noopener noreferrer" style={{ color: "var(--preview)" }}>Fly.io</a>.</p>
-          <p style={{ marginTop: 8, fontSize: 12 }}>No database, no accounts.<br />Everything runs in your browser.<br />Relays only pass data through, nothing is stored.</p>
+          <p style={{ marginTop: 8, fontSize: 12 }}>No database, no accounts.<br />Everything runs in your browser.<br />The share relay stores beat data and anonymous counters — no personal information. The jam relay is stateless.</p>
           <p style={{ marginTop: 12, opacity: 0.7, fontSize: 12 }}>Your music stays on your device. Always.</p>
         </div>
         <button className="settings-done-btn" onClick={onClose} style={{ marginTop: 16 }}>OK</button>

@@ -85,7 +85,7 @@ const SECTIONS = [
       "**Anti-clip limiter** — on by default, prevents digital clipping. Hybrid mode (beta) in Settings",
       "**Trance Gate** — per-channel tempo-synced volume chopper (synth/bass). 8 numbered presets, 5 stutter presets (BDUP, TRIP, STUT, BKBT, GLTC), and custom editable 16-step patterns",
       "**LIMIT button** — toggle limiter on/off",
-      "**Mix Scenes (SCN)** — 10 built-in profiles (Neutral, Punchy, Warm, Airy, Tight, Heavy, Mellow, Spacious, Crisp, Loud) + save/load user scenes",
+      "**Mix Scenes (SCN)** — 10 built-in profiles (Neutral, Punchy, Warm, Airy, Tight, Heavy, Mellow, Spacious, Crisp, Loud) + save/load user scenes. **Auto** applies a genre-optimized profile; **★** badges highlight matching scenes",
     ],
   },
   {
@@ -141,7 +141,7 @@ const SECTIONS = [
     items: [
       "**Session export (⇩)** — saves everything as a JSON file: patterns, sounds, effects, volumes, chain order, settings, theme",
       "**Session import (⇧)** — restores a full session from JSON",
-      "**Share link (⤴)** — generates a URL with your setup. Anyone who opens it gets the same genre, pattern, BPM, and effects",
+      "**Share link (⤴)** — generates a short URL (s.mpump.live/{id}) with your setup. Full offline link also available. If you opened a shared beat, your remix tracks its parent automatically",
       "**Record (REC)** — captures mixed audio output as WAV",
       "**MIDI export** — downloads the current pattern as a .mid file",
       "**Pattern Library (♫)** — browse all 1210+ patterns with search",
@@ -159,6 +159,7 @@ const SECTIONS = [
       "**▶/■** — play/stop song (automatically controls main transport)",
       "**↻ Loop** — loop the arrangement",
       "**Sound changes** — scenes save full synth/bass params; old notes finish naturally, new notes use the new preset",
+      "**+Save / Songs** — save and load song arrangements to browser storage",
     ],
   },
   {
@@ -227,9 +228,9 @@ const SECTIONS = [
     title: "Sharing & Privacy",
     items: [
       "Share links contain only beat settings (BPM, genre, patterns) — no personal data",
-      "Links pass through a stateless relay (s.mpump.live) that adds preview metadata for messaging apps",
-      "The relay logs nothing, stores nothing, sets no cookies — it just reads the beat settings from the URL and returns a title like \"135 BPM · idm\"",
-      "Only messaging app crawlers (iMessage, Discord, etc.) hit the relay; your browser is redirected straight to mpump",
+      "**Short URLs** — s.mpump.live/{id} for clean sharing. A full offline link is always available as fallback",
+      "**Remix lineage** — when you remix a shared beat, your link tracks its parent. The relay stores which beat came from which — no user info, no IPs",
+      "**Anonymous counters** — play count and remix count per beat, with no user identifiers attached",
       "The relay is open source in the same GitHub repo (worker/ folder)",
     ],
   },

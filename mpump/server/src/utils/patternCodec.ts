@@ -57,6 +57,7 @@ export interface SharePayload {
   ki?: number;  // key index (0-16)
   oc?: number;  // octave (0-6)
   tn?: string;  // track name
+  p?: string;   // parent short ID (remix lineage)
 }
 
 /** Parse and validate a share URL hash. Returns null if invalid. */

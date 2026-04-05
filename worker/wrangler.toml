@@ -4,3 +4,9 @@ compatibility_date = "2024-01-01"
 
 # Custom domain: s.mpump.live
 # After first deploy, run: wrangler domains add s.mpump.live
+
+# KV namespace for beat short links + remix lineage
+# Create with: wrangler kv:namespace create BEATS
+[[kv_namespaces]]
+binding = "BEATS"
+id = "PLACEHOLDER"

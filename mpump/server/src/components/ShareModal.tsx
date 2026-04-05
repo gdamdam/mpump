@@ -8,6 +8,8 @@ import { trackEvent } from "../utils/metrics";
 
 interface Props {
   url: string;
+  longUrl?: string | null;
+  parentId?: string | null;
   qrUrl?: string | null;
   gestureNote?: boolean;
   getAnalyser?: () => AnalyserNode | null;
@@ -17,7 +19,7 @@ interface Props {
   onClose: () => void;
 }
 
-export function ShareModal({ url, qrUrl, gestureNote, getAnalyser, currentStep = -1, hideActions, onOpen, onClose }: Props) {
+export function ShareModal({ url, longUrl, parentId, qrUrl, gestureNote, getAnalyser, currentStep = -1, hideActions, onOpen, onClose }: Props) {
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", handleEsc);
@@ -29,6 +31,8 @@ export function ShareModal({ url, qrUrl, gestureNote, getAnalyser, currentStep =
 
   const [copied, setCopied] = useState(false);
   const [showQR, setShowQR] = useState(false);
+  const [showLongUrl, setShowLongUrl] = useState(false);
+  const isShortened = longUrl && url !== longUrl;
   const spectrumBars = false; // BPM-colored VU bars
   const inputRef = useRef<HTMLInputElement>(null);
   const cardCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -43,9 +47,10 @@ export function ShareModal({ url, qrUrl, gestureNote, getAnalyser, currentStep =
   const RECORD_DURATION = 10; // seconds
 
   const copyToClipboard = () => {
+    const textToCopy = showLongUrl && longUrl ? longUrl : url;
     const copyText = () => {
       const ta = document.createElement("textarea");
-      ta.value = url;
+      ta.value = textToCopy;
       ta.style.cssText = "position:fixed;left:-9999px";
       document.body.appendChild(ta);
       ta.select();
@@ -53,7 +58,7 @@ export function ShareModal({ url, qrUrl, gestureNote, getAnalyser, currentStep =
       document.body.removeChild(ta);
     };
     if (navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(url).catch(copyText);
+      navigator.clipboard.writeText(textToCopy).catch(copyText);
     } else {
       copyText();
     }
@@ -713,6 +718,12 @@ export function ShareModal({ url, qrUrl, gestureNote, getAnalyser, currentStep =
         </div>
 
         {!hideActions && (<>
+          {/* Remix badge */}
+          {parentId && (
+            <div style={{ textAlign: "center", fontSize: 10, opacity: 0.6, marginBottom: 4 }}>
+              🔀 Remix of <a href={`https://s.mpump.live/${parentId}`} target="_blank" rel="noopener noreferrer" style={{ color: "var(--preview)", textDecoration: "none" }}>s.mpump.live/{parentId}</a>
+            </div>
+          )}
           {/* Actions below */}
           <div className="share-card-actions">
             <button className="share-card-action-primary" onClick={shareCard}>Share</button>
@@ -734,11 +745,17 @@ export function ShareModal({ url, qrUrl, gestureNote, getAnalyser, currentStep =
             <input
               ref={inputRef}
               className="share-url-input"
-              value={url}
+              value={showLongUrl && longUrl ? longUrl : url}
               readOnly
               onClick={() => inputRef.current?.select()}
             />
           </div>
+          {isShortened && (
+            <button
+              style={{ fontSize: 9, opacity: 0.5, background: "none", border: "none", color: "inherit", cursor: "pointer", padding: "2px 0", textDecoration: "underline" }}
+              onClick={() => setShowLongUrl(v => !v)}
+            >{showLongUrl ? "Show short link" : "Show full link (works offline)"}</button>
+          )}
 
           {/* Info toggle */}
           <button className="share-info-btn" title="What's encoded?" onClick={() => setShowInfo(!showInfo)}>?</button>

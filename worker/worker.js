@@ -423,11 +423,48 @@ function esc(s) {
 
 const BOT_RE = /bot|crawl|spider|preview|fetch|slack|discord|telegram|whatsapp|facebook|twitter|linkedin|signal|mastodon|bluesky|cardyb|okhttp|cfnetwork/i;
 
+/** Generate a random 6-char alphanumeric ID. */
+function generateId() {
+  const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+  const bytes = crypto.getRandomValues(new Uint8Array(6));
+  return Array.from(bytes, b => chars[b % chars.length]).join("");
+}
+
+/** CORS headers for API endpoints. */
+const CORS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+};
+
 export default {
-  async fetch(request) {
+  async fetch(request, env, ctx) {
     const url = new URL(request.url);
 
-    // Only cache GET requests
+    // CORS preflight
+    if (request.method === "OPTIONS") {
+      return new Response(null, { status: 204, headers: CORS });
+    }
+
+    // Health check
+    if (url.pathname === "/health") {
+      return new Response(JSON.stringify({ ok: true }), {
+        headers: { "Content-Type": "application/json", ...CORS },
+      });
+    }
+
+    // Shorten endpoint
+    if (url.pathname === "/shorten" && request.method === "POST") {
+      return handleShorten(request, env);
+    }
+
+    // Short URL resolution (4-8 char alphanumeric path)
+    const shortPath = url.pathname.slice(1);
+    if (/^[a-z0-9]{4,8}$/.test(shortPath) && env.BEATS) {
+      return handleShortUrl(shortPath, url, request, env, ctx);
+    }
+
+    // Only cache GET requests for existing payload flow
     if (request.method === "GET") {
       const cache = caches.default;
       const cached = await cache.match(request);
@@ -438,13 +475,157 @@ export default {
 
     // Cache successful GET responses
     if (request.method === "GET" && response.status === 200) {
-      const ctx = { waitUntil: (p) => p }; // fallback
       try { caches.default.put(request, response.clone()); } catch {}
     }
 
     return response;
   },
 };
+
+/** POST /shorten — create a short URL for a beat. */
+async function handleShorten(request, env) {
+  try {
+    const body = await request.json();
+    const { url, parent } = body;
+    if (!url || typeof url !== "string") {
+      return new Response(JSON.stringify({ error: "Missing url" }), {
+        status: 400, headers: { "Content-Type": "application/json", ...CORS },
+      });
+    }
+
+    // Generate unique ID (retry on collision)
+    let id;
+    for (let i = 0; i < 5; i++) {
+      id = generateId();
+      const existing = await env.BEATS.get(`beat:${id}`);
+      if (!existing) break;
+      if (i === 4) {
+        return new Response(JSON.stringify({ error: "ID collision" }), {
+          status: 500, headers: { "Content-Type": "application/json", ...CORS },
+        });
+      }
+    }
+
+    // Store beat
+    await env.BEATS.put(`beat:${id}`, JSON.stringify({
+      url,
+      parent: parent || null,
+      created: new Date().toISOString(),
+    }));
+
+    // Increment share counter (tracked but not shown)
+    const scKey = `sc:${id}`;
+    env.BEATS.put(scKey, "1"); // fire-and-forget, first share = 1
+
+    // Increment parent's remix count only if payload differs
+    if (parent && typeof parent === "string") {
+      const parentData = await env.BEATS.get(`beat:${parent}`);
+      if (parentData) {
+        const parentBeat = JSON.parse(parentData);
+        if (parentBeat.url !== url) {
+          const countKey = `rc:${parent}`;
+          const current = parseInt(await env.BEATS.get(countKey) || "0", 10);
+          await env.BEATS.put(countKey, String(current + 1));
+        }
+      }
+    }
+
+    const short = `https://s.mpump.live/${id}`;
+    return new Response(JSON.stringify({ id, short }), {
+      headers: { "Content-Type": "application/json", ...CORS },
+    });
+  } catch (e) {
+    return new Response(JSON.stringify({ error: "Invalid request" }), {
+      status: 400, headers: { "Content-Type": "application/json", ...CORS },
+    });
+  }
+}
+
+/** Resolve a short URL — serve OG tags to bots, redirect browsers. */
+async function handleShortUrl(id, url, request, env, ctx) {
+  const beatData = await env.BEATS.get(`beat:${id}`);
+  if (!beatData) {
+    return new Response("Not found", { status: 404, headers: CORS });
+  }
+
+  const beat = JSON.parse(beatData);
+  const [remixCount, playCount] = await Promise.all([
+    env.BEATS.get(`rc:${id}`).then(v => parseInt(v || "0", 10)),
+    env.BEATS.get(`pc:${id}`).then(v => parseInt(v || "0", 10)),
+  ]);
+
+  // Increment play counter for non-bot requests (non-blocking)
+  const ua = request.headers.get("user-agent") || "";
+  if (!BOT_RE.test(ua) && ctx) {
+    ctx.waitUntil(env.BEATS.put(`pc:${id}`, String(playCount + 1)));
+  }
+
+  // Extract payload from stored URL (hash fragment or query param)
+  let rawPayload = "";
+  let paramKey = "b";
+  try {
+    const storedUrl = new URL(beat.url.startsWith("http") ? beat.url : `https://mpump.live/app.html?b=${beat.url}`);
+    rawPayload = storedUrl.searchParams.get("z") || storedUrl.searchParams.get("b") || storedUrl.hash.slice(1) || beat.url;
+    if (storedUrl.searchParams.get("z")) paramKey = "z";
+  } catch {
+    rawPayload = beat.url;
+  }
+
+  const isCompressed = paramKey === "z";
+  const payload = isCompressed ? await decompressPayload(rawPayload) : rawPayload;
+
+  // Build title with remix info + play count
+  const { title: baseTitle, desc: baseDesc } = decodeMeta(payload);
+  const titleParts = [baseTitle];
+  if (beat.parent) titleParts.push("remixed");
+  if (remixCount > 0) titleParts.push(`${remixCount} remix${remixCount !== 1 ? "es" : ""}`);
+  if (playCount > 100) titleParts.push(`${playCount} plays`);
+  const title = titleParts.join(" · ");
+  const desc = baseDesc;
+
+  // App URL with parent reference
+  const appUrl = `${APP_ORIGIN}/app.html?${paramKey}=${rawPayload}&p=${id}`;
+
+  // Build image URL (same as existing logic)
+  const imgPayload = (() => {
+    try {
+      const data = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(payload.length / 4) * 4, "=")));
+      const mini = { bpm: data.bpm, g: data.g, tn: data.tn, de: data.de, cv: data.cv };
+      return btoa(JSON.stringify(mini)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    } catch { return payload; }
+  })();
+  const imgUrl = `${url.origin}/img?b=${imgPayload}`;
+
+  const html = `<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8">
+<title>${esc(title)} — mpump</title>
+<meta property="og:title" content="${esc(title)}" />
+<meta property="og:description" content="${esc(desc)}" />
+<meta property="og:url" content="${esc(url.href)}" />
+<meta property="og:type" content="music.song" />
+<meta property="og:site_name" content="mpump" />
+<meta property="og:image" content="${esc(imgUrl)}" />
+<meta property="og:image:type" content="image/png" />
+<meta property="og:image:width" content="800" />
+<meta property="og:image:height" content="800" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="${esc(title)}" />
+<meta name="twitter:description" content="${esc(desc)}" />
+<meta name="twitter:image" content="${esc(imgUrl)}" />
+</head><body><p>Redirecting to <a href="${esc(appUrl)}">mpump</a>...</p>
+<script>window.location.replace("${esc(appUrl)}");</script>
+<noscript><meta http-equiv="refresh" content="1;url=${esc(appUrl)}"></noscript>
+</body></html>`;
+
+  return new Response(html, {
+    headers: {
+      "Content-Type": "text/html;charset=UTF-8",
+      "Cache-Control": "public, max-age=3600",
+      ...CORS,
+    },
+  });
+}
 
 async function handleRequest(url) {
     let path = url.pathname.slice(1); // strip leading "/"

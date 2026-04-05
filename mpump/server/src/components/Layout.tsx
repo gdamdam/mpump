@@ -38,6 +38,7 @@ import { getDeviceGenres, getDeviceBassGenres } from "../data/catalog";
 import { SYNTH_PRESETS, BASS_PRESETS, DRUM_KIT_PRESETS } from "../data/soundPresets";
 import { SAMPLE_PACKS } from "../data/samplePacks";
 import { GENRE_MIX_PROFILES } from "../data/genreMixProfiles";
+import { checkRelayHealth, shortenBeat, getParentId, shortUrl } from "../utils/shareRelay";
 
 interface Props {
   state: EngineState;
@@ -643,6 +644,7 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
   const [shareUrl, setShareUrl] = useState<string | null>(null);
   const [shareQrUrl, setShareQrUrl] = useState<string | null>(null);
   const [shareGestureNote, setShareGestureNote] = useState(false);
+  const [parentId] = useState<string | null>(() => getParentId());
   const [showLibrary, setShowLibrary] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
   const [showMegaKaos, setShowMegaKaos] = useState(false);
@@ -1767,12 +1769,21 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
                     if (d.mode === "bass") base.be = encodeSteps(d.pattern_data);
                     if (d.mode === "drums+bass") base.be = encodeSteps(d.bass_data);
                   }
+                  // Include parent lineage if this beat was opened from a share link
+                  if (parentId) base.p = parentId;
                   // Build URLs (no gesture — too large, not shareable)
                   const shareLink = buildShareUrl(base);
-                  setShareUrl(shareLink);
                   setShareQrUrl(shareLink);
                   setShareGestureNote(false);
                   support.onShare();
+                  // Try to shorten via relay; fall back to long URL
+                  checkRelayHealth().then(async (up) => {
+                    if (up) {
+                      const result = await shortenBeat(shareLink, parentId ?? undefined);
+                      if (result) { setShareUrl(result.short); return; }
+                    }
+                    setShareUrl(shareLink);
+                  });
                 }}>
                   ⤴ Share
                 </button>
@@ -1837,6 +1848,18 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
           </div>{/* /header-row-tools */}
         </div>
       </header>
+
+      {/* Remix banner */}
+      {parentId && (
+        <div style={{ textAlign: "center", fontSize: 10, padding: "3px 8px", background: "rgba(102,255,153,0.06)", borderBottom: "1px solid rgba(102,255,153,0.1)" }}>
+          🔀 Remixed from <a href={`https://s.mpump.live/${parentId}`} target="_blank" rel="noopener noreferrer" style={{ color: "var(--preview)", textDecoration: "none" }}>s.mpump.live/{parentId}</a>
+          <span style={{ opacity: 0.4, margin: "0 6px" }}>·</span>
+          <button
+            style={{ fontSize: 10, background: "none", border: "none", color: "var(--preview)", cursor: "pointer", textDecoration: "underline", padding: 0 }}
+            onClick={() => { document.querySelector<HTMLButtonElement>(".header-share-btn")?.click(); }}
+          >Share your remix</button>
+        </div>
+      )}
 
       {/* Song strip — right below header, centered */}
       {isPreview && songModeOn && (
@@ -2041,7 +2064,7 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
       )}
 
       {shareUrl && (
-        <ShareModal url={shareUrl} qrUrl={shareQrUrl} gestureNote={shareGestureNote} getAnalyser={getAnalyser ?? undefined} currentStep={drumsStep} onOpen={() => { if (allPaused) toggleAllPause(); }} onClose={() => { setShareUrl(null); setShareQrUrl(null); setShareGestureNote(false); }} />
+        <ShareModal url={shareUrl} longUrl={shareQrUrl} parentId={parentId} qrUrl={shareQrUrl} gestureNote={shareGestureNote} getAnalyser={getAnalyser ?? undefined} currentStep={drumsStep} onOpen={() => { if (allPaused) toggleAllPause(); }} onClose={() => { setShareUrl(null); setShareQrUrl(null); setShareGestureNote(false); }} />
       )}
 
       {showJam && (

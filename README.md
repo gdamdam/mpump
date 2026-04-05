@@ -124,7 +124,8 @@ All sounds are synthesized in real-time via the Web Audio API. No sample files n
 **Session**
 - Full session export/import (JSON with patterns, sounds, effects, volumes, settings)
 - Save/load presets (15 built-in including scene presets + user presets)
-- Share link via URL (encodes BPM, genres, patterns, effects)
+- Share link via short URL (`s.mpump.live/{id}`) with full offline fallback
+- Remix lineage — shared beats track their parent, visible in the share modal
 - Record to WAV
 - Video recording with facecam overlay (beta, enable in Settings)
 
@@ -146,7 +147,7 @@ All sounds are synthesized in real-time via the Web Audio API. No sample files n
 - Stereo width control (0–100%) via Haas effect on high band
 - Low-cut filter (0–200 Hz) for phone/laptop speakers
 - Drive/saturation (-6 to +12 dB) with ON/OFF toggle, default +1 dB
-- Mix scenes: 10 built-in profiles (Neutral, Punchy, Warm, etc.) + save/load user scenes
+- Mix scenes: 10 built-in profiles (Neutral, Punchy, Warm, etc.) + save/load user scenes. Auto mode applies a genre-optimized profile; ★ badges highlight matching scenes for the current genre
 - Anti-clip limiter with hybrid soft-clip mode
 
 **Interface**
@@ -164,6 +165,7 @@ All sounds are synthesized in real-time via the Web Audio API. No sample files n
 - 4 transition types between scenes: instant cut, volume crossfade, filter sweep, drum breakdown
 - Loop the arrangement or play once through
 - Sound changes use release-tail crossfade — old notes finish naturally, new notes use the new preset
+- Save/load songs to browser storage (+Save / Songs buttons)
 - Enable via ⋯ more menu
 
 ---
@@ -294,7 +296,24 @@ mpump collects no personal data. No account. No tracking.
 
 When you share a beat, the link contains only beat settings (BPM, genre, patterns, effects). No personal data, no user identifiers.
 
-Share links pass through a lightweight stateless relay (`s.mpump.live`) that adds preview metadata so messaging apps can display a card. The relay logs nothing, stores nothing, sets no cookies. Only messaging app crawlers hit the relay; your browser is redirected straight to mpump. Open source in [`worker/`](worker/).
+Share links go through a relay (`s.mpump.live`) that does three things:
+
+1. **Short URLs** — `s.mpump.live/{id}` instead of long encoded links. The full self-contained link is always available as a fallback (works offline, no relay needed).
+2. **Preview cards** — adds metadata so messaging apps display a card with BPM, genre, and pattern grid.
+3. **Remix lineage** — when you remix someone's beat and share it, the relay stores which beat yours came from. This is the only data stored: a link between two beats. No user info, no IPs, no timestamps beyond creation date.
+
+**What the relay stores:**
+- Beat URLs (the same data that's in the link — BPM, patterns, effects)
+- Parent references (which beat was remixed from which)
+- Anonymous counters (play count, remix count — no user identifiers attached)
+
+**What the relay does NOT store:**
+- No user accounts, emails, or names
+- No IP addresses
+- No cookies or tokens
+- No browser fingerprints
+
+The relay is fully open source in [`worker/`](worker/).
 
 ### Live Jam
 
