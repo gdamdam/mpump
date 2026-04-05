@@ -44,6 +44,7 @@ No install. No account. Works offline. Your stuff stays in your browser.
 - [Audio Engine](#audio-engine)
 - [Sound Presets](#sound-presets)
 - [Features](#features)
+- [Song Mode](#song-mode)
 - [DAW Sync](#daw-sync)
 - [Pattern Library](#pattern-library)
 - [Project Layout](#project-layout)
@@ -58,7 +59,7 @@ No install. No account. Works offline. Your stuff stays in your browser.
 |---|---|
 | **KAOS** | Performance XY pad (remappable axes), neon touch trails, chaos auto-randomizer, 10-effect rack with long-press editing |
 | **SYNTH** | Full step-grid editor with drum/bass/synth sections, ADSR/filter/LFO controls, Euclidean rhythm generator, arpeggiator, scale lock |
-| **MIXER** | Console with per-channel faders, EQ, pan, mute/solo, VU meters. Master EQ, multiband compressor, stereo width, low cut, drive, trance gate. Mix scenes (10 profiles: Neutral, Punchy, Warm, Airy, Tight, Heavy, Mellow, Spacious, Crisp, Loud + user saves). Analog needle VU meter with dB readout and clip indicator |
+| **MIXER** | Console with per-channel faders, EQ, pan, mute/solo, clip LEDs. Master EQ, multiband compressor, stereo width, low cut, drive (ON/OFF toggle), trance gate. Mix scenes (10 profiles: Neutral, Punchy, Warm, Airy, Tight, Heavy, Mellow, Spacious, Crisp, Loud + user saves). Analog needle VU meter with dB readout and clip indicator |
 
 ---
 
@@ -76,7 +77,7 @@ All sounds are synthesized in real-time via the Web Audio API. No sample files n
 
 **Master**: 3-band multiband compressor (adjustable amount), stereo widening (Haas effect on high band), low-cut filter, drive, 3-band EQ. Per-channel 3-band EQ for drums/bass/synth. Anti-clip limiter with hybrid soft-clip mode.
 
-**QWERTY Keyboard**: Play notes with your computer keyboard (Z–M = lower octave, Q–U = upper octave, `[`/`]` = shift octave). Works on drums, bass, and synth.
+**QWERTY Keyboard**: DAW-style piano layout — A–L = white keys (C to D), W–O = black keys, Z/X = octave down/up, C/V = velocity down/up. Works on drums, bass, and synth. Hold mode sustains notes; step record writes notes into the pattern.
 
 ---
 
@@ -144,16 +145,26 @@ All sounds are synthesized in real-time via the Web Audio API. No sample files n
 - 3-band multiband compressor with adjustable amount (0–100%)
 - Stereo width control (0–100%) via Haas effect on high band
 - Low-cut filter (0–200 Hz) for phone/laptop speakers
+- Drive/saturation (-6 to +12 dB) with ON/OFF toggle, default +1 dB
 - Mix scenes: 10 built-in profiles (Neutral, Punchy, Warm, etc.) + save/load user scenes
 - Anti-clip limiter with hybrid soft-clip mode
 
 **Interface**
 - 6 color themes (Forest, Amber, Neon, Minimal, Cream, Rosé)
 - Keyboard shortcuts (Space, R, arrows for navigation, M/S/L for mute/solo/lock, B for BPM, Tab to cycle views, 1-3 for view mode, ? for help)
-- QWERTY keyboard playing (⌨ button per instrument, `[`/`]` octave shift)
+- QWERTY keyboard playing (⌨ button per instrument, A–L white keys, W–O black keys, Z/X octave, C/V velocity)
 - PWA with offline support and auto-update detection
 - MIDI device connect button (no permission prompt on load)
 - Responsive: works on desktop, tablet, and mobile
+
+## Song Mode
+
+- Capture scenes (snapshot of patterns, sounds, mixer, BPM) and arrange them into a song
+- Horizontal arrangement strip with configurable bar counts (1/2/4/8/16/32) per scene
+- 4 transition types between scenes: instant cut, volume crossfade, filter sweep, drum breakdown
+- Loop the arrangement or play once through
+- Sound changes use release-tail crossfade — old notes finish naturally, new notes use the new preset
+- Enable via ⋯ more menu
 
 ---
 
@@ -263,7 +274,7 @@ docs/                   # Documentation (11 chapters)
 
 **Data flow:** UI components dispatch `ClientMessage` commands → `Engine` manages state and sequencers → Sequencers schedule notes via look-ahead (100ms) → `AudioPort` synthesizes sound (Web Audio) or `MidiPort` sends MIDI to hardware. State changes flow back via callbacks to React.
 
-**Audio chain:** Voice → Channel Bus (per-instrument gain + analyser) → Master Gain → Effects Chain (10 effects in series) → Soft Clip (hybrid mode) → Limiter → Analyser → Destination. Channels with FX exclusion enabled bypass the effects chain via dedicated routing nodes while still passing through the master EQ and limiter.
+**Audio chain:** Voice → Channel Bus (per-instrument gain + analyser) → Master Gain → Effects Chain (10 effects in series) → Air Rolloff (gentle HF taper) → Soft Clip (tanh, hybrid mode) → Limiter → Analyser → Destination. Channels with FX exclusion enabled bypass the effects chain via dedicated routing nodes while still passing through the master EQ and limiter.
 
 **Pattern system:** 1210+ patterns stored as JSON. Melodic patterns are semitone offsets (transposable). Drum patterns are note/velocity arrays. Bass runs on a separate sequencer with independent genre/pattern selection.
 

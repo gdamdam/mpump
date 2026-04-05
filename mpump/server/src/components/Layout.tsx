@@ -37,6 +37,7 @@ import { pressVibrate, heavyVibrate } from "../utils/haptic";
 import { getDeviceGenres, getDeviceBassGenres } from "../data/catalog";
 import { SYNTH_PRESETS, BASS_PRESETS, DRUM_KIT_PRESETS } from "../data/soundPresets";
 import { SAMPLE_PACKS } from "../data/samplePacks";
+import { GENRE_MIX_PROFILES } from "../data/genreMixProfiles";
 
 interface Props {
   state: EngineState;
@@ -149,20 +150,22 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
     return () => document.removeEventListener("click", close);
   }, [showScenePicker]);
   const [activeScene, setActiveScene] = useState<string | null>("Punchy");
+  const activeSceneRef = useRef(activeScene);
+  useEffect(() => { activeSceneRef.current = activeScene; }, [activeScene]);
   const HEADER_SCENES = [
     { name: "Neutral", desc: "flat, no coloring", eq: { low: 0, mid: 0, high: 0 }, drive: 1, width: 0.5, lowCut: 0, mbOn: true, mbAmount: 0.25 },
-    { name: "Airy", desc: "wide, bright, open", eq: { low: 1, mid: -1, high: 2 }, drive: 1, width: 0.7, lowCut: 25, mbOn: true, mbAmount: 0.35 },
-    { name: "Punchy", desc: "tight kick, clear mids", eq: { low: 2, mid: -2, high: 1 }, drive: 1, width: 0.6, lowCut: 35, mbOn: true, mbAmount: 0.3 },
-    { name: "Warm", desc: "smooth, round, groovy", eq: { low: 2, mid: -1, high: 0 }, drive: 1, width: 0.65, lowCut: 25, mbOn: true, mbAmount: 0.3 },
-    { name: "Tight", desc: "controlled, fast, clean", eq: { low: 1, mid: -2, high: 1 }, drive: 1, width: 0.55, lowCut: 35, mbOn: true, mbAmount: 0.35 },
-    { name: "Heavy", desc: "deep sub, weight", eq: { low: 3, mid: -1, high: 1 }, drive: 2, width: 0.5, lowCut: 20, mbOn: true, mbAmount: 0.35 },
-    { name: "Mellow", desc: "dark, soft, relaxed", eq: { low: 1, mid: -1, high: -1 }, drive: 0, width: 0.65, lowCut: 0, mbOn: true, mbAmount: 0.15 },
-    { name: "Spacious", desc: "very wide, minimal", eq: { low: 1, mid: -1, high: 1 }, drive: 0, width: 0.8, lowCut: 20, mbOn: true, mbAmount: 0.1 },
-    { name: "Crisp", desc: "bright, defined, present", eq: { low: 1, mid: -1, high: 2 }, drive: 2, width: 0.55, lowCut: 30, mbOn: true, mbAmount: 0.3 },
-    { name: "Loud", desc: "full, compressed, big", eq: { low: 2, mid: -1, high: 1 }, drive: 2, width: 0.65, lowCut: 25, mbOn: true, mbAmount: 0.4 },
+    { name: "Airy", desc: "wide, bright, open", eq: { low: 1, mid: -1, high: 2 }, drive: 1, width: 0.7, lowCut: 25, mbOn: true, mbAmount: 0.35, genres: ["trance", "idm"] },
+    { name: "Punchy", desc: "tight kick, clear mids", eq: { low: 2, mid: -2, high: 1 }, drive: 1, width: 0.6, lowCut: 35, mbOn: true, mbAmount: 0.3, genres: ["techno", "acid-techno", "house", "edm"] },
+    { name: "Warm", desc: "smooth, round, groovy", eq: { low: 2, mid: -1, high: 0 }, drive: 1, width: 0.65, lowCut: 25, mbOn: true, mbAmount: 0.3, genres: ["house", "deep-house", "garage", "synthwave"] },
+    { name: "Tight", desc: "controlled, fast, clean", eq: { low: 1, mid: -2, high: 1 }, drive: 1, width: 0.55, lowCut: 35, mbOn: true, mbAmount: 0.35, genres: ["drum-and-bass", "jungle", "breakbeat"] },
+    { name: "Heavy", desc: "deep sub, weight", eq: { low: 3, mid: -1, high: 1 }, drive: 2, width: 0.5, lowCut: 20, mbOn: true, mbAmount: 0.35, genres: ["dubstep"] },
+    { name: "Mellow", desc: "dark, soft, relaxed", eq: { low: 1, mid: -1, high: -1 }, drive: 0, width: 0.65, lowCut: 0, mbOn: true, mbAmount: 0.15, genres: ["downtempo", "lo-fi"] },
+    { name: "Spacious", desc: "very wide, minimal", eq: { low: 1, mid: -1, high: 1 }, drive: 0, width: 0.8, lowCut: 20, mbOn: true, mbAmount: 0.1, genres: ["ambient", "dub-techno"] },
+    { name: "Crisp", desc: "bright, defined, present", eq: { low: 1, mid: -1, high: 2 }, drive: 2, width: 0.55, lowCut: 30, mbOn: true, mbAmount: 0.3, genres: ["trance", "psytrance", "electro"] },
+    { name: "Loud", desc: "full, compressed, big", eq: { low: 2, mid: -1, high: 1 }, drive: 2, width: 0.65, lowCut: 25, mbOn: true, mbAmount: 0.4, genres: ["edm"] },
   ];
-  const loadHeaderScene = (s: typeof HEADER_SCENES[0]) => {
-    setActiveScene(s.name);
+  const loadHeaderScene = (s: { eq: { low: number; mid: number; high: number }; drive: number; width: number; lowCut: number; mbOn: boolean; mbAmount: number }, sceneName?: string) => {
+    setActiveScene(sceneName ?? (s as typeof HEADER_SCENES[0]).name ?? null);
     command({ type: "set_eq", ...s.eq } as ClientMessage);
     command({ type: "set_drive", db: s.drive } as ClientMessage);
     command({ type: "set_width", width: s.width } as ClientMessage);
@@ -170,6 +173,22 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
     command({ type: "set_multiband", on: s.mbOn } as ClientMessage);
     command({ type: "set_multiband_amount", amount: s.mbAmount } as ClientMessage);
     setShowScenePicker(false);
+  };
+  const getCurrentDrumsGenre = (): string | undefined => {
+    if (!catalog) return undefined;
+    const drumGenres = catalog.t8?.drum_genres ?? [];
+    const drumsD = Object.values(state.devices).find(d => d.id === "preview_drums");
+    return drumsD ? drumGenres[drumsD.genre_idx]?.name : undefined;
+  };
+  const applyAutoScene = () => {
+    const genre = getCurrentDrumsGenre();
+    const profile = genre ? GENRE_MIX_PROFILES[genre] : undefined;
+    if (profile) {
+      loadHeaderScene(profile, "Auto");
+    } else {
+      // fallback to Punchy
+      loadHeaderScene(HEADER_SCENES.find(s => s.name === "Punchy")!, "Auto");
+    }
   };
   useEffect(() => {
     if (!showMoreMenu) return;
@@ -1383,6 +1402,13 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
           const gi = patternLock.bass && bassGenreName ? matchPreset(BASS_PRESETS as unknown as { name: string; genres?: string }[], bassGenreName) : null;
           handleBassChange(gi != null ? String(gi) : ri(BASS_PRESETS.length));
         }
+        // Re-apply genre mix profile when Auto scene is active
+        if (activeSceneRef.current === "Auto" && drumsGenreName) {
+          const profile = GENRE_MIX_PROFILES[drumsGenreName];
+          if (profile) {
+            loadHeaderScene(profile, "Auto");
+          }
+        }
       }, 100);
       // Snap synth/bass pattern steps to locked scale (if not chromatic)
       const sl = getItem("mpump-scale-lock", "chromatic");
@@ -1576,21 +1602,41 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
                   className={`sound-lock-btn ${activeScene ? "locked" : ""}`}
                   title={activeScene ? `Scene: ${activeScene}` : "Mix scene"}
                   onClick={() => setShowScenePicker(v => { if (!v) setShowGenrePicker(false); return !v; })}
-                  style={{ fontSize: 14, border: activeScene ? "1px solid var(--preview)" : undefined, borderRadius: activeScene ? 4 : undefined, padding: activeScene ? "1px 4px" : undefined }}
-                >🎛</button>
-                {showScenePicker && (
-                  <div className="genre-link-dropdown" style={{ minWidth: 120 }}>
-                    <div style={{ fontSize: 8, opacity: 0.4, letterSpacing: 1, padding: "2px 8px", textTransform: "uppercase" }}>Mix Scene</div>
-                    {HEADER_SCENES.map(s => (
+                  style={{ fontSize: 14, border: activeScene ? "1px solid var(--preview)" : undefined, borderRadius: activeScene ? 4 : undefined, padding: activeScene ? "1px 4px" : undefined, position: "relative" }}
+                >🎛{(() => {
+                  if (activeScene === "Auto") return null;
+                  const g = getCurrentDrumsGenre();
+                  const hasSuggestion = g && (GENRE_MIX_PROFILES[g] || HEADER_SCENES.some(s => s.genres?.includes(g)));
+                  const isSuggested = g && activeScene && HEADER_SCENES.find(s => s.name === activeScene)?.genres?.includes(g);
+                  if (hasSuggestion && !isSuggested) return <span style={{ position: "absolute", top: -1, right: -1, width: 5, height: 5, borderRadius: "50%", background: "var(--preview)", display: "block" }} />;
+                  return null;
+                })()}</button>
+                {showScenePicker && (() => {
+                  const curGenre = getCurrentDrumsGenre();
+                  const suggested = curGenre ? HEADER_SCENES.filter(s => s.genres?.includes(curGenre)) : [];
+                  const suggestedNames = new Set(suggested.map(s => s.name));
+                  const sorted = [...suggested, ...HEADER_SCENES.filter(s => !suggestedNames.has(s.name))];
+                  const autoGenreLabel = curGenre ? GENRE_MIX_PROFILES[curGenre]?.name ?? curGenre : undefined;
+                  return (
+                    <div className="genre-link-dropdown" style={{ minWidth: 120 }}>
+                      <div style={{ fontSize: 8, opacity: 0.4, letterSpacing: 1, padding: "2px 8px", textTransform: "uppercase" }}>Mix Scene</div>
                       <button
-                        key={s.name}
-                        className={`genre-link-option ${activeScene === s.name ? "active" : ""}`}
-                        style={activeScene === s.name ? { background: "#66ff99", color: "#000" } : undefined}
-                        onClick={() => loadHeaderScene(s)}
-                      >{s.name} <span style={{ opacity: 0.8, fontSize: 8 }}>{s.desc}</span></button>
-                    ))}
-                  </div>
-                )}
+                        className={`genre-link-option ${activeScene === "Auto" ? "active" : ""}`}
+                        style={activeScene === "Auto" ? { background: "#66ff99", color: "#000" } : undefined}
+                        onClick={applyAutoScene}
+                      >Auto {autoGenreLabel ? <span style={{ opacity: 0.8, fontSize: 8 }}>fit to {autoGenreLabel}</span> : null}</button>
+                      <div style={{ borderTop: "1px solid rgba(102,255,153,0.15)", margin: "2px 8px" }} />
+                      {sorted.map(s => (
+                        <button
+                          key={s.name}
+                          className={`genre-link-option ${activeScene === s.name ? "active" : ""}`}
+                          style={activeScene === s.name ? { background: "#66ff99", color: "#000" } : undefined}
+                          onClick={() => loadHeaderScene(s)}
+                        >{suggestedNames.has(s.name) ? "★ " : ""}{s.name} <span style={{ opacity: 0.8, fontSize: 8 }}>{s.desc}</span></button>
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
             )}
             {isPreview && (

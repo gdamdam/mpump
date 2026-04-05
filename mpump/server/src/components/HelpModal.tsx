@@ -74,17 +74,17 @@ const SECTIONS = [
   {
     title: "Mixer",
     items: [
-      "**Needle VU meter** — analog gauge with dB scale (-40 to +3), peak hold, clip indicator",
-      "**Channel faders** — independent volume for Drums, Synth, Bass, and Master",
+      "**CLIP LED** — per-channel clip indicator",
+      "**Channel faders** — independent volume for Drums, Synth, Bass, and Master (default -5dB)",
       "**Mute (M)** — per-channel mute with activity LEDs",
       "**Solo (S)** — solo a single channel, muting all others",
       "**Pan** — per-channel stereo panning",
       "**Mono** — collapse a channel to mono (useful for bass)",
       "**EQ** — 3-band master equalizer (LOW/MID/HIGH, ±12 dB) with live dB readout and clip indicator",
-      "**DRV** — master drive/saturation (-6 to +12 dB) with waveform preview",
+      "**DRV** — master drive/saturation (-6 to +12 dB) with ON/OFF toggle, default +1dB",
       "**Anti-clip limiter** — on by default, prevents digital clipping. Hybrid mode (beta) in Settings",
       "**Trance Gate** — per-channel tempo-synced volume chopper (synth/bass). 8 numbered presets, 5 stutter presets (BDUP, TRIP, STUT, BKBT, GLTC), and custom editable 16-step patterns",
-      "**LIMIT button** — toggle limiter on/off from the VU panel",
+      "**LIMIT button** — toggle limiter on/off",
       "**Mix Scenes (SCN)** — 10 built-in profiles (Neutral, Punchy, Warm, Airy, Tight, Heavy, Mellow, Spacious, Crisp, Loud) + save/load user scenes",
     ],
   },
@@ -101,6 +101,18 @@ const SECTIONS = [
       "**⇩/⇧** — Export/import full session as JSON",
       "**⤴** — Share current setup as a link",
       "**⚙** — Settings (volume, themes, experimental features)",
+    ],
+  },
+  {
+    title: "Computer Keyboard",
+    items: [
+      "**⌨ button** — toggle keyboard playing mode (in SYNTH view)",
+      "**A S D F G H J K L** — white keys (C D E F G A B C D)",
+      "**W E T Y U O** — black keys (C# D# F# G# A# C#)",
+      "**Z / X** — octave down / up",
+      "**C / V** — velocity down / up (steps of 10)",
+      "**◆ HOLD** — sustain notes until hold is turned off",
+      "**✎ Step Record** — write notes into pattern with keyboard",
     ],
   },
   {
@@ -137,6 +149,19 @@ const SECTIONS = [
     ],
   },
   {
+    title: "Song Mode",
+    items: [
+      "**Enable** — toggle in ⋯ more menu",
+      "**⊕ Capture** — snapshot current state as a named scene (patterns, sounds, mixer, BPM)",
+      "**LIB** — open scene library to add scenes to arrangement or delete them",
+      "**Arrangement strip** — horizontal chain of scenes with configurable bar counts (1/2/4/8/16/32)",
+      "**Transitions** — click between scenes to cycle: instant, fade (crossfade), filter (EQ sweep), breakdown (drum drop)",
+      "**▶/■** — play/stop song (automatically controls main transport)",
+      "**↻ Loop** — loop the arrangement",
+      "**Sound changes** — scenes save full synth/bass params; old notes finish naturally, new notes use the new preset",
+    ],
+  },
+  {
     title: "Settings (Experimental)",
     beta: true,
     items: [
@@ -146,7 +171,6 @@ const SECTIONS = [
       "**Duck** — auto-duck on kick hits",
       "**CV Output** — 1V/oct pitch + gate for DC-coupled audio interfaces",
       "**MIDI Clock In** — sync to external MIDI clock (24 PPQN) with Start/Stop/Continue transport control. Steps are tick-driven for tight sync. Use IAC Driver (Mac) or loopMIDI (Windows) to sync with Ableton Live or any DAW",
-      "**Song Mode** — arrange pattern sequences",
       "**KAOS Viz** — 4 pad visualizers: Mirrored Bars, Waveform Glow, Circular, Spectrum",
       "**MIX Effect** — visual feedback on MIX: Shake, Flash, Both, or Off",
     ],
