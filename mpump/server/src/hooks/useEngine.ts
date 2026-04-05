@@ -310,7 +310,7 @@ export function useEngine() {
   }, []);
 
   const getMixerState = useCallback(() => {
-    return engineRef.current?.getMixerState() ?? { drive: 0, eq: { low: 1, mid: 0, high: 0 }, width: 0.5, lowCut: 0, mbOn: true, mbExcludeDrums: true };
+    return engineRef.current?.getMixerState() ?? { drive: 1, eq: { low: 1, mid: 0, high: 0 }, width: 0.5, lowCut: 0, mbOn: false, mbExcludeDrums: true };
   }, []);
 
   const getMutedDrumNotes = useCallback((): Set<number> => {

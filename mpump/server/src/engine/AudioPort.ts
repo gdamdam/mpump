@@ -68,8 +68,8 @@ export class AudioPort {
   private bpm = 120;
   /** Sidechain duck: duck non-drum channels on kick hits. */
   private sidechainDuck = false;  // off by default — user enables via DUCK effect button
-  private duckDepth = 0.5;  // moderate duck (0.5 = duck to 50%, subtle pump)
-  private duckRelease = 0.04; // seconds, recovery time constant
+  private duckDepth = 0.7;  // noticeable duck (0.7 = duck to 30%, clear pump)
+  private duckRelease = 0.06; // seconds, recovery time constant
   /** Metronome: click on every beat. */
   private metronomeOn = false;
   /** CV output for DC-coupled interfaces. */
@@ -79,6 +79,8 @@ export class AudioPort {
   private eqLow: BiquadFilterNode;
   private eqMid: BiquadFilterNode;
   private eqHigh: BiquadFilterNode;
+  /** Fixed high-shelf rolloff to tame harsh highs (not user-adjustable). */
+  private airRolloff: BiquadFilterNode;
   private masterBoost: GainNode;
   private analyser: AnalyserNode;
   /** Effects state */
@@ -128,7 +130,7 @@ export class AudioPort {
   /** Performance mode: "normal" | "lite" (no viz) | "eco" (lite + reduced audio). */
   readonly perfMode: "normal" | "lite" | "eco";
   /** Multiband compressor: splits into low/mid/high bands with per-band compression. */
-  private mbEnabled = true;
+  private mbEnabled = false;
   private mbLowLP: BiquadFilterNode | null = null;
   private mbMidBP: BiquadFilterNode[] | null = null; // LP + HP pair for bandpass
   private mbHighHP: BiquadFilterNode | null = null;
@@ -172,6 +174,12 @@ export class AudioPort {
     this.eqHigh.frequency.value = 5000;
     this.eqHigh.gain.value = 2; // "Punchy" default: bright top
 
+    // Fixed air rolloff — gentle -3dB above 10kHz to tame harsh resonance peaks
+    this.airRolloff = this.ctx.createBiquadFilter();
+    this.airRolloff.type = "highshelf";
+    this.airRolloff.frequency.value = 10000;
+    this.airRolloff.gain.value = -3;
+
     // Master gain boost (before limiter)
     this.masterBoost = this.ctx.createGain();
     this.masterBoost.gain.value = 2.0; // +6dB default boost (limiter catches peaks)
@@ -195,7 +203,7 @@ export class AudioPort {
 
     // Drive gain — input gain before limiter (0dB default)
     this.driveGain = this.ctx.createGain();
-    this.driveGain.gain.value = Math.pow(10, 1 / 20); // +1.0 dB default drive
+    this.driveGain.gain.value = 1.122; // +1 dB default drive
 
     // Multiband compressor: skip in lite/eco mode (12 nodes, 3 compressors)
     if (this.perfMode === "normal") this.initMultiband();
@@ -1417,6 +1425,7 @@ export class AudioPort {
       try { this.eqLow.disconnect(); } catch { /* */ }
       try { this.eqMid.disconnect(); } catch { /* */ }
       try { this.eqHigh.disconnect(); } catch { /* */ }
+      try { this.airRolloff.disconnect(); } catch { /* */ }
       try { this.masterBoost.disconnect(); } catch { /* */ }
       try { this.driveGain.disconnect(); } catch { /* */ }
       try { this.softClip.disconnect(); } catch { /* */ }
@@ -1438,7 +1447,8 @@ export class AudioPort {
       }
       this.eqLow.connect(this.eqMid);
       this.eqMid.connect(this.eqHigh);
-      this.eqHigh.connect(this.masterBoost);
+      this.eqHigh.connect(this.airRolloff);
+      this.airRolloff.connect(this.masterBoost);
 
       // After masterBoost, optionally insert multiband compressor
       let postEQ: AudioNode = this.masterBoost;

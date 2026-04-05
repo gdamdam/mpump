@@ -218,11 +218,11 @@ export function MixerPanel({
   };
 
   // Drive
-  const [drive, setDrive] = useState(0);
+  const [drive, setDrive] = useState(() => getMixerState?.().drive ?? 0);
   const [eqLow, setEqLow] = useState(1); // match AudioPort default
   const [eqMid, setEqMid] = useState(0); // flat — mud cut on bass channel only
   const [eqHigh, setEqHigh] = useState(0); // neutral
-  const [mbOn, setMbOn] = useState(() => getMixerState?.().mbOn ?? true);
+  const [mbOn, setMbOn] = useState(() => getMixerState?.().mbOn ?? false);
   const [mbAmount, setMbAmount] = useState(0.25);
   const [mbExcludeDrums, setMbExcludeDrums] = useState(() => getMixerState?.().mbExcludeDrums ?? true);
   const [showMbModal, setShowMbModal] = useState(false);
@@ -824,9 +824,15 @@ export function MixerPanel({
               onChange={(e) => { const v = parseFloat(e.target.value); setDrive(v); throttledCmd({ type: "set_drive", db: v }); }} />
             <span className="fx-editor-value">{drive > 0 ? "+" : ""}{drive.toFixed(1)} dB</span>
           </div>
-          <span className="mx-modal-reset" onClick={() => {
-            setDrive(0); command({ type: "set_drive", db: 0 });
-          }}>RST</span>
+          <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 4 }}>
+            <button className={`mx-btn ${drive !== 0 ? "active" : ""}`}
+              onClick={() => { if (drive !== 0) { setDrive(0); command({ type: "set_drive", db: 0 }); } else { setDrive(1); command({ type: "set_drive", db: 1 }); } }}>
+              {drive !== 0 ? "ON" : "OFF"}
+            </button>
+            <span className="mx-modal-reset" onClick={() => {
+              setDrive(0); command({ type: "set_drive", db: 0 });
+            }}>RST</span>
+          </div>
         </MasterModal>
       )}
 

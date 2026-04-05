@@ -97,7 +97,7 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
 
   // Refs for auto-save (avoid stale closures in beforeunload / setInterval)
   const volumeRef = useRef(0.7);
-  const channelVolumesRef = useRef<Record<number, number>>({ 9: 0.7, 0: 0.45, 1: 0.53 });
+  const channelVolumesRef = useRef<Record<number, number>>({ 9: 0.56, 0: 0.56, 1: 0.56 });
   const activeDrumKitRef = useRef("0");
   const activeSynthRef = useRef("0");
   const activeBassRef = useRef("0");
@@ -188,7 +188,7 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
   const [showSessionModal, setShowSessionModal] = useState(false);
   const [showDrumKitFromMixer, setShowDrumKitFromMixer] = useState(false);
   const [keyLocked, setKeyLocked] = useState(false);
-  const [channelVolumes, setChannelVolumes] = useState<Record<number, number>>({ 9: 0.7, 0: 0.45, 1: 0.53 });
+  const [channelVolumes, setChannelVolumes] = useState<Record<number, number>>({ 9: 0.56, 0: 0.56, 1: 0.56 });
   const [antiClipMode, setAntiClipMode] = useState<"off" | "limiter" | "hybrid">("limiter");
 
   // Keep auto-save refs in sync (volume, channelVolumes, antiClipMode)

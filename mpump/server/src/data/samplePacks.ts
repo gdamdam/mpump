@@ -92,7 +92,7 @@ export const SAMPLE_PACKS: SamplePack[] = [
   {
     id: "808", name: "TR-808", genres: "Hip-Hop, Trap, Electro",
     voices: {
-      36: { tune: -2, decay: 0.3, level: 1, click: 0.05, sweepDepth: 0.7, sweepRate: 0.3 },
+      36: { tune: -2, decay: 0.6, level: 1, click: 0.1, sweepDepth: 0.7, sweepRate: 0.3 },
       38: { tune: 0, decay: 0.4, level: 0.9, noiseMix: 0.7 },
       42: { tune: 0, decay: 0.5, level: 0.8, color: -0.3 },
       46: { tune: -1, decay: 0.6, level: 0.75, color: -0.3 },
@@ -104,9 +104,9 @@ export const SAMPLE_PACKS: SamplePack[] = [
     // TR-909: hybrid analog/sample — punchy analog kick/snare, bright 6-bit sampled hats/cymbals
     id: "909", name: "TR-909", genres: "Techno, House, Trance",
     voices: {
-      36: { tune: 2, decay: 0.3, level: 1, click: 0.3, sweepDepth: 0.5, sweepRate: 0.45 },
+      36: { tune: 2, decay: 0.3, level: 1, click: 0.35, sweepDepth: 0.5, sweepRate: 0.45 },
       38: { tune: 1, decay: 0.5, level: 1, noiseMix: 0.6 },
-      42: { tune: 0, decay: 0.6, level: 0.9, color: 0.4 },
+      42: { tune: 0, decay: 0.4, level: 0.9, color: 0.4 },
       46: { tune: -1, decay: 0.5, level: 0.8, color: 0.4 },
       50: { tune: 4, decay: 0.35, level: 0.9 },
       49: { tune: 3, decay: 1.0, level: 0.7, color: 0.45 },
