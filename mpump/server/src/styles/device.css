@@ -223,6 +223,15 @@
 .header-share-btn:active {
   opacity: 0.8;
 }
+.header-reshare {
+  background: #fff;
+  color: #000;
+  animation: reshare-pulse 1.5s ease-in-out infinite;
+}
+@keyframes reshare-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255,255,255,0.4); }
+  50% { box-shadow: 0 0 8px 2px rgba(255,255,255,0.2); }
+}
 
 
 .share-gesture-note {

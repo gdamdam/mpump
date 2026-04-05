@@ -1843,7 +1843,7 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
               )}
               {isPreview && getAnalyser && <Recorder getAnalyser={getAnalyser} onExport={support.onExport} />}
               {isPreview && (
-                <button className="header-settings-btn header-share-btn" title="Share setup" aria-label="Share setup" onClick={() => {
+                <button className={`header-settings-btn header-share-btn${remixDirty ? " header-reshare" : ""}`} title={remixDirty ? "Share your remix" : "Share setup"} aria-label={remixDirty ? "Share remix" : "Share setup"} onClick={() => {
                   const base = buildSharePayload();
                   const shareLink = buildShareUrl(base);
                   setShareQrUrl(shareLink);
@@ -1857,7 +1857,7 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
                     setShareUrl(shareLink);
                   });
                 }}>
-                  ⤴ Share
+                  {remixDirty ? "⤴ Re-share" : "⤴ Share"}
                 </button>
               )}
               {isPreview && jamEnabled && (
@@ -1925,9 +1925,6 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
       {parentId && (
         <div className="remix-banner">
           <span>🔀 Based on <a href={`https://s.mpump.live/${parentId}`} target="_blank" rel="noopener noreferrer">s.mpump.live/{parentId}</a></span>
-          {remixDirty && (
-            <button onClick={quickShareRemix}>{remixCopied ? "✓ Copied!" : "Share remix ⤴"}</button>
-          )}
           <button className="remix-banner-close" onClick={() => setParentId(null)}>✕</button>
         </div>
       )}
