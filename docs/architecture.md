@@ -117,20 +117,20 @@ Body at 185 Hz, pitch envelope 280→185 Hz. Wire resonance bandpass at 3800 Hz 
 | Ride | 51 | 6 bell partials 392–8500 Hz + stick transient |
 
 ### Fletcher-Munson Compensation
-Applied at playback time to compensate for equal-loudness contours:
+Applied at playback time to compensate for equal-loudness contours (drums only):
 
 | Voice | Note | Gain | Rationale |
 |-------|------|------|-----------|
-| Kick | 36 | 2.5 | Low frequency needs most boost |
+| Kick | 36 | 1.6 | Low frequency needs boost |
 | Snare | 38 | 1.1 | Mid-range body + high-freq wire |
-| CH | 42 | 0.9 | Ear-sensitive range |
-| OH | 46 | 0.8 | Same, slightly less energy |
-| Tom | 47 | 1.5 | Mid-range |
-| Crash | 49 | 0.7 | Brightest, most sensitive |
-| Clap | 50 | 0.9 | Noise-based, 1-5 kHz |
-| Ride | 51 | 0.8 | High partials |
-| Rimshot | 37 | 1.0 | Mid-high |
-| Cowbell | 56 | 0.8 | Mid-high |
+| CH | 42 | 1.3 | Ear-sensitive range, boosted for presence |
+| OH | 46 | 1.2 | Same, slightly less energy |
+| Tom/CB | 47 | 1.0 | Mid-range, neutral |
+| Crash | 49 | 1.1 | Bright, slight boost |
+| Clap | 50 | 0.9 | Noise-based, 1-5 kHz, slight cut |
+| Ride | 51 | 1.0 | High partials, neutral |
+| Rimshot | 37 | 1.0 | Mid-high, neutral |
+| Cowbell | 56 | 0.9 | Mid-high, slight cut |
 
 ### Channel Frequency Separation
 
