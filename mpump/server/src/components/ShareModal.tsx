@@ -5,7 +5,7 @@ import { decodeSharePayload } from "../utils/shareCodec";
 
 import type { StepData, DrumHit } from "../types";
 import { trackEvent } from "../utils/metrics";
-import { trackShare, submitBeat } from "../utils/shareRelay";
+import { trackShare, submitBeat, shortenBeat } from "../utils/shareRelay";
 
 const GENRES = ["techno","acid-techno","trance","dub-techno","idm","edm","drum-and-bass","house","breakbeat","jungle","garage","ambient","glitch","electro","downtempo","dubstep","lo-fi","synthwave","deep-house","psytrance"] as const;
 
@@ -52,6 +52,8 @@ export function ShareModal({ url, longUrl, parentId, qrUrl, gestureNote, getAnal
 
   // Extract beat ID from short URL (e.g. "abc123" from "https://s.mpump.live/abc123")
   const beatId = isShortened ? url.split("/").pop() || null : null;
+  // Relay URL available (short or long) — submission is possible
+  const isRelayUrl = url.includes("s.mpump.live") || url.includes("localhost:8787");
 
   const copyToClipboard = () => {
     const textToCopy = showLongUrl && longUrl ? longUrl : url;
@@ -711,8 +713,8 @@ export function ShareModal({ url, longUrl, parentId, qrUrl, gestureNote, getAnal
 
           {/* Submit to Discover */}
           <>
-            {!beatId ? (
-              <span className="share-submit-toggle share-submit-disabled" title="Share your beat first to get a short link">
+            {!isRelayUrl ? (
+              <span className="share-submit-toggle share-submit-disabled" title="Copy your link first — submission requires a relay URL">
                 ↑ Submit to Discover
               </span>
             ) : (
@@ -731,7 +733,7 @@ export function ShareModal({ url, longUrl, parentId, qrUrl, gestureNote, getAnal
                 {showSubmit ? "▲ cancel" : "↑ Submit to Discover"}
               </button>
             )}
-              {showSubmit && beatId && submitState !== "done" && submitState !== "duplicate" && (
+              {showSubmit && isRelayUrl && submitState !== "done" && submitState !== "duplicate" && (
                 <div className="share-submit-panel">
                   <div className="share-submit-label">title</div>
                   <input
@@ -781,11 +783,18 @@ export function ShareModal({ url, longUrl, parentId, qrUrl, gestureNote, getAnal
                     className="share-submit-btn"
                     disabled={!submitTitle.trim() || !submitGenre.trim() || !submitConfirm || submitState === "submitting"}
                     onClick={async () => {
-                      if (!beatId) return;
                       setSubmitState("submitting");
+                      let id = beatId;
+                      let shortUrl = url;
+                      if (!id) {
+                        const shortened = await shortenBeat(longUrl || url, parentId || undefined);
+                        if (!shortened) { setSubmitState("error"); return; }
+                        id = shortened.id;
+                        shortUrl = shortened.short;
+                      }
                       const result = await submitBeat({
-                        id: beatId,
-                        shortUrl: url,
+                        id,
+                        shortUrl,
                         title: submitTitle.trim(),
                         genre: submitGenre.trim(),
                         note: submitNote.trim() || undefined,
@@ -804,7 +813,7 @@ export function ShareModal({ url, longUrl, parentId, qrUrl, gestureNote, getAnal
                   )}
                 </div>
               )}
-              {showSubmit && (submitState === "done" || submitState === "duplicate") && (
+              {showSubmit && isRelayUrl && (submitState === "done" || submitState === "duplicate") && (
                 <div className="share-submit-result">
                   <div className="share-submit-result-title">
                     {submitState === "done" ? "submitted" : "already submitted"}
