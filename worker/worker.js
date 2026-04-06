@@ -474,6 +474,7 @@ export default {
         const key = `sc:${id}`;
         const current = parseInt(await env.BEATS.get(key) || "0", 10);
         ctx.waitUntil(env.BEATS.put(key, String(current + 1)));
+        if (env.ANALYTICS) env.ANALYTICS.writeDataPoint({ blobs: ["share", id], doubles: [1] });
         return new Response(JSON.stringify({ ok: true }), {
           headers: { "Content-Type": "application/json", ...CORS },
         });
@@ -559,6 +560,7 @@ async function handleShorten(request, env) {
     ]);
 
     // sc: incremented via /track when user copies link or uses native share
+    if (env.ANALYTICS) env.ANALYTICS.writeDataPoint({ blobs: ["create", id], doubles: [1] });
 
     // Increment parent's remix count only if payload differs
     if (parent && typeof parent === "string") {
@@ -569,6 +571,7 @@ async function handleShorten(request, env) {
           const countKey = `rc:${parent}`;
           const current = parseInt(await env.BEATS.get(countKey) || "0", 10);
           await env.BEATS.put(countKey, String(current + 1));
+          if (env.ANALYTICS) env.ANALYTICS.writeDataPoint({ blobs: ["remix", parent, id], doubles: [1] });
         }
       }
     }
@@ -653,6 +656,7 @@ async function handleShortUrl(id, url, request, env, ctx) {
   const ua = request.headers.get("user-agent") || "";
   if (!BOT_RE.test(ua) && ctx) {
     ctx.waitUntil(env.BEATS.put(`pc:${id}`, String(playCount + 1)));
+    if (env.ANALYTICS) env.ANALYTICS.writeDataPoint({ blobs: ["play", id], doubles: [1] });
   }
 
   // Extract payload from stored URL (hash fragment or query param)

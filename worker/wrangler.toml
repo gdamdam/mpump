@@ -10,3 +10,8 @@ compatibility_date = "2024-01-01"
 [[kv_namespaces]]
 binding = "BEATS"
 id = "d7f3e2fbf49d4b42baa5bc7d7a829144"
+
+# Analytics Engine for time-series event tracking
+[[analytics_engine_datasets]]
+binding = "ANALYTICS"
+dataset = "mpump_events"
