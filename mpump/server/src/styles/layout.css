@@ -598,9 +598,9 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
-/* Hide presets in more menu on desktop (shown on mobile only) */
 .more-menu-presets {
-  display: none;
+  display: block;
+  padding: 4px 12px;
 }
 
 .header-more-menu button,
@@ -969,19 +969,11 @@
     gap: 3px;
   }
 
-  .header-right-group .preset-mgr {
-    display: none;
-  }
-
   .header-share-btn {
     font-size: 8px;
     padding: 2px 6px;
   }
 
-  .more-menu-presets {
-    display: block;
-    padding: 4px 12px;
-  }
   .more-menu-presets .preset-mgr {
     max-width: none;
   }

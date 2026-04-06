@@ -1,7 +1,7 @@
 {
   "name": "mpump-web",
   "private": true,
-  "version": "1.8.7",
+  "version": "1.8.8",
   "license": "AGPL-3.0-only",
   "type": "module",
   "scripts": {

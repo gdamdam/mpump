@@ -149,7 +149,7 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
     setTimeout(() => document.addEventListener("click", close), 0);
     return () => document.removeEventListener("click", close);
   }, [showScenePicker]);
-  const [activeScene, setActiveScene] = useState<string | null>("Punchy");
+  const [activeScene, setActiveScene] = useState<string | null>("Auto");
   const activeSceneRef = useRef(activeScene);
   useEffect(() => { activeSceneRef.current = activeScene; }, [activeScene]);
   const HEADER_SCENES = [
@@ -1656,11 +1656,6 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
         <div className="header-controls">
           {/* Row 1: BPM, mode switcher, MIX, undo, play, rec */}
           <div className="header-row header-row-transport">
-            {isPreview && catalog && (
-              <button className="lib-open-btn" title="Browse all patterns" onClick={() => setShowLibrary(true)}>
-                &#x266B;<span className="lib-open-text"> Library</span>
-              </button>
-            )}
             {isPreview && (
               <div className="genre-link-wrap">
                 <button className={`lib-open-btn genre-link-btn ${genreLink ? "active" : ""}`} title={genreLink ? "All genres linked — click to unlink" : "Set all genres"} onClick={() => {
@@ -1878,7 +1873,6 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
             </div>
             {/* Right-aligned group: pins, heart, more, settings */}
             <div className="header-right-group">
-              {isPreview && <PresetManager state={state} onLoad={loadPreset} mixCount={mixCount} />}
               {isPreview && <button className="header-settings-btn header-save-btn" title="Save session (Cmd+S)" aria-label="Save session" onClick={saveToLibrary}>💾</button>}
               {isPreview && <button className="header-settings-btn header-sessions-btn" title="Sessions" aria-label="Sessions" onClick={() => setShowSessionLib(true)}>📂</button>}
               {isPreview && (
@@ -1893,6 +1887,7 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
                   </button>
                   {showMoreMenu && (
                     <div className="header-more-menu" onClick={(e) => { if (!(e.target as HTMLElement).closest(".tap-tempo-btn") && !(e.target as HTMLElement).closest(".preset-mgr")) setShowMoreMenu(false); }}>
+                      {catalog && <button onClick={() => { setShowMoreMenu(false); setShowLibrary(true); }}>♫ Library</button>}
                       <button onClick={() => { setShowMoreMenu(false); setShowHelp(true); }}>? Help</button>
                       <button className="more-menu-sessions" onClick={() => { setShowMoreMenu(false); setShowSessionLib(true); }}>📂 Sessions</button>
                       <div className="more-menu-presets"><PresetManager state={state} onLoad={loadPreset} mixCount={mixCount} /></div>

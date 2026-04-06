@@ -322,9 +322,10 @@
   color: var(--preview);
 }
 .preset-save-btn {
-  font-size: 14px;
+  font-size: 10px;
   font-weight: 700;
-  padding: 2px 8px;
+  padding: 3px 8px;
+  white-space: nowrap;
   border-radius: 4px;
   border: 1px solid var(--preview);
   background: transparent;

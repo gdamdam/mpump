@@ -16,29 +16,6 @@ interface SavedPreset {
 
 const STORAGE_KEY = "mpump-presets";
 
-const g = (gi: number, pi = 0) => ({ gi, pi, bgi: 0, bpi: 0 });
-const BUILT_IN: SavedPreset[] = [
-  { name: "Techno", ts: 0, state: { bpm: 130, genres: { preview_drums: g(0), preview_bass: g(0), preview_synth: g(0) }}},
-  { name: "Acid", ts: 0, state: { bpm: 138, genres: { preview_drums: g(1, 2), preview_bass: g(1, 1), preview_synth: g(1, 3) }}},
-  { name: "House", ts: 0, state: { bpm: 124, genres: { preview_drums: g(7), preview_bass: g(7, 2), preview_synth: g(7, 1) }}},
-  { name: "Trance", ts: 0, state: { bpm: 140, genres: { preview_drums: g(2, 1), preview_bass: g(2), preview_synth: g(2, 2) }}},
-  { name: "Dub Techno", ts: 0, state: { bpm: 118, genres: { preview_drums: g(3), preview_bass: g(3, 1), preview_synth: g(3) }}},
-  { name: "DnB", ts: 0, state: { bpm: 174, genres: { preview_drums: g(6, 3), preview_bass: g(6, 2), preview_synth: g(6, 1) }}},
-  { name: "Electro", ts: 0, state: { bpm: 128, genres: { preview_drums: g(13, 1), preview_bass: g(13), preview_synth: g(13, 2) }}},
-  { name: "Garage", ts: 0, state: { bpm: 132, genres: { preview_drums: g(10), preview_bass: g(10, 1), preview_synth: g(10) }}},
-  { name: "Ambient", ts: 0, state: { bpm: 90, genres: { preview_drums: g(11, 2), preview_bass: g(11), preview_synth: g(11, 1) }}},
-  { name: "Downtempo", ts: 0, state: { bpm: 95, genres: { preview_drums: g(14), preview_bass: g(14, 1), preview_synth: g(14, 2) }}},
-  { name: "Dark Club", ts: 0, state: { bpm: 133, genres: { preview_drums: g(0, 4), preview_bass: g(1, 3), preview_synth: g(3, 2) }}},
-  { name: "Rave Energy", ts: 0, state: { bpm: 145, genres: { preview_drums: g(1, 5), preview_bass: g(2, 1), preview_synth: g(5, 3) }}},
-  { name: "Chill Vibes", ts: 0, state: { bpm: 95, genres: { preview_drums: g(14, 2), preview_bass: g(11, 3), preview_synth: g(3, 1) }}},
-  { name: "Broken Beats", ts: 0, state: { bpm: 155, genres: { preview_drums: g(8, 3), preview_bass: g(6, 4), preview_synth: g(4, 2) }}},
-  { name: "Midnight Acid", ts: 0, state: { bpm: 136, genres: { preview_drums: g(0, 2), preview_bass: g(1, 5), preview_synth: g(1, 7) }}},
-  { name: "Dubstep", ts: 0, state: { bpm: 140, genres: { preview_drums: g(15, 0), preview_bass: g(15, 1), preview_synth: g(15, 0) }}},
-  { name: "Lo-Fi Chill", ts: 0, state: { bpm: 80, genres: { preview_drums: g(16, 0), preview_bass: g(16, 0), preview_synth: g(16, 0) }}},
-  { name: "Synthwave", ts: 0, state: { bpm: 118, genres: { preview_drums: g(17, 0), preview_bass: g(17, 0), preview_synth: g(17, 0) }}},
-  { name: "Deep House", ts: 0, state: { bpm: 122, genres: { preview_drums: g(18, 0), preview_bass: g(18, 0), preview_synth: g(18, 0) }}},
-  { name: "Psytrance", ts: 0, state: { bpm: 145, genres: { preview_drums: g(19, 0), preview_bass: g(19, 0), preview_synth: g(19, 0) }}},
-];
 
 function loadPresets(): SavedPreset[] {
   return getJSON<SavedPreset[]>(STORAGE_KEY, []);
@@ -137,30 +114,23 @@ export function PresetManager({ state, onLoad, accent, mixCount }: Props) {
           style={accent ? { borderColor: accent, color: accent } : undefined}
           onClick={handleQuickSave}
         >
-          ↟
+          Save groove
         </button>
       </div>
       {open && (
         <div className="preset-dropdown">
-          <div className="preset-group-label">Grooves</div>
-          {BUILT_IN.map((p, i) => (
-            <div key={`b${i}`} className={`preset-item ${activeLabel === p.name ? "active" : ""}`} onClick={() => handleLoad(p, p.name)}>
-              <span className="preset-item-name">{p.name}</span>
-            </div>
-          ))}
-          {userPresets.length > 0 && (
-            <>
-              <div className="preset-group-label">Saved</div>
-              {userPresets.map((p, i) => (
-                <div key={`u${i}`} className={`preset-item ${activeLabel === p.name ? "active" : ""}`} onClick={() => handleLoad(p, p.name)}>
-                  <span className="preset-item-name">{p.name}</span>
-                  <span className="preset-item-actions">
-                    <button className="preset-item-btn" title="Rename" onClick={(e) => handleRename(i, e)}>✎</button>
-                    <button className="preset-item-btn preset-item-del" title="Delete" onClick={(e) => handleDelete(i, e)}>✕</button>
-                  </span>
-                </div>
-              ))}
-            </>
+          {userPresets.length === 0 ? (
+            <div className="preset-group-label" style={{ padding: "8px 10px", opacity: 0.5 }}>No saved grooves yet</div>
+          ) : (
+            userPresets.map((p, i) => (
+              <div key={`u${i}`} className={`preset-item ${activeLabel === p.name ? "active" : ""}`} onClick={() => handleLoad(p, p.name)}>
+                <span className="preset-item-name">{p.name}</span>
+                <span className="preset-item-actions">
+                  <button className="preset-item-btn" title="Rename" onClick={(e) => handleRename(i, e)}>✎</button>
+                  <button className="preset-item-btn preset-item-del" title="Delete" onClick={(e) => handleDelete(i, e)}>✕</button>
+                </span>
+              </div>
+            ))
           )}
         </div>
       )}
