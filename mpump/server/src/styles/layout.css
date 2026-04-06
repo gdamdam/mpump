@@ -122,6 +122,7 @@
   border-color: rgba(200,255,220,1);
   animation: none;
 }
+
 @keyframes neon-pulse-splash {
   0%, 100% { box-shadow: none; border-color: rgba(102,255,153,0.3); transform: scale(1); }
   5% { box-shadow: 0 0 35px rgba(102,255,153,0.6), 0 0 60px rgba(102,255,153,0.2); border-color: rgba(200,255,220,0.9); transform: scale(1.03); }

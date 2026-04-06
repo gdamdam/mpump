@@ -11,11 +11,24 @@
   <img src="mpump-demo.gif?v=1.9.5" width="600" alt="mpump demo">
 </p>
 
-You make a groove, send the link, and the other person opens it in their browser — same beat, same sounds. They change it and send it back different. Or they join live and you play together.
+mpump is a browser groovebox for loop-based electronic music.
 
-It starts fast and sounds good.
+It starts fast, sounds good, and keeps the beat shareable.
 
-No install, no account, no personal data. Your stuff stays in your browser. Free forever.
+- **Make a groove in the browser** — drums, bass, synth, and effects are ready right away.
+- **Send it as a link** — the other person opens the same beat in their browser.
+- **Let them change it** — they can reshape it and send it back different.
+- **Play together live** — start a Jam session or run a Live Set.
+- **Stay private** — no install, no account, no personal tracking. Your music stays on your device.
+
+The core idea is simple: the beat lives in the link.
+
+Go deeper if you want:
+- 20 genres
+- 1210+ patterns
+- step editor, arpeggiator, Euclidean rhythms, and mixer controls
+- shareable songs, saved sessions, and remix lineage
+- MIDI clock, Ableton Link bridge, and live jam / live set support
 
 <p align="center">
   <a href="https://github.com/gdamdam/mpump"><img src="https://img.shields.io/badge/version-1.9.5-blue" alt="Version"></a>
@@ -31,10 +44,10 @@ No install, no account, no personal data. Your stuff stays in your browser. Free
 - **Make a groove in seconds** — hit MIX and a beat is already playing. Drums, bass, synth, effects.
 - **Send it as a link** — share the URL. The other person opens it and hears exactly what you made.
 - **Let them change it** — they can tweak the beat, switch genres, change sounds, and send it back different.
-- **Play together live** — start a Jam session with up to 4 friends, or a Live Set for up to 49 listeners.
+- **Play together live** — start a Live Jam with up to 4 friends, or a Live Set for up to 49 listeners.
 - **Go deep if you want** — 20 genres, 1210+ patterns, step editor, arpeggiator, effects chain, mixer with EQ and compression.
 
-No install. No account. Works offline. Your stuff stays in your browser.
+No install. No account. No personal tracking. Your stuff stays on your device.
 
 ---
 
@@ -282,33 +295,47 @@ docs/                   # Documentation (11 chapters)
 
 ## Privacy
 
-mpump collects no personal data. No cookies, no accounts, no user tracking.
+mpump does not use accounts, cookies, ads, or personal tracking.
 
-- **No cookies, no fingerprinting, no user IDs**
+It does keep a small amount of anonymous operational data so the project can work, be shared, and be debugged without turning into surveillance software.
+
+### What mpump does not collect
+
+- **No accounts**: no sign-up, no email, no profile
+- **No cookies**: no login cookies, no ad cookies, no analytics cookies
+- **No user IDs**: no persistent personal identifier assigned to you
+- **No fingerprinting**: no hidden identity built from your device or browser
 - **No third-party trackers**: no Google, no Facebook, no ad networks
-- **Local storage only**: grooves, settings, and patterns stay in your browser. Nothing is sent to any server
-- **Anonymous beat stats**: play, share, and remix counts per beat — no personal data, no user identifiers. Page views counted via [GoatCounter](https://goatcounter.com)
-- **Error reporting**: if the app crashes, an anonymous report is sent (error message and browser type only — no personal data)
+
+### What mpump does collect
+
+- **Anonymous page counts** via [GoatCounter](https://goatcounter.com)
+- **Anonymous beat counters** such as plays, shares, and remixes tied to beats, not to people
+- **Minimal crash reports** containing only an error message and a coarse browser label
+
+### What stays local
+
+- **Sessions, grooves, patterns, and settings** stay in your browser on your device
+- **Audio** is generated locally in the browser
 - **Open source**: full codebase on [GitHub](https://github.com/gdamdam/mpump)
 
 ### Sharing
 
-When you share a beat, the link contains only beat settings (BPM, genre, patterns, effects). No personal data, no user identifiers.
+When you share a beat, the link contains beat settings such as BPM, patterns, sounds, and effects. It does not contain your name, email, or account info.
 
 Share links go through a relay (`s.mpump.live`) that does three things:
 
 1. **Short URLs** — `s.mpump.live/{id}` instead of long encoded links. The full self-contained link is always available as a fallback (works offline, no relay needed).
 2. **Preview cards** — adds metadata so messaging apps display a card with BPM, genre, and pattern grid.
-3. **Remix lineage** — when you remix someone's beat and share it, the relay stores which beat yours came from. This is the only data stored: a link between two beats. No user info, no IPs, no timestamps beyond creation date.
+3. **Remix lineage** — when you remix someone's beat and share it, the relay stores which beat yours came from.
 
 **What the relay stores:**
-- Beat URLs (the same data that's in the link — BPM, patterns, effects)
+- Beat URLs (the same kind of data already inside the link)
 - Parent references (which beat was remixed from which)
-- Anonymous counters (play count, remix count — no user identifiers attached)
+- Anonymous counters (play count, remix count, share count)
 
 **What the relay does NOT store:**
 - No user accounts, emails, or names
-- No IP addresses
 - No cookies or tokens
 - No browser fingerprints
 
@@ -325,7 +352,6 @@ Jam and Live Set sessions use a lightweight WebSocket relay for peer discovery a
 **What does NOT flow through the relay:**
 - No audio. Each browser synthesizes locally
 - No user accounts, emails, or persistent identifiers
-- No IP addresses logged or stored
 - No cookies or tokens
 - No persistent data. Rooms vanish when empty
 

@@ -2,17 +2,17 @@
  * SupportPrompt — non-intrusive support modal + toast triggered after exports/shares.
  *
  * Export schedule:
- *   Export 1:  toast (first gentle nudge)
- *   Export 2:  modal (one-time intro with context)
- *   Export 4:  toast
- *   Export 7:  toast
- *   Export 10, 20, 30...: toast (every 10th)
+ *   Export 5:  toast (first gentle nudge)
+ *   Export 10: modal (one-time intro with context)
+ *   Export 15, 30, 45...: toast (every 15th)
  *
- * Share schedule (starts later — sharing is lighter engagement):
- *   Share 3:   toast (first nudge)
- *   Share 5:   modal
- *   Share 7:   toast
- *   Share 10, 20, 30...: toast (every 10th)
+ * Share schedule:
+ *   Share 10:  toast (first nudge)
+ *   Share 15:  modal
+ *   Share 20, 30, 40...: toast (every 10th after the modal)
+ *
+ * Remix schedule:
+ *   Remix share 1: toast only
  *
  * Footer "Support ♥" links directly to Ko-fi (no modal).
  * Toast "Support" button opens the modal.
@@ -26,14 +26,14 @@ import { trackEvent } from "../utils/metrics";
 const KOFI_URL = "https://ko-fi.com/gdamdam";
 
 function shouldShowToast(n: number): boolean {
-  if (n === 1 || n === 4 || n === 7 || n === 10) return true;
-  if (n > 10 && n % 10 === 0) return true;
+  if (n === 5) return true;
+  if (n >= 15 && n % 15 === 0) return true;
   return false;
 }
 
 function shouldShowShareToast(n: number): boolean {
-  if (n === 3 || n === 7 || n === 10) return true;
-  if (n > 10 && n % 10 === 0) return true;
+  if (n === 10) return true;
+  if (n >= 20 && n % 10 === 0) return true;
   return false;
 }
 
@@ -45,16 +45,10 @@ export function useSupportPrompt() {
     const count = getJSON<number>("mpump-export-count", 0) + 1;
     setJSON("mpump-export-count", count);
 
-    const isMobile = window.innerWidth < 700;
-
-    if (count === 2) {
+    if (count === 10) {
       setShowModal(true);
     } else if (shouldShowToast(count)) {
-      if (isMobile) {
-        setShowModal(true);
-      } else {
-        setShowToast(true);
-      }
+      setShowToast(true);
     }
   }, []);
 
@@ -62,20 +56,20 @@ export function useSupportPrompt() {
     const count = getJSON<number>("mpump-share-count", 0) + 1;
     setJSON("mpump-share-count", count);
 
-    const isMobile = window.innerWidth < 700;
-
-    if (count === 5) {
+    if (count === 15) {
       setShowModal(true);
     } else if (shouldShowShareToast(count)) {
-      if (isMobile) {
-        setShowModal(true);
-      } else {
-        setShowToast(true);
-      }
+      setShowToast(true);
     }
   }, []);
 
-  return { showModal, setShowModal, showToast, setShowToast, onExport, onShare };
+  const onRemixShare = useCallback(() => {
+    const count = getJSON<number>("mpump-remix-share-count", 0) + 1;
+    setJSON("mpump-remix-share-count", count);
+    if (count === 1) setShowToast(true);
+  }, []);
+
+  return { showModal, setShowModal, showToast, setShowToast, onExport, onShare, onRemixShare };
 }
 
 // ── Modal ──────────────────────────────────────

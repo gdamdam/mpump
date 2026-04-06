@@ -215,13 +215,11 @@ const SECTIONS = [
   {
     title: "Privacy",
     items: [
-      "mpump collects no personal data. No cookies, no accounts, no user tracking.",
-      "**No cookies** — mpump does not set any cookies",
-      "**No personal data** — no accounts, no emails, no user IDs",
-      "**No fingerprinting** — no device or browser identification",
-      "**Anonymous beat stats** — play, share, and remix counts per beat — no personal data, no cookies, no user IDs. Page views counted via GoatCounter",
-      "**Error reporting** — if the app crashes, an anonymous error report is sent (error message and browser type only — no personal data)",
-      "**Local storage only** — presets, settings, patterns stay in your browser",
+      "mpump does not use accounts, cookies, ads, or personal tracking.",
+      "**What it does not collect** — no sign-up, no email, no user profile, no fingerprinting, no ad-tech trackers",
+      "**What it does collect** — anonymous page counts, anonymous beat counters, and minimal crash reports",
+      "**Crash reports** — only the error message and a coarse browser label",
+      "**Local storage** — presets, settings, and patterns stay in your browser",
       "**Open source** — all code is public on GitHub",
     ],
   },

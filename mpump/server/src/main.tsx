@@ -29,21 +29,32 @@ export function isInstallAvailable(): boolean {
 
 // Report unhandled errors to worker + console
 const ERROR_URL = import.meta.env.DEV ? "http://localhost:8787/error" : "https://s.mpump.live/error";
-function reportError(message: string, stack?: string) {
+function getBrowserType(): string {
+  const ua = navigator.userAgent;
+  if (ua.includes("Edg/")) return "Edge";
+  if (ua.includes("Chrome/")) return "Chrome";
+  if (ua.includes("Safari/") && !ua.includes("Chrome/") && !ua.includes("Chromium/")) return "Safari";
+  if (ua.includes("Firefox/")) return "Firefox";
+  if (ua.includes("SamsungBrowser/")) return "Samsung Internet";
+  if (ua.includes("OPR/") || ua.includes("Opera/")) return "Opera";
+  return "Unknown";
+}
+
+function reportError(message: string) {
   fetch(ERROR_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message, stack, ua: navigator.userAgent }),
+    body: JSON.stringify({ message, browser: getBrowserType() }),
     signal: AbortSignal.timeout(3000),
   }).catch(() => {});
 }
 window.addEventListener("error", (e) => {
   console.error("Unhandled error:", e.error);
-  reportError(e.message, e.error?.stack);
+  reportError(e.message);
 });
 window.addEventListener("unhandledrejection", (e) => {
   console.error("Unhandled rejection:", e.reason);
-  reportError(String(e.reason), e.reason?.stack);
+  reportError(String(e.reason));
 });
 
 // Register service worker for PWA install + offline support

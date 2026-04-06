@@ -10,6 +10,7 @@
     "preview": "vite preview",
     "export-patterns": "cd ../.. && python3 mpump/server/scripts/export_patterns.py",
     "test": "vitest run",
+    "test:integration": "RUN_INTEGRATION=1 vitest run src/__tests__/share-worker.test.ts src/__tests__/jam-relay.test.ts",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:e2e:headed": "playwright test --headed"

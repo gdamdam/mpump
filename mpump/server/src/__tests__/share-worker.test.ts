@@ -1,13 +1,13 @@
 /**
  * Integration tests for the Cloudflare share-link worker (s.mpump.live).
- * These hit the live deployed worker — skip in CI with SKIP_INTEGRATION=1.
+ * These hit the live deployed worker and only run when RUN_INTEGRATION=1.
  */
 import { describe, it, expect } from "vitest";
 import pako from "pako";
 
 const WORKER_URL = "https://s.mpump.live";
 const SAMPLE_PAYLOAD = "eyJicG0iOjEyMH0"; // {"bpm":120}
-const SKIP = !!process.env.SKIP_INTEGRATION;
+const RUN_INTEGRATION = process.env.RUN_INTEGRATION === "1";
 
 /** Compress an object the same way shareCodec does. */
 function compressPayload(obj: object): string {
@@ -18,7 +18,7 @@ function compressPayload(obj: object): string {
   return btoa(binary).replace(/=+$/, "").replace(/\+/g, "-").replace(/\//g, "_");
 }
 
-describe.skipIf(SKIP)("share worker (live)", () => {
+describe.skipIf(!RUN_INTEGRATION)("share worker (live)", () => {
   it("returns OG HTML for share link", async () => {
     const res = await fetch(`${WORKER_URL}/?b=${SAMPLE_PAYLOAD}`);
     expect(res.status).toBe(200);

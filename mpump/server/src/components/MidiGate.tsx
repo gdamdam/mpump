@@ -69,21 +69,23 @@ export function MidiGate({ midiState, onConnectMidi, onPreview, midiSupported }:
         <span className="beta-badge" style={{ position: "absolute", bottom: 2, right: -34 }}>BETA</span>
       </div>
 
-      <div className="midi-gate-subtitle">Make a beat. Share it as a link.</div>
+      <div className="midi-gate-subtitle">Make a beat. Send a link. Let it come back different.</div>
 
       <button className="midi-gate-btn-preview" title="Start playing with browser audio"
         onClick={() => { trackEvent("play-start"); setLogoKey(k => k + 1); clearTimeout(flashTimer.current); flashTimer.current = window.setTimeout(() => onPreview(), 450); }}>
-        Open
+        Open mpump
       </button>
 
       <div className="midi-gate-intro">
-        Click Open — music plays instantly.
+        Open mpump and music starts instantly.
+        <br />
+        Build from scratch, or start from a random mix. Make it yours and share it.
       </div>
 
       <div className="midi-gate-featured">
         <span className="midi-gate-pill">Instant grooves</span>
-        <span className="midi-gate-pill">Shareable links</span>
-        <span className="midi-gate-pill">Play together</span>
+        <span className="midi-gate-pill">Remixable links</span>
+        <span className="midi-gate-pill">Live Jam / Live Set</span>
       </div>
 
       <div className="midi-gate-about">

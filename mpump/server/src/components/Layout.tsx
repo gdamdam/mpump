@@ -1272,7 +1272,8 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
     setRemixCopied(true);
     setTimeout(() => setRemixCopied(false), 2000);
     trackEvent("remix-share");
-  }, [buildSharePayload, parentId]);
+    support.onRemixShare();
+  }, [buildSharePayload, parentId, support.onRemixShare]);
 
   // Auto-save: persist session to localStorage every 3s and on tab close/hide
   const doAutoSave = useCallback(() => {
@@ -1857,6 +1858,16 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
                   {parentId && remixDirty ? "⤴ Re-share" : "⤴ Share"}
                 </button>
               )}
+              {isPreview && (
+                <button
+                  className="header-settings-btn"
+                  title="Discover beats"
+                  aria-label="Discover beats"
+                  onClick={() => setShowDiscover(true)}
+                >
+                  ★ Discover
+                </button>
+              )}
               {isPreview && jamEnabled && (
                 <button
                   className={`header-settings-btn jam-header-btn ${jam.status === "connected" ? "jam-active" : ""}`}
@@ -1890,7 +1901,6 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
                   {showMoreMenu && (
                     <div className="header-more-menu" onClick={(e) => { if (!(e.target as HTMLElement).closest(".tap-tempo-btn") && !(e.target as HTMLElement).closest(".preset-mgr")) setShowMoreMenu(false); }}>
                       {catalog && <button onClick={() => { setShowMoreMenu(false); setShowLibrary(true); }}>♫ Library</button>}
-                      <button onClick={() => { setShowMoreMenu(false); setShowDiscover(true); }}>★ Discover</button>
                       <button onClick={() => { setShowMoreMenu(false); setShowHelp(true); }}>? Help</button>
                       <button className="more-menu-sessions" onClick={() => { setShowMoreMenu(false); setShowSessionLib(true); }}>📂 Sessions</button>
                       <div className="more-menu-presets"><PresetManager state={state} onLoad={loadPreset} mixCount={mixCount} /></div>
@@ -1922,10 +1932,10 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
       {/* Remix banner */}
       {parentId && (
         <div className="remix-banner">
-          {remixDirty
-            ? <span>🔀 Based on <a href={`https://s.mpump.live/${parentId}`} target="_blank" rel="noopener noreferrer">s.mpump.live/{parentId}</a></span>
-            : <span>♫ Shared beat</span>
-          }
+          <span className="remix-banner-copy">
+            <a href={`https://s.mpump.live/${parentId}`} target="_blank" rel="noopener noreferrer">s.mpump.live/{parentId}</a>
+            <span>Change it and share your version.</span>
+          </span>
           <button className="remix-banner-close" onClick={() => { setParentId(null); setRemixDirty(false); }}>✕</button>
         </div>
       )}

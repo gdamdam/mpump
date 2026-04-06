@@ -9,6 +9,7 @@
   opacity: 0.7;
   margin-top: 2px;
   text-align: center;
+  line-height: 1.7;
 }
 
 .midi-gate-about {
@@ -30,13 +31,12 @@
 }
 
 .midi-gate-intro {
-  font-size: 12px;
+  font-size: 14px;
   color: var(--preview); opacity: 0.7;
   max-width: 480px;
   line-height: 1.6;
   text-align: center;
   margin-top: 8px;
-  white-space: nowrap;
 }
 
 /* ── Share modal ──────────────────────────────────────────────────────── */

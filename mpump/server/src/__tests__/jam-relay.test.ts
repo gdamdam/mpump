@@ -1,11 +1,11 @@
 /**
  * Integration tests for the Fly.io jam relay WebSocket server.
- * These hit the live deployed relay — skip in CI with SKIP_INTEGRATION=1.
+ * These hit the live deployed relay and only run when RUN_INTEGRATION=1.
  */
 import { describe, it, expect, afterEach } from "vitest";
 
 const RELAY_URL = "wss://mpump-jam-relay.fly.dev";
-const SKIP = !!process.env.SKIP_INTEGRATION;
+const RUN_INTEGRATION = process.env.RUN_INTEGRATION === "1";
 
 function connect(): Promise<WebSocket> {
   return new Promise((resolve, reject) => {
@@ -25,7 +25,7 @@ function waitMsg(ws: WebSocket, timeout = 5000): Promise<Record<string, unknown>
   });
 }
 
-describe.skipIf(SKIP)("jam relay (live)", () => {
+describe.skipIf(!RUN_INTEGRATION)("jam relay (live)", () => {
   const sockets: WebSocket[] = [];
   const track = (ws: WebSocket) => { sockets.push(ws); return ws; };
 
