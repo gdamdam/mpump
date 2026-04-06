@@ -102,7 +102,7 @@ export function MidiGate({ midiState, onConnectMidi, onPreview, onOpenDiscover, 
       </div>
 
       <div className="midi-gate-about">
-        <a href="./landing.html?about">about mpump</a>
+        <a href="./landing.html">what is mpump</a>
       </div>
 
 
