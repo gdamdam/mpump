@@ -50,6 +50,12 @@
     .topnav a { text-decoration: none; }
     .topnav a:hover { color: var(--accent); }
     .card { padding: 30px; margin-bottom: 18px; }
+    .hero-top {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 22px;
+      align-items: center;
+    }
     .page-logo {
       white-space: pre;
       color: var(--accent);
@@ -73,13 +79,13 @@
     .cta-primary:hover { border-color: rgba(210,255,225,1); box-shadow: 0 0 28px rgba(102,255,153,0.35); }
     .cta-secondary:hover { border-color: var(--accent); color: var(--accent); }
     .hero-video-wrap {
-      margin-top: 22px;
       border: 1px solid var(--border);
       border-radius: 14px;
       overflow: hidden;
       background: #081008;
+      align-self: center;
     }
-    .hero-video { width: 100%; display: block; }
+    .hero-video { width: 100%; height: auto; display: block; }
     .featured-strip {
       margin-top: 18px;
     }
@@ -144,6 +150,7 @@
     footer a { text-decoration: none; }
     footer a:hover { color: var(--accent); }
     @media (max-width: 760px) {
+      .hero-top { grid-template-columns: 1fr; }
       .share-cards { grid-template-columns: 1fr; }
       .grid { grid-template-columns: 1fr; }
       .card { padding: 24px 20px; }
@@ -163,19 +170,23 @@
     </div>
 
     <section class="card">
-      <pre class="page-logo">█▀▄▀█ █▀█ █ █ █▀▄▀█ █▀█
+      <div class="hero-top">
+        <div>
+          <pre class="page-logo">█▀▄▀█ █▀█ █ █ █▀▄▀█ █▀█
 █ ▀ █ █▀▀ ▀▄▀ █ ▀ █ █▀▀</pre>
-      <div class="eyebrow">Browser Groovebox</div>
-      <h1>Make beats in the browser.<br>Send them on.</h1>
-      <p class="lede">mpump is a browser groovebox, browser drum machine, and web electronic instrument for loop-based music. Drums, bass, synth, and effects are already there when you open it. The difference is that the whole groove can travel as a link, not just as an audio export.</p>
-      <div class="cta-row">
-        <a class="cta cta-primary" href="./app.html">Open mpump</a>
-        <a class="cta cta-secondary" href="./landing.html#examples">Try shared beats</a>
-      </div>
-      <div class="hero-video-wrap">
-        <video autoplay muted loop playsinline class="hero-video">
-          <source src="./mpump-demo.mp4" type="video/mp4">
-        </video>
+          <div class="eyebrow">Browser Groovebox</div>
+          <h1>Make beats in the browser.<br>Send them on.</h1>
+          <p class="lede">mpump is a browser groovebox, browser drum machine, and web electronic instrument for loop-based music. Drums, bass, synth, and effects are already there when you open it. The difference is that the whole groove can travel as a link, not just as an audio export.</p>
+          <div class="cta-row">
+            <a class="cta cta-primary" href="./app.html">Open mpump</a>
+            <a class="cta cta-secondary" href="./landing.html#examples">Try shared beats</a>
+          </div>
+        </div>
+        <div class="hero-video-wrap">
+          <video autoplay muted loop playsinline class="hero-video">
+            <source src="./mpump-demo.mp4" type="video/mp4">
+          </video>
+        </div>
       </div>
       <div class="featured-strip">
         <div class="featured-strip-label">Featured beats</div>
