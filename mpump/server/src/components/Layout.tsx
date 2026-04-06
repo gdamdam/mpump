@@ -867,6 +867,11 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, showDis
         // Restore key and octave from share link
         if (data.ki != null) { command({ type: "set_key", device: "preview_synth", idx: data.ki }); command({ type: "set_key", device: "preview_bass", idx: data.ki }); }
         if (data.oc != null) { command({ type: "set_octave", device: "preview_synth", octave: data.oc }); command({ type: "set_octave", device: "preview_bass", octave: data.oc }); }
+        // Reset all effects to off before applying shared state — prevents bleed from previous session
+        setJSON("mpump-effects", {});
+        for (const name of EFFECT_ORDER) {
+          command({ type: "set_effect", name: name as EffectName, params: { on: false } });
+        }
         if (data.fx) {
           for (let i = 0; i < EFFECT_ORDER.length && i < data.fx.length; i++) {
             if (data.fx[i] === "1") {
