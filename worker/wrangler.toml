@@ -10,6 +10,7 @@ compatibility_date = "2024-01-01"
 [[kv_namespaces]]
 binding = "BEATS"
 id = "d7f3e2fbf49d4b42baa5bc7d7a829144"
+preview_id = "6a5d6bfdedbb48ca8c1df0f924d8d688"
 
 [observability]
 enabled = true

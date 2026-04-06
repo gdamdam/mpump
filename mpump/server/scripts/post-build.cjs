@@ -25,3 +25,17 @@ if (fs.existsSync(swPath)) {
   fs.writeFileSync(swPath, sw);
   console.log("SW cache version:", pkg.version);
 }
+
+// 3. version.json: stamp version from package.json
+const versionJsonPath = path.join(dist, "version.json");
+fs.writeFileSync(versionJsonPath, JSON.stringify({ v: pkg.version }) + "\n");
+console.log("version.json:", pkg.version);
+
+// 4. Landing page footer: stamp version from package.json
+const landingPath = path.join(dist, "landing.html");
+if (fs.existsSync(landingPath)) {
+  let landing = fs.readFileSync(landingPath, "utf8");
+  landing = landing.replace(/mpump v[\d.]+/, `mpump v${pkg.version}`);
+  fs.writeFileSync(landingPath, landing);
+  console.log("Landing footer:", pkg.version);
+}
