@@ -473,8 +473,13 @@ export default {
     }
 
     // Dashboard
-    if (url.pathname === "/dshbrd" && request.method === "GET") {
+    if (url.pathname === "/mpdashboard" && request.method === "GET") {
       return handleDashboard(env);
+    }
+
+    // Submissions review page
+    if (url.pathname === "/mpdiscovery" && request.method === "GET") {
+      return handleDiscovery(env);
     }
 
     // Stats API
@@ -706,6 +711,64 @@ async function handleDashboard(env) {
   <tbody>${rows}</tbody>
 </table>
 <div class="updated">Updated ${new Date().toISOString().slice(0, 19)} UTC</div>
+</body></html>`;
+
+  return new Response(html, {
+    headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache" },
+  });
+}
+
+/** GET /mpdiscovery — HTML page listing pending submissions. */
+async function handleDiscovery(env) {
+  const subKeys = await listKVKeys(env, { prefix: "sub:" });
+  const submissions = (await Promise.all(
+    subKeys.map(({ name }) => env.BEATS.get(name).then(v => v ? JSON.parse(v) : null))
+  )).filter(Boolean);
+  submissions.sort((a, b) => (b.submittedAt || "").localeCompare(a.submittedAt || ""));
+
+  const rows = submissions.map(s => `
+    <tr>
+      <td><a href="${esc(s.shortUrl)}?nc" target="_blank">${esc(s.id)}</a></td>
+      <td>${esc(s.title)}</td>
+      <td>${esc(s.genre)}</td>
+      <td>${(s.submittedAt || "").slice(0, 10)}</td>
+      <td>${s.note ? esc(s.note) : "—"}</td>
+      <td>${s.contact ? esc(s.contact) : "—"}</td>
+      <td>${s.parentId ? `<a href="https://s.mpump.live/${esc(s.parentId)}?nc" target="_blank">${esc(s.parentId)}</a>` : "—"}</td>
+    </tr>`).join("");
+
+  const html = `<!DOCTYPE html>
+<html><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>mpump discovery queue</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:-apple-system,system-ui,sans-serif; background:#0a0a0a; color:#e0e0e0; padding:24px; }
+  h1 { font-size:20px; margin-bottom:8px; color:#fff; }
+  .sub { font-size:12px; color:#555; margin-bottom:24px; }
+  .sub a { color:#6c5ce7; text-decoration:none; }
+  .card { background:#1a1a2e; border-radius:12px; padding:20px 24px; min-width:120px; display:inline-block; margin-right:16px; margin-bottom:24px; }
+  .card .num { font-size:32px; font-weight:700; color:#6c5ce7; }
+  .card .label { font-size:12px; color:#888; margin-top:4px; text-transform:uppercase; letter-spacing:1px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th { text-align:left; padding:8px 12px; border-bottom:1px solid #333; color:#888; font-weight:500; text-transform:uppercase; font-size:11px; letter-spacing:1px; }
+  td { padding:8px 12px; border-bottom:1px solid #1a1a2e; vertical-align:top; max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  tr:hover { background:#1a1a2e; }
+  a { color:#6c5ce7; text-decoration:none; }
+  a:hover { text-decoration:underline; }
+  .empty { color:#555; font-size:14px; padding:32px 0; }
+</style>
+</head><body>
+<h1>mpump discovery queue</h1>
+<p class="sub">${submissions.length} pending · <a href="/mpdashboard">stats dashboard</a></p>
+<div class="card"><div class="num">${submissions.length}</div><div class="label">Pending</div></div>
+${submissions.length === 0
+  ? '<p class="empty">No submissions yet.</p>'
+  : `<table>
+<thead><tr><th>ID</th><th>Title</th><th>Genre</th><th>Submitted</th><th>Note</th><th>Contact</th><th>Parent</th></tr></thead>
+<tbody>${rows}</tbody>
+</table>`}
+<p style="color:#333;font-size:11px;margin-top:24px;">Updated ${new Date().toISOString().slice(0, 19)} UTC</p>
 </body></html>`;
 
   return new Response(html, {
