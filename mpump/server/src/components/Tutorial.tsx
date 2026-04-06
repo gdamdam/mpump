@@ -23,7 +23,7 @@ const STEPS: Step[] = [
   { title: "Share it", body: "Send a playable link. They open it, hear your beat, and can change it. No app needed.", target: ".header-share-btn" },
   { title: "Jam together", body: "Start a live session with up to 4 friends, or a Live Set for up to 49 listeners.", target: ".jam-header-btn" },
   { title: "Works offline", body: "Bookmark or install as an app. Your stuff stays in your browser." },
-  { title: "Go make something", body: "Everything you make is yours.\nNo install. No account. No personal data.", last: true },
+  { title: "Go make something", body: "Everything you make is yours.\nNo install. No account. No personal tracking.", last: true },
 ];
 
 const SPOTLIGHT_PADDING = 8;

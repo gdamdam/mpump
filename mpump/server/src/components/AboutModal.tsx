@@ -162,7 +162,7 @@ const LINES = [
   "not conclusions.",
   "",
   "No install, no account,",
-  "no personal data.",
+  "no personal tracking.",
   "Free forever.",
   "",
   "",

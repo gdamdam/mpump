@@ -171,7 +171,7 @@ export function App() {
           style={{ fontSize: 12, color: "#4a6a4a", marginTop: 8, cursor: "pointer", textDecoration: "none" }}
         >or open mpump solo →</a>
         <div style={{ fontSize: 11, color: "#4a6a4a", marginTop: 8 }}>
-          No install · No account · No personal data
+          No install · No account · No personal tracking
         </div>
       </div>
     );

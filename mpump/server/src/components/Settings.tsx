@@ -433,7 +433,7 @@ export function Settings({ volume, onVolumeChange, onClose, swing, onSwingChange
           )}
           <div className="settings-privacy">
             <span className="settings-about-link" onClick={() => { onClose(); onAbout?.(); }} title="View credits">v{__APP_VERSION__}</span> &middot;
-            <a className="settings-about-link" href="https://ko-fi.com/gdamdam" target="_blank" rel="noopener noreferrer" title="Support mpump" style={{ color: "#ff4466", fontWeight: 700 }} onClick={() => trackEvent("kofi-settings")}>Support <span style={{ color: "#ff4466" }}>♥</span></a> &middot; No cookies &middot; No personal data
+            <a className="settings-about-link" href="https://ko-fi.com/gdamdam" target="_blank" rel="noopener noreferrer" title="Support mpump" style={{ color: "#ff4466", fontWeight: 700 }} onClick={() => trackEvent("kofi-settings")}>Support <span style={{ color: "#ff4466" }}>♥</span></a> &middot; No cookies &middot; No personal tracking
           </div>
           <button className="settings-done-btn" onClick={onClose}>Done</button>
         </div>

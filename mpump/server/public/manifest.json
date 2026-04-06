@@ -1,7 +1,7 @@
 {
   "name": "mpump — Instant Browser Groovebox",
   "short_name": "mpump",
-  "description": "910 patterns across 15 electronic genres. Built-in drums, bass, synth, and effects. No install. No account. No personal data.",
+  "description": "910 patterns across 15 electronic genres. Built-in drums, bass, synth, and effects. No install. No account. No personal tracking.",
   "start_url": "./",
   "display": "standalone",
   "orientation": "any",
