@@ -660,6 +660,75 @@ async function handleShorten(request, env) {
   }
 }
 
+/** Shared CSS + JS for sortable/searchable admin tables. */
+const ADMIN_STYLE = `
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:-apple-system,system-ui,sans-serif; background:#0a0a0a; color:#e0e0e0; padding:24px; }
+  h1 { font-size:20px; margin-bottom:8px; color:#fff; }
+  .sub { font-size:12px; color:#555; margin-bottom:20px; }
+  .sub a { color:#6c5ce7; text-decoration:none; }
+  .cards { display:flex; gap:16px; margin-bottom:24px; flex-wrap:wrap; }
+  .card { background:#1a1a2e; border-radius:12px; padding:20px 24px; min-width:120px; }
+  .card .num { font-size:32px; font-weight:700; color:#6c5ce7; }
+  .card .label { font-size:12px; color:#888; margin-top:4px; text-transform:uppercase; letter-spacing:1px; }
+  .toolbar { display:flex; gap:10px; align-items:center; margin-bottom:14px; }
+  .search { background:#1a1a2e; border:1px solid #333; border-radius:6px; color:#e0e0e0; padding:6px 12px; font-size:13px; width:240px; outline:none; }
+  .search:focus { border-color:#6c5ce7; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th[data-col] { cursor:pointer; user-select:none; }
+  th[data-col]:hover { color:#ccc; }
+  th { text-align:left; padding:8px 12px; border-bottom:1px solid #333; color:#888; font-weight:500; text-transform:uppercase; font-size:11px; letter-spacing:1px; white-space:nowrap; }
+  th.sorted-asc::after { content:' ▲'; }
+  th.sorted-desc::after { content:' ▼'; }
+  td { padding:8px 12px; border-bottom:1px solid #1a1a2e; max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  tr:hover { background:#1a1a2e; }
+  a { color:#6c5ce7; text-decoration:none; }
+  a:hover { text-decoration:underline; }
+  .empty { color:#555; font-size:14px; padding:32px 0; }
+  .updated { color:#333; font-size:11px; margin-top:24px; }
+`;
+
+const ADMIN_SCRIPT = `
+<script>
+(function() {
+  var table = document.getElementById('data-table');
+  if (!table) return;
+  var tbody = table.querySelector('tbody');
+  var ths = table.querySelectorAll('th[data-col]');
+  var sortCol = -1, sortAsc = true;
+
+  function getVal(row, col) {
+    var td = row.cells[col];
+    return td ? (td.dataset.val || td.textContent.trim()) : '';
+  }
+  function sort(col) {
+    if (sortCol === col) sortAsc = !sortAsc; else { sortCol = col; sortAsc = true; }
+    var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr:not([style*="none"])'));
+    rows.sort(function(a, b) {
+      var va = getVal(a, col), vb = getVal(b, col);
+      var na = parseFloat(va), nb = parseFloat(vb);
+      var cmp = (!isNaN(na) && !isNaN(nb)) ? na - nb : va.localeCompare(vb);
+      return sortAsc ? cmp : -cmp;
+    });
+    rows.forEach(function(r) { tbody.appendChild(r); });
+    ths.forEach(function(th) { th.classList.remove('sorted-asc','sorted-desc'); });
+    var active = table.querySelector('th[data-col="' + col + '"]');
+    if (active) active.classList.add(sortAsc ? 'sorted-asc' : 'sorted-desc');
+  }
+  ths.forEach(function(th) { th.addEventListener('click', function() { sort(+th.dataset.col); }); });
+
+  var search = document.getElementById('search');
+  if (search) {
+    search.addEventListener('input', function() {
+      var q = this.value.toLowerCase();
+      tbody.querySelectorAll('tr').forEach(function(row) {
+        row.style.display = row.textContent.toLowerCase().includes(q) ? '' : 'none';
+      });
+    });
+  }
+})();
+</script>`;
+
 /** Resolve a short URL — serve OG tags to bots, redirect browsers. */
 /** GET /dashboard — HTML dashboard. */
 async function handleDashboard(env) {
@@ -671,9 +740,9 @@ async function handleDashboard(env) {
     <tr>
       <td><a href="https://s.mpump.live/${b.id}?nc" target="_blank">${b.id}</a></td>
       <td>${(b.created || "").slice(0, 10)}</td>
-      <td>${b.plays}</td>
-      <td>${b.remixes}</td>
-      <td>${b.shares}</td>
+      <td data-val="${b.plays}">${b.plays}</td>
+      <td data-val="${b.remixes}">${b.remixes}</td>
+      <td data-val="${b.shares}">${b.shares}</td>
       <td>${b.parent ? `<a href="https://s.mpump.live/${b.parent}?nc" target="_blank">${b.parent}</a>` : "—"}</td>
       <td><div style="background:#6c5ce7;height:14px;width:${Math.min(b.plays * 8, 200)}px;border-radius:3px"></div></td>
     </tr>`).join("");
@@ -682,35 +751,31 @@ async function handleDashboard(env) {
 <html><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>mpump stats</title>
-<style>
-  * { margin:0; padding:0; box-sizing:border-box; }
-  body { font-family:-apple-system,system-ui,sans-serif; background:#0a0a0a; color:#e0e0e0; padding:24px; }
-  h1 { font-size:20px; margin-bottom:24px; color:#fff; }
-  .cards { display:flex; gap:16px; margin-bottom:32px; flex-wrap:wrap; }
-  .card { background:#1a1a2e; border-radius:12px; padding:20px 24px; min-width:140px; }
-  .card .num { font-size:32px; font-weight:700; color:#6c5ce7; }
-  .card .label { font-size:12px; color:#888; margin-top:4px; text-transform:uppercase; letter-spacing:1px; }
-  table { width:100%; border-collapse:collapse; font-size:13px; }
-  th { text-align:left; padding:8px 12px; border-bottom:1px solid #333; color:#888; font-weight:500; text-transform:uppercase; font-size:11px; letter-spacing:1px; }
-  td { padding:8px 12px; border-bottom:1px solid #1a1a2e; }
-  tr:hover { background:#1a1a2e; }
-  a { color:#6c5ce7; text-decoration:none; }
-  a:hover { text-decoration:underline; }
-  .updated { color:#555; font-size:11px; margin-top:24px; }
-</style>
+<style>${ADMIN_STYLE}</style>
 </head><body>
 <h1>mpump stats</h1>
+<p class="sub"><a href="/mpdiscovery">discovery queue</a></p>
 <div class="cards">
   <div class="card"><div class="num">${count}</div><div class="label">Beats</div></div>
   <div class="card"><div class="num">${totals.plays}</div><div class="label">Plays</div></div>
   <div class="card"><div class="num">${totals.remixes}</div><div class="label">Remixes</div></div>
   <div class="card"><div class="num">${totals.shares}</div><div class="label">Shares</div></div>
 </div>
-<table>
-  <thead><tr><th>ID</th><th>Created</th><th>Plays</th><th>Remixes</th><th>Shares</th><th>Parent</th><th>Plays</th></tr></thead>
+<div class="toolbar"><input id="search" class="search" placeholder="search ID…"></div>
+<table id="data-table">
+  <thead><tr>
+    <th data-col="0">ID</th>
+    <th data-col="1">Created</th>
+    <th data-col="2">Plays</th>
+    <th data-col="3">Remixes</th>
+    <th data-col="4">Shares</th>
+    <th data-col="5">Parent</th>
+    <th>Bar</th>
+  </tr></thead>
   <tbody>${rows}</tbody>
 </table>
 <div class="updated">Updated ${new Date().toISOString().slice(0, 19)} UTC</div>
+${ADMIN_SCRIPT}
 </body></html>`;
 
   return new Response(html, {
@@ -741,34 +806,30 @@ async function handleDiscovery(env) {
 <html><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>mpump discovery queue</title>
-<style>
-  * { margin:0; padding:0; box-sizing:border-box; }
-  body { font-family:-apple-system,system-ui,sans-serif; background:#0a0a0a; color:#e0e0e0; padding:24px; }
-  h1 { font-size:20px; margin-bottom:8px; color:#fff; }
-  .sub { font-size:12px; color:#555; margin-bottom:24px; }
-  .sub a { color:#6c5ce7; text-decoration:none; }
-  .card { background:#1a1a2e; border-radius:12px; padding:20px 24px; min-width:120px; display:inline-block; margin-right:16px; margin-bottom:24px; }
-  .card .num { font-size:32px; font-weight:700; color:#6c5ce7; }
-  .card .label { font-size:12px; color:#888; margin-top:4px; text-transform:uppercase; letter-spacing:1px; }
-  table { width:100%; border-collapse:collapse; font-size:13px; }
-  th { text-align:left; padding:8px 12px; border-bottom:1px solid #333; color:#888; font-weight:500; text-transform:uppercase; font-size:11px; letter-spacing:1px; }
-  td { padding:8px 12px; border-bottom:1px solid #1a1a2e; vertical-align:top; max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  tr:hover { background:#1a1a2e; }
-  a { color:#6c5ce7; text-decoration:none; }
-  a:hover { text-decoration:underline; }
-  .empty { color:#555; font-size:14px; padding:32px 0; }
-</style>
+<style>${ADMIN_STYLE}</style>
 </head><body>
 <h1>mpump discovery queue</h1>
 <p class="sub">${submissions.length} pending · <a href="/mpdashboard">stats dashboard</a></p>
-<div class="card"><div class="num">${submissions.length}</div><div class="label">Pending</div></div>
+<div class="cards">
+  <div class="card"><div class="num">${submissions.length}</div><div class="label">Pending</div></div>
+</div>
 ${submissions.length === 0
   ? '<p class="empty">No submissions yet.</p>'
-  : `<table>
-<thead><tr><th>ID</th><th>Title</th><th>Genre</th><th>Submitted</th><th>Note</th><th>Contact</th><th>Parent</th></tr></thead>
+  : `<div class="toolbar"><input id="search" class="search" placeholder="search ID…"></div>
+<table id="data-table">
+<thead><tr>
+  <th data-col="0">ID</th>
+  <th data-col="1">Title</th>
+  <th data-col="2">Genre</th>
+  <th data-col="3">Submitted</th>
+  <th data-col="4">Note</th>
+  <th data-col="5">Contact</th>
+  <th data-col="6">Parent</th>
+</tr></thead>
 <tbody>${rows}</tbody>
 </table>`}
-<p style="color:#333;font-size:11px;margin-top:24px;">Updated ${new Date().toISOString().slice(0, 19)} UTC</p>
+<p class="updated">Updated ${new Date().toISOString().slice(0, 19)} UTC</p>
+${ADMIN_SCRIPT}
 </body></html>`;
 
   return new Response(html, {
