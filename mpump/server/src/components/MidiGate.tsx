@@ -93,8 +93,6 @@ export function MidiGate({ midiState, onConnectMidi, onPreview, onOpenDiscover, 
 
       <div className="midi-gate-intro">
         Open mpump and music starts instantly.
-        <br />
-        Build from scratch, or start from a random mix. Make it yours and share it.
       </div>
 
       <div className="midi-gate-featured">

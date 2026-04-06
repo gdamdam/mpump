@@ -226,7 +226,7 @@ const SECTIONS = [
   {
     title: "Sharing & Privacy",
     items: [
-      "Share links contain only beat settings (BPM, genre, patterns) — no personal data",
+      "Share links contain only beat settings (BPM, genre, patterns) — no personal tracking",
       "**Short URLs** — s.mpump.live/{id} for clean sharing. A full offline link is always available as fallback",
       "**Remix lineage** — when you remix a shared beat, your link tracks its parent. The relay stores which beat came from which — no user info, no IPs",
       "**Anonymous counters** — play count and remix count per beat, with no user identifiers attached",

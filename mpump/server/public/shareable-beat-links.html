@@ -1,0 +1,233 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>mpump — Shareable Beat Links for Remixable Grooves</title>
+  <meta name="description" content="mpump lets you share the whole beat as a link from a browser groovebox, drum machine, and web electronic instrument. Open it, hear it, change it, and send it back different." />
+  <meta property="og:title" content="mpump — Shareable Beat Links for Remixable Grooves" />
+  <meta property="og:description" content="A beat that lives in a link, not just in an export." />
+  <meta property="og:url" content="https://mpump.live/shareable-beat-links.html" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="mpump" />
+  <meta property="og:image" content="https://mpump.live/og-image.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="mpump — Shareable Beat Links for Remixable Grooves" />
+  <meta name="twitter:description" content="Make a beat in the browser, send the link, and let it come back different." />
+  <meta name="twitter:image" content="https://mpump.live/og-image.png" />
+  <link rel="canonical" href="https://mpump.live/shareable-beat-links.html" />
+  <meta name="theme-color" content="#090e09" />
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+  <link rel="icon" type="image/png" sizes="32x32" href="./favicon-32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="./favicon-16.png" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #090e09; --panel: #0d160d; --border: #1a2e1a; --text: #d4ead4; --dim: #84a184;
+      --accent: #66ff99; --ui: "Avenir Next", "Segoe UI", "Trebuchet MS", "Helvetica Neue", sans-serif;
+      --mono: "SF Mono", "Fira Code", monospace; --shadow: 0 18px 60px rgba(0,0,0,0.45);
+    }
+    body { font-family: var(--ui); color: var(--text); background: radial-gradient(circle at top left, rgba(102,255,153,0.09), transparent 28%), linear-gradient(180deg, #071007 0%, #090e09 100%); }
+    a { color: inherit; }
+    .shell { width: min(980px, calc(100vw - 32px)); margin: 0 auto; padding: 20px 0 40px; }
+    .topbar, .card { border: 1px solid var(--border); border-radius: 18px; background: linear-gradient(180deg, rgba(13,22,13,0.96), rgba(9,14,9,0.98)); box-shadow: var(--shadow); }
+    .topbar { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; margin-bottom: 22px; }
+    .logo { color: var(--accent); font-family: var(--mono); font-size: 13px; font-weight: 700; letter-spacing: 1px; text-decoration: none; }
+    .topnav { display: flex; flex-wrap: wrap; gap: 14px; color: var(--dim); font-size: 12px; }
+    .topnav a { text-decoration: none; }
+    .topnav a:hover { color: var(--accent); }
+    .card { padding: 30px; margin-bottom: 18px; }
+    .page-logo {
+      white-space: pre;
+      color: var(--accent);
+      font-family: var(--mono);
+      font-size: clamp(8px, 1.6vw, 12px);
+      line-height: 1.1;
+      text-shadow: 0 0 10px rgba(102,255,153,0.35);
+      margin-bottom: 18px;
+    }
+    .eyebrow { color: var(--accent); font-family: var(--mono); font-size: 11px; letter-spacing: 1.8px; text-transform: uppercase; opacity: 0.8; margin-bottom: 14px; }
+    h1 { font-size: clamp(38px, 7vw, 70px); line-height: 1; letter-spacing: -2px; color: #fff; margin-bottom: 18px; }
+    p { font-size: 18px; line-height: 1.75; }
+    .lede { max-width: 760px; margin-bottom: 22px; }
+    .cta-row { display: flex; flex-wrap: wrap; gap: 12px; }
+    .cta { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; padding: 12px 24px; border-radius: 999px; text-decoration: none; font-weight: 700; }
+    .cta-primary { border: 2px solid rgba(102,255,153,0.5); color: var(--accent); box-shadow: 0 0 16px rgba(102,255,153,0.18); }
+    .cta-secondary { border: 1px solid var(--border); color: var(--dim); }
+    .cta-primary:hover { border-color: rgba(210,255,225,1); box-shadow: 0 0 28px rgba(102,255,153,0.35); }
+    .cta-secondary:hover { border-color: var(--accent); color: var(--accent); }
+    .chain { display: grid; gap: 14px; }
+    .step { padding: 18px; border: 1px solid var(--border); border-radius: 14px; background: rgba(102,255,153,0.03); }
+    .step strong { display: block; font-size: 16px; color: #fff; margin-bottom: 8px; }
+    .step span { color: var(--dim); line-height: 1.7; }
+    .share-cards {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 18px;
+    }
+    .share-card {
+      display: block;
+      text-decoration: none;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+      background: rgba(102,255,153,0.03);
+      transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .share-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(102,255,153,0.45);
+      box-shadow: 0 10px 24px rgba(0,0,0,0.22);
+    }
+    .share-card-img {
+      width: 100%;
+      aspect-ratio: 1;
+      object-fit: cover;
+      display: block;
+      background: #0b140b;
+    }
+    .share-card-info { padding: 12px 12px 14px; }
+    .share-card-title {
+      display: block;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .share-card-meta {
+      display: block;
+      color: var(--dim);
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+    }
+    ul { padding-left: 18px; }
+    li { margin: 10px 0; line-height: 1.7; }
+    footer { margin-top: 26px; text-align: center; color: var(--dim); font-family: var(--mono); font-size: 11px; }
+    footer a { text-decoration: none; }
+    footer a:hover { color: var(--accent); }
+    @media (max-width: 860px) { .share-cards { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <div class="topbar">
+      <a class="logo" href="./landing.html">mpump</a>
+      <div class="topnav">
+        <a href="./browser-groovebox.html">Browser groovebox</a>
+        <a href="./live-jam-live-set.html">Live Jam / Live Set</a>
+        <a href="./app.html">Open mpump</a>
+      </div>
+    </div>
+
+    <section class="card">
+      <pre class="page-logo">█▀▄▀█ █▀█ █ █ █▀▄▀█ █▀█
+█ ▀ █ █▀▀ ▀▄▀ █ ▀ █ █▀▀</pre>
+      <div class="eyebrow">Shareable Beat Links</div>
+      <h1>A beat that lives in a link.</h1>
+      <p class="lede">mpump is built around a simple idea: the whole groove can travel as a URL. Whether you think of it as a browser groovebox, a browser drum machine, or a web electronic instrument, the beat stays playable. You do not have to bounce audio, send screenshots, or explain how to recreate it.</p>
+      <div class="cta-row">
+        <a class="cta cta-primary" href="./app.html">Open mpump</a>
+        <a class="cta cta-secondary" href="./landing.html#examples">Open shared beats</a>
+      </div>
+      <div class="share-cards" id="share-cards"></div>
+    </section>
+
+    <section class="card">
+      <div class="eyebrow">The Loop</div>
+      <div class="chain">
+        <div class="step">
+          <strong>Make</strong>
+          <span>Start from scratch or randomize into a working groove. Drums, bass, synth, and effects are already there.</span>
+        </div>
+        <div class="step">
+          <strong>Send</strong>
+          <span>Share the beat as a playable link. The next person does not need an account or an install to open it.</span>
+        </div>
+        <div class="step">
+          <strong>Change</strong>
+          <span>They can switch sounds, mutate the pattern, push the tempo, keep the kick, or rebuild the rest.</span>
+        </div>
+        <div class="step">
+          <strong>Resend</strong>
+          <span>The groove keeps moving instead of freezing at the export stage.</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="eyebrow">Why it matters</div>
+      <ul>
+        <li><strong>It is closer to passing around an idea</strong> than passing around a file.</li>
+        <li><strong>It keeps the beat playable</strong>, not flattened into audio too early.</li>
+        <li><strong>It gives mpump a real identity</strong> beyond “browser drum machine” or “online sequencer.”</li>
+        <li><strong>It fits electronic music well</strong>, because loops want to mutate and come back.</li>
+      </ul>
+      <div class="cta-row" style="margin-top:18px;">
+        <a class="cta cta-secondary" href="./browser-groovebox.html">More on the browser groovebox</a>
+        <a class="cta cta-secondary" href="./live-jam-live-set.html">More on live play</a>
+      </div>
+    </section>
+
+    <footer>
+      <a href="./landing.html">Back to landing</a> ·
+      <a href="./app.html">Open mpump</a> ·
+      <a href="https://github.com/gdamdam/mpump">Source Code</a>
+    </footer>
+  </div>
+  <script>
+    (function() {
+      var container = document.getElementById('share-cards');
+      if (!container) return;
+
+      function imgUrl(beatUrl) {
+        return beatUrl.replace('s.mpump.live/?', 's.mpump.live/img?');
+      }
+
+      function renderCard(beat) {
+        var a = document.createElement('a');
+        a.className = 'share-card';
+        a.href = beat.url;
+
+        var img = document.createElement('img');
+        img.className = 'share-card-img';
+        img.src = imgUrl(beat.url);
+        img.alt = beat.title;
+        img.loading = 'lazy';
+
+        var info = document.createElement('div');
+        info.className = 'share-card-info';
+
+        var title = document.createElement('span');
+        title.className = 'share-card-title';
+        title.textContent = beat.title;
+
+        var meta = document.createElement('span');
+        meta.className = 'share-card-meta';
+        meta.textContent = beat.bpm + ' bpm / ' + beat.genre;
+
+        info.appendChild(title);
+        info.appendChild(meta);
+        a.appendChild(img);
+        a.appendChild(info);
+        return a;
+      }
+
+      fetch('./data/featured.json')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+          var beats = (data.featured || []).slice();
+          if (!beats.length) return;
+          beats.sort(function() { return Math.random() - 0.5; });
+          container.innerHTML = '';
+          beats.slice(0, 3).forEach(function(beat) {
+            container.appendChild(renderCard(beat));
+          });
+        })
+        .catch(function() {});
+    })();
+  </script>
+</body>
+</html>
