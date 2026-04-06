@@ -1,7 +1,7 @@
 {
   "name": "mpump-server",
   "private": true,
-  "version": "1.8.5",
+  "version": "1.8.6",
   "license": "AGPL-3.0-only",
   "type": "module",
   "scripts": {

@@ -76,6 +76,8 @@ export class AudioPort {
   private cv: CVOutput;
   /** Master output node for VU metering. */
   private master: GainNode;
+  /** Cached master volume — avoids reading AudioParam.value (stale on iOS). */
+  private _masterVol = 0.5;
   private eqLow: BiquadFilterNode;
   private eqMid: BiquadFilterNode;
   private eqHigh: BiquadFilterNode;
@@ -156,6 +158,7 @@ export class AudioPort {
 
     // Master → [effects chain] → fxOutput → EQ → masterBoost → limiter → analyser → destination
     this.master = this.ctx.createGain();
+    this.master.gain.value = this._masterVol;
     this.fxOutput = this.ctx.createGain();
 
     // 3-band master EQ
@@ -272,7 +275,7 @@ export class AudioPort {
       const ct = this.ctx.currentTime;
       try {
         this.master.gain.cancelScheduledValues(0);
-        this.master.gain.setValueAtTime(this.master.gain.value, ct);
+        this.master.gain.setValueAtTime(this._masterVol, ct);
       } catch { /* */ }
       for (const [, bus] of this.channelBuses) {
         try {
@@ -1754,9 +1757,11 @@ export class AudioPort {
 
   /** Set master volume (0–1). */
   setVolume(v: number): void {
+    const clamped = Math.max(0, Math.min(1, v));
+    this._masterVol = clamped;
     const now = this.ctx.currentTime;
     this.master.gain.cancelScheduledValues(now);
-    this.master.gain.setValueAtTime(Math.max(0, Math.min(1, v)), now);
+    this.master.gain.setValueAtTime(clamped, now);
   }
 
   /** Get the AnalyserNode for VU metering. */
