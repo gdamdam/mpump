@@ -27,7 +27,12 @@ interface Props {
 }
 
 function imgUrl(beatUrl: string): string {
-  return beatUrl.replace("s.mpump.live/?", "s.mpump.live/img?");
+  // Long URL: s.mpump.live/?z=... → s.mpump.live/img?z=...
+  if (beatUrl.includes("s.mpump.live/?")) return beatUrl.replace("s.mpump.live/?", "s.mpump.live/img?");
+  // Short URL: s.mpump.live/abc123 → s.mpump.live/img/abc123
+  const shortMatch = beatUrl.match(/s\.mpump\.live\/([a-z0-9]{4,8})$/);
+  if (shortMatch) return `https://s.mpump.live/img/${shortMatch[1]}`;
+  return beatUrl;
 }
 
 export function DiscoverModal({ onClose }: Props) {
