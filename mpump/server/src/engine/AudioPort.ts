@@ -1238,8 +1238,8 @@ export class AudioPort {
       const stepDur = 60 / (this.bpm * 4); // seconds per 16th note
       const patLen = pattern.length;
       const barDur = stepDur * patLen;
-      const dipTime = 0.004; // 4ms silence at start of each "on" step (retrigger)
-      const rampTime = 0.004; // 4ms ramp back to full
+      const slewTime = 0.0015; // 1.5ms micro-ramp to avoid DC clicks
+      const attackTime = 0.004; // 4ms ramp back to full after retrigger dip
       const mutedGain = 1 - depth;
 
       // Schedule one bar of gate pattern starting at `startTime`
@@ -1247,12 +1247,12 @@ export class AudioPort {
         for (let s = 0; s < patLen; s++) {
           const t = startTime + s * stepDur;
           if (pattern[s]) {
-            // On-step: dip → ramp up (creates retrigger chop)
-            gate.gain.setValueAtTime(mutedGain, t);
-            gate.gain.linearRampToValueAtTime(1, t + rampTime);
+            // On-step: slew down → ramp up (retrigger chop without click)
+            gate.gain.linearRampToValueAtTime(mutedGain, t + slewTime);
+            gate.gain.linearRampToValueAtTime(1, t + slewTime + attackTime);
           } else {
-            // Off-step: mute
-            gate.gain.setValueAtTime(mutedGain, t);
+            // Off-step: slew to muted (no instant jump)
+            gate.gain.linearRampToValueAtTime(mutedGain, t + slewTime);
           }
         }
       };
@@ -1268,7 +1268,7 @@ export class AudioPort {
         const ct = this.ctx.currentTime;
         // Clear ALL automation to prevent timeline buildup (past events accumulate)
         gate.gain.cancelScheduledValues(0);
-        gate.gain.setValueAtTime(gate.gain.value, ct);
+        gate.gain.setValueAtTime(mutedGain, ct);
         // Schedule bars until we're 2 bars ahead
         while (nextBar < ct + barDur * 2) {
           scheduleBar(nextBar);
@@ -1286,7 +1286,7 @@ export class AudioPort {
 
       const smoother = this.ctx.createBiquadFilter();
       smoother.type = "lowpass";
-      smoother.frequency.value = shape === "triangle" ? 20000 : 150;
+      smoother.frequency.value = shape === "triangle" ? 20000 : 60;
       smoother.Q.value = 0.5;
 
       const depthGain = this.ctx.createGain();
