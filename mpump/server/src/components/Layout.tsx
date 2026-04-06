@@ -1922,7 +1922,10 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
       {/* Remix banner */}
       {parentId && (
         <div className="remix-banner">
-          <span>🔀 Based on <a href={`https://s.mpump.live/${parentId}`} target="_blank" rel="noopener noreferrer">s.mpump.live/{parentId}</a></span>
+          {remixDirty
+            ? <span>🔀 Based on <a href={`https://s.mpump.live/${parentId}`} target="_blank" rel="noopener noreferrer">s.mpump.live/{parentId}</a></span>
+            : <span>♫ Shared beat</span>
+          }
           <button className="remix-banner-close" onClick={() => { setParentId(null); setRemixDirty(false); }}>✕</button>
         </div>
       )}
