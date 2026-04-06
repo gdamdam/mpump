@@ -1,16 +1,17 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
   <defs>
-    <!-- Glow filter for logo -->
     <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur"/>
+      <feGaussianBlur in="SourceGraphic" stdDeviation="1.875" result="blur"/>
+      <feComponentTransfer in="blur" result="glowblur">
+        <feFuncA type="linear" slope="1.18"/>
+      </feComponentTransfer>
       <feMerge>
-        <feMergeNode in="blur"/>
+        <feMergeNode in="glowblur"/>
         <feMergeNode in="SourceGraphic"/>
       </feMerge>
     </filter>
-    <!-- Subtle glow for active steps -->
     <filter id="stepglow" x="-30%" y="-30%" width="160%" height="160%">
-      <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur"/>
+      <feGaussianBlur in="SourceGraphic" stdDeviation="5" result="blur"/>
       <feMerge>
         <feMergeNode in="blur"/>
         <feMergeNode in="SourceGraphic"/>
@@ -23,100 +24,98 @@
 
   <!-- Subtle vertical scan lines -->
   <g opacity="0.03">
-    <line x1="0" y1="0" x2="0" y2="630" stroke="#66ff99" stroke-width="1"/>
-    <line x1="75" y1="0" x2="75" y2="630" stroke="#66ff99" stroke-width="1"/>
-    <line x1="150" y1="0" x2="150" y2="630" stroke="#66ff99" stroke-width="1"/>
-    <line x1="225" y1="0" x2="225" y2="630" stroke="#66ff99" stroke-width="1"/>
-    <line x1="300" y1="0" x2="300" y2="630" stroke="#66ff99" stroke-width="1"/>
-    <line x1="375" y1="0" x2="375" y2="630" stroke="#66ff99" stroke-width="1"/>
-    <line x1="450" y1="0" x2="450" y2="630" stroke="#66ff99" stroke-width="1"/>
-    <line x1="525" y1="0" x2="525" y2="630" stroke="#66ff99" stroke-width="1"/>
-    <line x1="600" y1="0" x2="600" y2="630" stroke="#66ff99" stroke-width="1"/>
-    <line x1="675" y1="0" x2="675" y2="630" stroke="#66ff99" stroke-width="1"/>
-    <line x1="750" y1="0" x2="750" y2="630" stroke="#66ff99" stroke-width="1"/>
-    <line x1="825" y1="0" x2="825" y2="630" stroke="#66ff99" stroke-width="1"/>
-    <line x1="900" y1="0" x2="900" y2="630" stroke="#66ff99" stroke-width="1"/>
-    <line x1="975" y1="0" x2="975" y2="630" stroke="#66ff99" stroke-width="1"/>
+    <line x1="75"   y1="0" x2="75"   y2="630" stroke="#66ff99" stroke-width="1"/>
+    <line x1="150"  y1="0" x2="150"  y2="630" stroke="#66ff99" stroke-width="1"/>
+    <line x1="225"  y1="0" x2="225"  y2="630" stroke="#66ff99" stroke-width="1"/>
+    <line x1="300"  y1="0" x2="300"  y2="630" stroke="#66ff99" stroke-width="1"/>
+    <line x1="375"  y1="0" x2="375"  y2="630" stroke="#66ff99" stroke-width="1"/>
+    <line x1="450"  y1="0" x2="450"  y2="630" stroke="#66ff99" stroke-width="1"/>
+    <line x1="525"  y1="0" x2="525"  y2="630" stroke="#66ff99" stroke-width="1"/>
+    <line x1="600"  y1="0" x2="600"  y2="630" stroke="#66ff99" stroke-width="1"/>
+    <line x1="675"  y1="0" x2="675"  y2="630" stroke="#66ff99" stroke-width="1"/>
+    <line x1="750"  y1="0" x2="750"  y2="630" stroke="#66ff99" stroke-width="1"/>
+    <line x1="825"  y1="0" x2="825"  y2="630" stroke="#66ff99" stroke-width="1"/>
+    <line x1="900"  y1="0" x2="900"  y2="630" stroke="#66ff99" stroke-width="1"/>
+    <line x1="975"  y1="0" x2="975"  y2="630" stroke="#66ff99" stroke-width="1"/>
     <line x1="1050" y1="0" x2="1050" y2="630" stroke="#66ff99" stroke-width="1"/>
     <line x1="1125" y1="0" x2="1125" y2="630" stroke="#66ff99" stroke-width="1"/>
-    <line x1="1200" y1="0" x2="1200" y2="630" stroke="#66ff99" stroke-width="1"/>
   </g>
 
-  <!-- ========== SEQUENCER STEP GRID — 3 rows of 16 steps ========== -->
-  <!-- Positioned across bottom third, full width feel -->
-  <!-- Row 1: Drums pattern (kick/snare rhythm) -->
-  <g transform="translate(100, 420)" filter="url(#stepglow)">
-    <!-- 16 steps, ~62px apart -->
-    <rect x="0"   y="0" width="48" height="48" rx="4" fill="#66ff99" opacity="0.9"/>
-    <rect x="62"  y="0" width="48" height="48" rx="4" fill="#1a2e1a" opacity="0.5"/>
-    <rect x="124" y="0" width="48" height="48" rx="4" fill="#1a2e1a" opacity="0.5"/>
-    <rect x="186" y="0" width="48" height="48" rx="4" fill="#66ff99" opacity="0.55"/>
-    <rect x="248" y="0" width="48" height="48" rx="4" fill="#66ff99" opacity="0.9"/>
-    <rect x="310" y="0" width="48" height="48" rx="4" fill="#1a2e1a" opacity="0.5"/>
-    <rect x="372" y="0" width="48" height="48" rx="4" fill="#66ff99" opacity="0.55"/>
-    <rect x="434" y="0" width="48" height="48" rx="4" fill="#1a2e1a" opacity="0.5"/>
-    <rect x="496" y="0" width="48" height="48" rx="4" fill="#66ff99" opacity="0.9"/>
-    <rect x="558" y="0" width="48" height="48" rx="4" fill="#1a2e1a" opacity="0.5"/>
-    <rect x="620" y="0" width="48" height="48" rx="4" fill="#1a2e1a" opacity="0.5"/>
-    <rect x="682" y="0" width="48" height="48" rx="4" fill="#66ff99" opacity="0.55"/>
-    <rect x="744" y="0" width="48" height="48" rx="4" fill="#66ff99" opacity="0.9"/>
-    <rect x="806" y="0" width="48" height="48" rx="4" fill="#1a2e1a" opacity="0.5"/>
-    <rect x="868" y="0" width="48" height="48" rx="4" fill="#66ff99" opacity="0.55"/>
-    <rect x="930" y="0" width="48" height="48" rx="4" fill="#1a2e1a" opacity="0.5"/>
+  <!-- ========== LOGO — smaller, centered, sharper ========== -->
+  <image href="./og-logo.png" x="371" y="38" width="458" height="150" preserveAspectRatio="xMidYMid meet"/>
+
+  <!-- ========== MAIN LINE ========== -->
+  <text x="600" y="255" font-family="monospace" font-size="40" font-weight="700" fill="#ccffdd" text-anchor="middle" letter-spacing="5">GROOVES LIVE IN A LINK</text>
+
+  <!-- ========== SEQUENCER GRID — center, 3 rows × 16 steps, taller steps ========== -->
+  <!-- Steps: 50px wide, 60px tall, 12px gap = 62px pitch. 16 steps × 62 = 992px. Offset x=104 to center -->
+
+  <!-- Row 1: Drums (kick/snare) — brightest -->
+  <g transform="translate(104, 280)" filter="url(#stepglow)">
+    <rect x="0"   y="0" width="50" height="60" rx="5" fill="#66ff99" opacity="1.0"/>
+    <rect x="62"  y="0" width="50" height="60" rx="5" fill="#1a2e1a" opacity="0.55"/>
+    <rect x="124" y="0" width="50" height="60" rx="5" fill="#1a2e1a" opacity="0.55"/>
+    <rect x="186" y="0" width="50" height="60" rx="5" fill="#66ff99" opacity="0.6"/>
+    <rect x="248" y="0" width="50" height="60" rx="5" fill="#66ff99" opacity="1.0"/>
+    <rect x="310" y="0" width="50" height="60" rx="5" fill="#1a2e1a" opacity="0.55"/>
+    <rect x="372" y="0" width="50" height="60" rx="5" fill="#66ff99" opacity="0.6"/>
+    <rect x="434" y="0" width="50" height="60" rx="5" fill="#1a2e1a" opacity="0.55"/>
+    <rect x="496" y="0" width="50" height="60" rx="5" fill="#66ff99" opacity="1.0"/>
+    <rect x="558" y="0" width="50" height="60" rx="5" fill="#1a2e1a" opacity="0.55"/>
+    <rect x="620" y="0" width="50" height="60" rx="5" fill="#1a2e1a" opacity="0.55"/>
+    <rect x="682" y="0" width="50" height="60" rx="5" fill="#66ff99" opacity="0.6"/>
+    <rect x="744" y="0" width="50" height="60" rx="5" fill="#66ff99" opacity="1.0"/>
+    <rect x="806" y="0" width="50" height="60" rx="5" fill="#1a2e1a" opacity="0.55"/>
+    <rect x="868" y="0" width="50" height="60" rx="5" fill="#66ff99" opacity="0.6"/>
+    <rect x="930" y="0" width="50" height="60" rx="5" fill="#1a2e1a" opacity="0.55"/>
   </g>
 
-  <!-- Row 2: Bass pattern (syncopated) — slightly dimmer -->
-  <g transform="translate(100, 476)" filter="url(#stepglow)">
-    <rect x="0"   y="0" width="48" height="48" rx="4" fill="#66ff99" opacity="0.7"/>
-    <rect x="62"  y="0" width="48" height="48" rx="4" fill="#66ff99" opacity="0.45"/>
-    <rect x="124" y="0" width="48" height="48" rx="4" fill="#1a2e1a" opacity="0.4"/>
-    <rect x="186" y="0" width="48" height="48" rx="4" fill="#1a2e1a" opacity="0.4"/>
-    <rect x="248" y="0" width="48" height="48" rx="4" fill="#66ff99" opacity="0.7"/>
-    <rect x="310" y="0" width="48" height="48" rx="4" fill="#1a2e1a" opacity="0.4"/>
-    <rect x="372" y="0" width="48" height="48" rx="4" fill="#66ff99" opacity="0.45"/>
-    <rect x="434" y="0" width="48" height="48" rx="4" fill="#66ff99" opacity="0.7"/>
-    <rect x="496" y="0" width="48" height="48" rx="4" fill="#1a2e1a" opacity="0.4"/>
-    <rect x="558" y="0" width="48" height="48" rx="4" fill="#66ff99" opacity="0.45"/>
-    <rect x="620" y="0" width="48" height="48" rx="4" fill="#1a2e1a" opacity="0.4"/>
-    <rect x="682" y="0" width="48" height="48" rx="4" fill="#1a2e1a" opacity="0.4"/>
-    <rect x="744" y="0" width="48" height="48" rx="4" fill="#66ff99" opacity="0.7"/>
-    <rect x="806" y="0" width="48" height="48" rx="4" fill="#1a2e1a" opacity="0.4"/>
-    <rect x="868" y="0" width="48" height="48" rx="4" fill="#66ff99" opacity="0.45"/>
-    <rect x="930" y="0" width="48" height="48" rx="4" fill="#66ff99" opacity="0.7"/>
+  <!-- Row 2: Bass (syncopated) -->
+  <g transform="translate(104, 352)" filter="url(#stepglow)">
+    <rect x="0"   y="0" width="50" height="60" rx="5" fill="#66ff99" opacity="0.8"/>
+    <rect x="62"  y="0" width="50" height="60" rx="5" fill="#66ff99" opacity="0.5"/>
+    <rect x="124" y="0" width="50" height="60" rx="5" fill="#1a2e1a" opacity="0.45"/>
+    <rect x="186" y="0" width="50" height="60" rx="5" fill="#1a2e1a" opacity="0.45"/>
+    <rect x="248" y="0" width="50" height="60" rx="5" fill="#66ff99" opacity="0.8"/>
+    <rect x="310" y="0" width="50" height="60" rx="5" fill="#1a2e1a" opacity="0.45"/>
+    <rect x="372" y="0" width="50" height="60" rx="5" fill="#66ff99" opacity="0.5"/>
+    <rect x="434" y="0" width="50" height="60" rx="5" fill="#66ff99" opacity="0.8"/>
+    <rect x="496" y="0" width="50" height="60" rx="5" fill="#1a2e1a" opacity="0.45"/>
+    <rect x="558" y="0" width="50" height="60" rx="5" fill="#66ff99" opacity="0.5"/>
+    <rect x="620" y="0" width="50" height="60" rx="5" fill="#1a2e1a" opacity="0.45"/>
+    <rect x="682" y="0" width="50" height="60" rx="5" fill="#1a2e1a" opacity="0.45"/>
+    <rect x="744" y="0" width="50" height="60" rx="5" fill="#66ff99" opacity="0.8"/>
+    <rect x="806" y="0" width="50" height="60" rx="5" fill="#1a2e1a" opacity="0.45"/>
+    <rect x="868" y="0" width="50" height="60" rx="5" fill="#66ff99" opacity="0.5"/>
+    <rect x="930" y="0" width="50" height="60" rx="5" fill="#66ff99" opacity="0.8"/>
   </g>
 
-  <!-- Row 3: Synth/hat pattern (sparse, accent) — dimmest -->
-  <g transform="translate(100, 532)" filter="url(#stepglow)">
-    <rect x="0"   y="0" width="48" height="48" rx="4" fill="#1a2e1a" opacity="0.35"/>
-    <rect x="62"  y="0" width="48" height="48" rx="4" fill="#1a2e1a" opacity="0.35"/>
-    <rect x="124" y="0" width="48" height="48" rx="4" fill="#66ff99" opacity="0.55"/>
-    <rect x="186" y="0" width="48" height="48" rx="4" fill="#1a2e1a" opacity="0.35"/>
-    <rect x="248" y="0" width="48" height="48" rx="4" fill="#1a2e1a" opacity="0.35"/>
-    <rect x="310" y="0" width="48" height="48" rx="4" fill="#66ff99" opacity="0.55"/>
-    <rect x="372" y="0" width="48" height="48" rx="4" fill="#1a2e1a" opacity="0.35"/>
-    <rect x="434" y="0" width="48" height="48" rx="4" fill="#1a2e1a" opacity="0.35"/>
-    <rect x="496" y="0" width="48" height="48" rx="4" fill="#66ff99" opacity="0.35"/>
-    <rect x="558" y="0" width="48" height="48" rx="4" fill="#1a2e1a" opacity="0.35"/>
-    <rect x="620" y="0" width="48" height="48" rx="4" fill="#66ff99" opacity="0.55"/>
-    <rect x="682" y="0" width="48" height="48" rx="4" fill="#1a2e1a" opacity="0.35"/>
-    <rect x="744" y="0" width="48" height="48" rx="4" fill="#1a2e1a" opacity="0.35"/>
-    <rect x="806" y="0" width="48" height="48" rx="4" fill="#66ff99" opacity="0.55"/>
-    <rect x="868" y="0" width="48" height="48" rx="4" fill="#1a2e1a" opacity="0.35"/>
-    <rect x="930" y="0" width="48" height="48" rx="4" fill="#1a2e1a" opacity="0.35"/>
+  <!-- Row 3: Synth/hat (sparse, accent) -->
+  <g transform="translate(104, 424)" filter="url(#stepglow)">
+    <rect x="0"   y="0" width="50" height="60" rx="5" fill="#1a2e1a" opacity="0.4"/>
+    <rect x="62"  y="0" width="50" height="60" rx="5" fill="#1a2e1a" opacity="0.4"/>
+    <rect x="124" y="0" width="50" height="60" rx="5" fill="#66ff99" opacity="0.65"/>
+    <rect x="186" y="0" width="50" height="60" rx="5" fill="#1a2e1a" opacity="0.4"/>
+    <rect x="248" y="0" width="50" height="60" rx="5" fill="#1a2e1a" opacity="0.4"/>
+    <rect x="310" y="0" width="50" height="60" rx="5" fill="#66ff99" opacity="0.65"/>
+    <rect x="372" y="0" width="50" height="60" rx="5" fill="#1a2e1a" opacity="0.4"/>
+    <rect x="434" y="0" width="50" height="60" rx="5" fill="#1a2e1a" opacity="0.4"/>
+    <rect x="496" y="0" width="50" height="60" rx="5" fill="#66ff99" opacity="0.4"/>
+    <rect x="558" y="0" width="50" height="60" rx="5" fill="#1a2e1a" opacity="0.4"/>
+    <rect x="620" y="0" width="50" height="60" rx="5" fill="#66ff99" opacity="0.65"/>
+    <rect x="682" y="0" width="50" height="60" rx="5" fill="#1a2e1a" opacity="0.4"/>
+    <rect x="744" y="0" width="50" height="60" rx="5" fill="#1a2e1a" opacity="0.4"/>
+    <rect x="806" y="0" width="50" height="60" rx="5" fill="#66ff99" opacity="0.65"/>
+    <rect x="868" y="0" width="50" height="60" rx="5" fill="#1a2e1a" opacity="0.4"/>
+    <rect x="930" y="0" width="50" height="60" rx="5" fill="#1a2e1a" opacity="0.4"/>
   </g>
 
-  <!-- Playhead indicator on step 5 (bright vertical line) -->
-  <rect x="348" y="415" width="4" height="170" rx="2" fill="#66ff99" opacity="0.6"/>
+  <!-- Playhead — step 5, spans all 3 rows, brighter -->
+  <rect x="352" y="275" width="4" height="214" rx="2" fill="#ffffff" opacity="0.75"/>
 
-  <!-- ========== ASCII LOGO — large, centered, glowing ========== -->
-  <g filter="url(#glow)">
-    <text x="600" y="170" font-family="monospace" font-size="64" font-weight="900" fill="#66ff99" text-anchor="middle" xml:space="preserve">█▀▄▀█ █▀█ █ █ █▀▄▀█ █▀█</text>
-    <text x="600" y="240" font-family="monospace" font-size="64" font-weight="900" fill="#66ff99" text-anchor="middle" xml:space="preserve">█ ▀ █ █▀▀ ▀▄▀ █ ▀ █ █▀▀</text>
-  </g>
+  <!-- ========== SUBLINE — below pattern, more readable ========== -->
+  <text x="600" y="524" font-family="monospace" font-size="26" font-weight="400" fill="#b8ddc0" text-anchor="middle" letter-spacing="2">Open it. Change it. Send it back different.</text>
 
-  <!-- ========== TAGLINE ========== -->
-  <text x="600" y="330" font-family="monospace" font-size="36" font-weight="700" fill="#b0ffcc" text-anchor="middle" letter-spacing="4">GROOVES LIVE IN A LINK</text>
-
-  <!-- ========== SITE LABEL — bottom right ========== -->
-  <text x="1140" y="600" font-family="monospace" font-size="20" fill="#3a5a3a" text-anchor="end" letter-spacing="3">mpump.live</text>
+  <!-- ========== SITE LABEL — bottom right, subtle ========== -->
+  <image href="./og-site.png" x="1029" y="578" width="121" height="25" preserveAspectRatio="xMaxYMid meet"/>
 </svg>
