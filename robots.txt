@@ -1,4 +1,6 @@
 # Search engines — welcome
+Sitemap: https://mpump.live/sitemap.xml
+
 User-agent: Googlebot
 Allow: /
 

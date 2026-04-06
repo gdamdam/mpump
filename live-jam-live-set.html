@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>mpump — Live Jam / Live Set in the Browser</title>
+  <meta name="description" content="mpump supports Live Jam and Live Set in the browser. Play together in a browser groovebox and web electronic instrument without streaming audio. Each browser synthesizes locally." />
+  <meta property="og:title" content="mpump — Live Jam / Live Set in the Browser" />
+  <meta property="og:description" content="Play together live in the browser without streaming audio." />
+  <meta property="og:url" content="https://mpump.live/live-jam-live-set.html" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="mpump" />
+  <meta property="og:image" content="https://mpump.live/og-image.png" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="mpump — Live Jam / Live Set in the Browser" />
+  <meta name="twitter:description" content="Jam together or perform live in the browser. Each browser makes sound locally in the same instrument." />
+  <meta name="twitter:image" content="https://mpump.live/og-image.png" />
+  <link rel="canonical" href="https://mpump.live/live-jam-live-set.html" />
+  <meta name="theme-color" content="#090e09" />
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+  <link rel="icon" type="image/png" sizes="32x32" href="./favicon-32.png" />
+  <link rel="icon" type="image/png" sizes="16x16" href="./favicon-16.png" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #090e09; --panel: #0d160d; --border: #1a2e1a; --text: #d4ead4; --dim: #84a184;
+      --accent: #66ff99; --ui: "Avenir Next", "Segoe UI", "Trebuchet MS", "Helvetica Neue", sans-serif;
+      --mono: "SF Mono", "Fira Code", monospace; --shadow: 0 18px 60px rgba(0,0,0,0.45);
+    }
+    body { font-family: var(--ui); color: var(--text); background: radial-gradient(circle at top left, rgba(102,255,153,0.09), transparent 28%), linear-gradient(180deg, #071007 0%, #090e09 100%); }
+    a { color: inherit; }
+    .shell { width: min(980px, calc(100vw - 32px)); margin: 0 auto; padding: 20px 0 40px; }
+    .topbar, .card { border: 1px solid var(--border); border-radius: 18px; background: linear-gradient(180deg, rgba(13,22,13,0.96), rgba(9,14,9,0.98)); box-shadow: var(--shadow); }
+    .topbar { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px; margin-bottom: 22px; }
+    .logo { color: var(--accent); font-family: var(--mono); font-size: 13px; font-weight: 700; letter-spacing: 1px; text-decoration: none; }
+    .topnav { display: flex; flex-wrap: wrap; gap: 14px; color: var(--dim); font-size: 12px; }
+    .topnav a { text-decoration: none; }
+    .topnav a:hover { color: var(--accent); }
+    .card { padding: 30px; margin-bottom: 18px; }
+    .page-logo {
+      white-space: pre;
+      color: var(--accent);
+      font-family: var(--mono);
+      font-size: clamp(8px, 1.6vw, 12px);
+      line-height: 1.1;
+      text-shadow: 0 0 10px rgba(102,255,153,0.35);
+      margin-bottom: 18px;
+    }
+    .eyebrow { color: var(--accent); font-family: var(--mono); font-size: 11px; letter-spacing: 1.8px; text-transform: uppercase; opacity: 0.8; margin-bottom: 14px; }
+    h1 { font-size: clamp(38px, 7vw, 70px); line-height: 1; letter-spacing: -2px; color: #fff; margin-bottom: 18px; }
+    p { font-size: 18px; line-height: 1.75; }
+    .lede { max-width: 760px; margin-bottom: 22px; }
+    .cta-row { display: flex; flex-wrap: wrap; gap: 12px; }
+    .cta { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; padding: 12px 24px; border-radius: 999px; text-decoration: none; font-weight: 700; }
+    .cta-primary { border: 2px solid rgba(102,255,153,0.5); color: var(--accent); box-shadow: 0 0 16px rgba(102,255,153,0.18); }
+    .cta-secondary { border: 1px solid var(--border); color: var(--dim); }
+    .cta-primary:hover { border-color: rgba(210,255,225,1); box-shadow: 0 0 28px rgba(102,255,153,0.35); }
+    .cta-secondary:hover { border-color: var(--accent); color: var(--accent); }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    .mini { padding: 18px; border: 1px solid var(--border); border-radius: 14px; background: rgba(102,255,153,0.03); }
+    .mini strong { display: block; font-size: 18px; color: #fff; margin-bottom: 8px; }
+    .mini span { color: var(--dim); line-height: 1.65; font-size: 15px; }
+    footer { margin-top: 26px; text-align: center; color: var(--dim); font-family: var(--mono); font-size: 11px; }
+    footer a { text-decoration: none; }
+    footer a:hover { color: var(--accent); }
+    @media (max-width: 760px) { .grid { grid-template-columns: 1fr; } .card { padding: 24px 20px; } }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <div class="topbar">
+      <a class="logo" href="./landing.html">mpump</a>
+      <div class="topnav">
+        <a href="./browser-groovebox.html">Browser groovebox</a>
+        <a href="./shareable-beat-links.html">Shareable beat links</a>
+        <a href="./app.html">Open mpump</a>
+      </div>
+    </div>
+
+    <section class="card">
+      <pre class="page-logo">█▀▄▀█ █▀█ █ █ █▀▄▀█ █▀█
+█ ▀ █ █▀▀ ▀▄▀ █ ▀ █ █▀▀</pre>
+      <div class="eyebrow">Live Jam / Live Set</div>
+      <h1>Play together live in the browser.</h1>
+      <p class="lede">mpump includes two live modes. Live Jam is for a small group shaping the music together. Live Set is for one performer controlling the groove while everyone else listens. In both cases, no audio is streamed. Each browser synthesizes the sound locally inside the same browser groovebox and web electronic instrument.</p>
+      <div class="cta-row">
+        <a class="cta cta-primary" href="./app.html">Open mpump</a>
+        <a class="cta cta-secondary" href="./landing.html">Back to landing</a>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="eyebrow">Two live modes</div>
+      <div class="grid">
+        <div class="mini">
+          <strong>Live Jam</strong>
+          <span>Up to four people can shape the groove together. BPM, effects, mutes, and pad movement stay in sync.</span>
+        </div>
+        <div class="mini">
+          <strong>Live Set</strong>
+          <span>One controller performs while listeners hear the same performance in their own browsers.</span>
+        </div>
+        <div class="mini">
+          <strong>No audio streaming</strong>
+          <span>Only control data moves across the relay. Each browser makes its own sound locally, which keeps it lighter and more direct.</span>
+        </div>
+        <div class="mini">
+          <strong>Same instrument, live</strong>
+          <span>This is not a separate collaboration layer pasted onto the app. It is the same groovebox, opened live.</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="eyebrow">Why it fits mpump</div>
+      <p class="lede">The live modes are not there to imitate a conferencing product. They fit the same idea as the share links: a groove should stay playable, not collapse into a file too early.</p>
+      <div class="cta-row">
+        <a class="cta cta-secondary" href="./shareable-beat-links.html">More on shareable beat links</a>
+        <a class="cta cta-secondary" href="./browser-groovebox.html">More on the browser groovebox</a>
+      </div>
+    </section>
+
+    <footer>
+      <a href="./landing.html">Back to landing</a> ·
+      <a href="./app.html">Open mpump</a> ·
+      <a href="https://github.com/gdamdam/mpump">Source Code</a>
+    </footer>
+  </div>
+</body>
+</html>
