@@ -63,7 +63,7 @@ export function ShareModal({ url, longUrl, parentId, qrUrl, gestureNote, getAnal
   // Decode payload for metadata display + visualization data
   const decodePayload = useCallback(() => {
     try {
-      const u = new URL(url);
+      const u = new URL(longUrl || url);
       const hash = (u.searchParams.get("z") || u.searchParams.get("b") || "").replace(/ /g, "+")
         || url.split("#")[1]
         || u.pathname.slice(1); // Worker URL: payload is the path
@@ -88,7 +88,7 @@ export function ShareModal({ url, longUrl, parentId, qrUrl, gestureNote, getAnal
       const trackName = data.tn || "";
       return { bpm, bpmNum, genre, fx, custom, gesture, swing, melodic, drums, bass, gesturePoints, trackName };
     } catch { return { bpm: "", bpmNum: 0, genre: "", fx: "", custom: false, gesture: false, swing: "", melodic: null, drums: null, bass: null, gesturePoints: null, trackName: "" }; }
-  }, [url]);
+  }, [url, longUrl]);
 
   // Draw the full album-art card on canvas
   const drawCard = useCallback(async () => {
