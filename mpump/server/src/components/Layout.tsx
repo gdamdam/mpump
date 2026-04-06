@@ -26,6 +26,7 @@ import { useSupportPrompt, SupportPromptUI } from "./SupportPrompt";
 import { AboutModal } from "./AboutModal";
 import { MegaKaos } from "./MegaKaos";
 import { HelpModal } from "./HelpModal";
+import { DiscoverModal } from "./DiscoverModal";
 import { PatternLibrary } from "./PatternLibrary";
 import { PrivacyModal } from "./PrivacyModal";
 import { MixerPanel } from "./MixerPanel";
@@ -219,6 +220,7 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const { showTutorial, dismissTutorial } = useTutorial();
   const [showHelp, setShowHelp] = useState(false);
+  const [showDiscover, setShowDiscover] = useState(false);
   const [showSessionLib, setShowSessionLib] = useState(false);
   const [showJam, setShowJam] = useState(false);
   const jam = useJam();
@@ -1888,6 +1890,7 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
                   {showMoreMenu && (
                     <div className="header-more-menu" onClick={(e) => { if (!(e.target as HTMLElement).closest(".tap-tempo-btn") && !(e.target as HTMLElement).closest(".preset-mgr")) setShowMoreMenu(false); }}>
                       {catalog && <button onClick={() => { setShowMoreMenu(false); setShowLibrary(true); }}>♫ Library</button>}
+                      <button onClick={() => { setShowMoreMenu(false); setShowDiscover(true); }}>★ Discover</button>
                       <button onClick={() => { setShowMoreMenu(false); setShowHelp(true); }}>? Help</button>
                       <button className="more-menu-sessions" onClick={() => { setShowMoreMenu(false); setShowSessionLib(true); }}>📂 Sessions</button>
                       <div className="more-menu-presets"><PresetManager state={state} onLoad={loadPreset} mixCount={mixCount} /></div>
@@ -2150,6 +2153,10 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
 
       {showLibrary && catalog && (
         <PatternLibrary catalog={catalog} command={command} onClose={() => setShowLibrary(false)} />
+      )}
+
+      {isPreview && showDiscover && (
+        <DiscoverModal onClose={() => setShowDiscover(false)} />
       )}
 
       {isPreview && showHelp && (

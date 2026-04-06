@@ -348,6 +348,98 @@
   color: var(--preview); opacity: 0.7;
 }
 
+/* ── Discover modal ──────────────────────────────────────────────────── */
+
+.discover-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.discover-section-label {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--preview);
+  opacity: 0.7;
+}
+.discover-grid {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.discover-card {
+  flex: 1;
+  min-width: 120px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  text-decoration: none;
+  color: var(--text);
+  background: rgba(102,255,153,0.02);
+  transition: border-color 0.2s;
+}
+.discover-card:hover {
+  border-color: var(--preview);
+}
+.discover-card-seed {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+}
+.discover-card-seed .discover-card-img {
+  width: 100px;
+  height: auto;
+  flex-shrink: 0;
+}
+.discover-card-img {
+  width: 100%;
+  display: block;
+}
+.discover-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px;
+}
+.discover-card-title {
+  font-size: 11px;
+  font-weight: 700;
+}
+.discover-card-meta {
+  font-size: 9px;
+  color: var(--text-dim);
+}
+.discover-card-note {
+  font-size: 9px;
+  font-style: italic;
+  color: var(--preview);
+  opacity: 0.7;
+}
+.discover-chain {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+}
+.discover-chain a {
+  color: var(--preview);
+  text-decoration: none;
+}
+.discover-chain a:hover {
+  text-decoration: underline;
+}
+.discover-chain-arrow {
+  color: var(--text-dim);
+  opacity: 0.5;
+}
+.discover-chain-label {
+  font-size: 9px;
+  color: var(--text-dim);
+  opacity: 0.5;
+}
+
 /* ── Animations ───────────────────────────────────────────────────────── */
 
 @keyframes fadeIn {
