@@ -1877,7 +1877,7 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, showDis
                   aria-label="Discover beats"
                   onClick={() => setShowDiscover(true)}
                 >
-                  ★ Discover
+                  <span className="discover-label-full">★ Discover</span><span className="discover-label-short">★</span>
                 </button>
               )}
               {isPreview && jamEnabled && (
@@ -1889,10 +1889,13 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, showDis
                 >
                   {jam.status === "connected" ? (<>
                     <span className={`jam-dot ${logoKick ? "kick" : ""}`} />
-                    {jam.roomType === "liveset"
+                    <span className="jam-label-full">{jam.roomType === "liveset"
                       ? ` LIVE SET ${jam.peerCount}`
-                      : ` JAM ${jam.peerCount}/4`}
-                  </>) : (<><span className="jam-label-full">Jam/Set</span><span className="jam-label-short">Jam</span></>)}
+                      : ` JAM ${jam.peerCount}/4`}</span>
+                    <span className="jam-label-short">{jam.roomType === "liveset"
+                      ? ` ◉ ${jam.peerCount}`
+                      : ` ◉ ${jam.peerCount}/4`}</span>
+                  </>) : (<><span className="jam-label-full">Jam/Set</span><span className="jam-label-short">⦿</span></>)}
                 </button>
               )}
             </div>

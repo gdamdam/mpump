@@ -224,6 +224,7 @@
   color: var(--text);
 }
 .jam-label-short { display: none; }
+.discover-label-short { display: none; }
 
 /* ── Reactions ── */
 .jam-reaction-flash {
@@ -330,6 +331,8 @@
 @media (max-width: 500px) {
   .jam-label-full { display: none; }
   .jam-label-short { display: inline; }
+  .discover-label-full { display: none; }
+  .discover-label-short { display: inline; }
 }
 
 .jam-divider {
