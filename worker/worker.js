@@ -457,7 +457,12 @@ export default {
       });
     }
 
-    // Stats endpoint
+    // Dashboard
+    if (url.pathname === "/dshbrd" && request.method === "GET") {
+      return handleDashboard(env);
+    }
+
+    // Stats API
     if (url.pathname === "/stats" && request.method === "GET") {
       return handleStats(env);
     }
@@ -588,6 +593,63 @@ async function handleShorten(request, env) {
 }
 
 /** Resolve a short URL — serve OG tags to bots, redirect browsers. */
+/** GET /dashboard — HTML dashboard. */
+async function handleDashboard(env) {
+  const statsRes = await handleStats(env);
+  const data = await statsRes.json();
+  const { beats, totals, count } = data;
+
+  const rows = beats.map(b => `
+    <tr>
+      <td><a href="https://s.mpump.live/${b.id}?nc" target="_blank">${b.id}</a></td>
+      <td>${(b.created || "").slice(0, 10)}</td>
+      <td>${b.plays}</td>
+      <td>${b.remixes}</td>
+      <td>${b.shares}</td>
+      <td>${b.parent ? `<a href="https://s.mpump.live/${b.parent}?nc" target="_blank">${b.parent}</a>` : "—"}</td>
+      <td><div style="background:#6c5ce7;height:14px;width:${Math.min(b.plays * 8, 200)}px;border-radius:3px"></div></td>
+    </tr>`).join("");
+
+  const html = `<!DOCTYPE html>
+<html><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>mpump stats</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:-apple-system,system-ui,sans-serif; background:#0a0a0a; color:#e0e0e0; padding:24px; }
+  h1 { font-size:20px; margin-bottom:24px; color:#fff; }
+  .cards { display:flex; gap:16px; margin-bottom:32px; flex-wrap:wrap; }
+  .card { background:#1a1a2e; border-radius:12px; padding:20px 24px; min-width:140px; }
+  .card .num { font-size:32px; font-weight:700; color:#6c5ce7; }
+  .card .label { font-size:12px; color:#888; margin-top:4px; text-transform:uppercase; letter-spacing:1px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th { text-align:left; padding:8px 12px; border-bottom:1px solid #333; color:#888; font-weight:500; text-transform:uppercase; font-size:11px; letter-spacing:1px; }
+  td { padding:8px 12px; border-bottom:1px solid #1a1a2e; }
+  tr:hover { background:#1a1a2e; }
+  a { color:#6c5ce7; text-decoration:none; }
+  a:hover { text-decoration:underline; }
+  .updated { color:#555; font-size:11px; margin-top:24px; }
+</style>
+</head><body>
+<h1>mpump stats</h1>
+<div class="cards">
+  <div class="card"><div class="num">${count}</div><div class="label">Beats</div></div>
+  <div class="card"><div class="num">${totals.plays}</div><div class="label">Plays</div></div>
+  <div class="card"><div class="num">${totals.remixes}</div><div class="label">Remixes</div></div>
+  <div class="card"><div class="num">${totals.shares}</div><div class="label">Shares</div></div>
+</div>
+<table>
+  <thead><tr><th>ID</th><th>Created</th><th>Plays</th><th>Remixes</th><th>Shares</th><th>Parent</th><th>Plays</th></tr></thead>
+  <tbody>${rows}</tbody>
+</table>
+<div class="updated">Updated ${new Date().toISOString().slice(0, 19)} UTC</div>
+</body></html>`;
+
+  return new Response(html, {
+    headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-cache" },
+  });
+}
+
 /** GET /stats — return all beats with counters in one response. */
 async function handleStats(env) {
   try {
@@ -652,9 +714,9 @@ async function handleShortUrl(id, url, request, env, ctx) {
     env.BEATS.get(`pc:${id}`).then(v => parseInt(v || "0", 10)),
   ]);
 
-  // Increment play counter for non-bot requests (non-blocking)
+  // Increment play counter for non-bot requests (non-blocking), skip if ?nc=1
   const ua = request.headers.get("user-agent") || "";
-  if (!BOT_RE.test(ua) && ctx) {
+  if (!BOT_RE.test(ua) && ctx && !url.searchParams.has("nc")) {
     ctx.waitUntil(env.BEATS.put(`pc:${id}`, String(playCount + 1)));
     if (env.ANALYTICS) env.ANALYTICS.writeDataPoint({ blobs: ["play", id], doubles: [1] });
   }
