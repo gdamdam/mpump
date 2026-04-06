@@ -27,9 +27,24 @@ export function isInstallAvailable(): boolean {
   return deferredInstallPrompt !== null;
 }
 
-// Log unhandled errors to console (debug Firefox crashes)
-window.addEventListener("error", (e) => console.error("Unhandled error:", e.error));
-window.addEventListener("unhandledrejection", (e) => console.error("Unhandled rejection:", e.reason));
+// Report unhandled errors to worker + console
+const ERROR_URL = import.meta.env.DEV ? "http://localhost:8787/error" : "https://s.mpump.live/error";
+function reportError(message: string, stack?: string) {
+  fetch(ERROR_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message, stack, ua: navigator.userAgent }),
+    signal: AbortSignal.timeout(3000),
+  }).catch(() => {});
+}
+window.addEventListener("error", (e) => {
+  console.error("Unhandled error:", e.error);
+  reportError(e.message, e.error?.stack);
+});
+window.addEventListener("unhandledrejection", (e) => {
+  console.error("Unhandled rejection:", e.reason);
+  reportError(String(e.reason), e.reason?.stack);
+});
 
 // Register service worker for PWA install + offline support
 if ("serviceWorker" in navigator) {

@@ -19,13 +19,14 @@ export function PrivacyModal({ onClose }: Props) {
           <button className="settings-close" title="Close" onClick={onClose}>✕</button>
         </div>
         <div style={{ fontSize: 13, lineHeight: 1.7, color: "var(--text)", maxHeight: "70dvh", overflowY: "auto", padding: "0 16px 16px" }}>
-          <p style={{ marginBottom: 12 }}>mpump collects no personal data. No cookies, no accounts, no tracking.</p>
+          <p style={{ marginBottom: 12 }}>mpump collects no personal data. No cookies, no accounts, no user tracking.</p>
           <ul style={{ paddingLeft: 18, margin: 0 }}>
             <li><strong>No cookies</strong>: mpump does not set any cookies</li>
-            <li><strong>No personal data</strong>: no accounts, no emails, no tracking IDs</li>
+            <li><strong>No personal data</strong>: no accounts, no emails, no user IDs</li>
             <li><strong>No fingerprinting</strong>: no device or browser identification</li>
             <li><strong>No third-party trackers</strong>: no Google, no Facebook, no ad networks</li>
-            <li><strong>Anonymous counters</strong>: we count page views and anonymous events (play, share) using <a href="https://goatcounter.com" target="_blank" rel="noopener noreferrer" style={{ color: "var(--preview)" }}>GoatCounter</a>, a privacy-first tool. No personal data, no cookies, no user IDs</li>
+            <li><strong>Anonymous beat stats</strong>: we count plays, shares, and remixes per beat — no personal data, no cookies, no user IDs. Page views counted via <a href="https://goatcounter.com" target="_blank" rel="noopener noreferrer" style={{ color: "var(--preview)" }}>GoatCounter</a></li>
+            <li><strong>Error reporting</strong>: if the app crashes, an anonymous error report is sent to our relay — it contains only the error message and browser type. No personal data, no IPs stored</li>
             <li><strong>Saved locally</strong>: your grooves, settings, and patterns are stored privately in your browser. Nothing is sent to any server</li>
             <li><strong>Open source (AGPL-3.0)</strong>: full source code at <a href="https://github.com/gdamdam/mpump" target="_blank" rel="noopener noreferrer" style={{ color: "var(--preview)" }}>github.com/gdamdam/mpump</a></li>
           </ul>

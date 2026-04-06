@@ -467,6 +467,24 @@ export default {
       return handleStats(env);
     }
 
+    // Error reporting endpoint
+    if (url.pathname === "/error" && request.method === "POST") {
+      try {
+        const { message, stack, ua } = await request.json();
+        if (env.ANALYTICS) {
+          env.ANALYTICS.writeDataPoint({
+            blobs: ["error", message || "unknown", stack || "", ua || ""],
+            doubles: [1],
+          });
+        }
+        return new Response(JSON.stringify({ ok: true }), {
+          headers: { "Content-Type": "application/json", ...CORS },
+        });
+      } catch {
+        return new Response(null, { status: 204, headers: CORS });
+      }
+    }
+
     // Track endpoint — increment share counter
     if (url.pathname === "/track" && request.method === "POST") {
       try {
