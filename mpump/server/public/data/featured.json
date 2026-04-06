@@ -1,12 +1,12 @@
 {
-  "updated": "2026-04-05",
+  "updated": "2026-04-06",
   "seed": {
-    "id": "electric-wave",
-    "title": "Electric Wave",
-    "bpm": 136,
-    "genre": "techno",
-    "url": "https://s.mpump.live/?z=eJyNUttuozAQ_ZXVvC7JGpwQw3u_YR9WVQXYASvcakPaqs2_7xkDUbWVqgWkGcbnzJyZ8TuVY0d5LNOI_AvlYn-MSF8opxMhMsKJFbxyXEM15e80OnO15uVJu7nzHKgtcoA5ss0A54BgGttbdGeUhf9KSL4h-Ld-av6DAcrUQ-NDa6rJ2erH7-JqoPeyoIaK8oQbGjlXwY0KgYBmL8YB20NELpygTDVQLoUA1RnKFRDtCtH4jxFvgZjcbOD5u6d5YL_iFJXbkQmniM5mZZ71OuDZB1F1HxCQccYOqBtq0HrUOdy4ryB1mHDin-fCcTer8HgVLtSmWP6jU27Zs-RebtEhNx3isNaVQiL1-RrEoXIFj45pFD6cdOYZgSTaJVGMX-0CMssydUyz0zFTsVAKXbWYsYTtyqXcK89CbA-XCB1p0xZv7Ey2uysyRpdFdQmJkcG-rgdYf7UNV9ur9XbotxHzzg2W8AfL6nBfvB8cqjS2bka-ZpihnSo3-8ZwvGoG-HDGpvAhgitmXMktWT8NbuLc0arvcVk0yXQfJ-LnIdln4mP3AZuy3X3ypVog6QLhFyz1CU63v3gN6jU",
-    "note": "Fast techno energy — remix this into something heavier"
+    "id": "monk-gravity",
+    "title": "Monk Gravity",
+    "bpm": 85,
+    "genre": "downtempo",
+    "url": "https://s.mpump.live/\\?z\\=eJx9UtFugzAM_JXJz2mVAKXAD-xpXzBNE9AUUCFhSaCq2v77zqzaqnXaky_OnX12cqZqHKjINoL8kQq5BtgdqCAlCakRKIqBqgVtgBoqzjQ6PXf6-L5z0-A50XRUqETQiIhQ8VmyjONVfAuq0j_w83_4_mRC-1ug1IMCkmBg8cWaw9OzK-cunGD28EWyNRURjzNyKRtAPJazDmXVa7BKHlzy5AzQxHPknTgGqaDaUhFLiVJOoz8YPd_EgnrcBDdpoIWMNv3IAKTGLHLoJ7MYmFBYIRqokyub_zHkO_PjRWY3M9FvM-rLTPLgZStoj5ekwTYos59vo7AHtVa35rzaGle0lSKNRJqAOugPfluxioTCcecWaZ7n2SbNt5s8UzLj9j2WGCMO1bJTDRev8DLgqby3DtK2a9qRHxhVOh-sC501_Hm6ULvJt5pJdWuBAca29Etm35emWVBwerDYKI82a1dxId2XJ3pjAJdxulZSXpJoncrL6hbj7K_kPROHVN6xIxzSOzZdPwF0ltFP",
+    "note": "Chill Downtempo"
   },
   "featured": [
     {
@@ -43,6 +43,20 @@
       "bpm": 162,
       "genre": "techno",
       "url": "https://s.mpump.live/?z=eJx9UstOwzAQ_BW051DsJHWT_AZHhFAezkMksbHToor235l1QwVFcMmOJ7O7s2t_UGUnKqSKI_LvVIjNNqLmlQqSBMYyyICqgJjrqPgg6_Rh0O8vjdtPnoluoCKPyCJIqPkoOIvjObrqq9LfyuN_5P44L_1t-eRXAjKWGf4ezVi6u8fjXFqvYfX1ojJ16OKt5VIlDykEiIYR3HqOaUQu_MH8taEiEQKpTlORQTGukgZnCX6EYnF7DeSvqOEVPUiFzqPlhB22BV9yg2Z7H7y0eq3UYus0mQ7itln33h5WMKNfeub5gmWzQOuHmWe6mI5X1_Kb6xae2nL0-jJA9uU__vKvfnRdDV0Nrs3RtQainYjwJlQK5aTfQMTRfRzxA2hcUOZ5nm1VvtvmmRRZBgMj9pwgTlWorGHiCVYm3Kb3xiG1H7re8hNAlcEvxi2Dmfl1DUvt9r7XLKp7Awxg-9IHph3LuQtocXoyWD5PdtCu4kJ6LI_0fLkbShSWI073p2S3kUKc0jiEJAv0Dak2KnzD4Vav_shKg57OnzGq3Q8"
+    },
+    {
+      "id": "solar-score",
+      "title": "Solar Score",
+      "bpm": 138,
+      "genre": "trance",
+      "url": "https://s.mpump.live/\\?z\\=eJyFUstugzAQ_JVqzySyITjAtZ_QY1VVPMxDBUxtJ1GU5N8765JcIrUSksfr2ZnxmgtVy0SFTLKI3IkKsU0jar6oIJkSSgtQIoEqRjFAR8WFFquPgz59NvYwOS50A4tEtGAVYHfrGva36NFQle7BX-lS_sF359n3DwO1dqinDrT4GQnfzFjal1djNaJ-_VJMTUXMd1lYyHjQvB3KuRuZ1PClEcXxmkdkeZWYQm2o2Av0Q4uzupFPMKeDC7LdzPs9Ci0mSJPp6MZ5gkvJZ0LIVV_Gq0GSrg5idVB3BynuFsmqmIgE-doj1-K7X64eAVod3gumNTiUqih86Jn0N79WtIkjfrvGBo08z7NU5fs0z6TIMgQYMRlONFVBUCPPO1JNmL5zxqK1H7p-4TeDyuC8sX4wM_8Og6_twfWaSXVvgAGWvnSh0o4Yb0De6smMhviSR20rFtJjeaYPBnxLhemI6-a6i7dSMEiyp8q_nJ3aKkG3HyK0wdE"
+    },
+    {
+      "id": "monk-gravity",
+      "title": "Monk Gravity",
+      "bpm": 85,
+      "genre": "downtempo",
+      "url": "https://s.mpump.live/\\?z\\=eJx9UtFugzAM_JXJz2mVAKXAD-xpXzBNE9AUUCFhSaCq2v77zqzaqnXaky_OnX12cqZqHKjINoL8kQq5BtgdqCAlCakRKIqBqgVtgBoqzjQ6PXf6-L5z0-A50XRUqETQiIhQ8VmyjONVfAuq0j_w83_4_mRC-1ug1IMCkmBg8cWaw9OzK-cunGD28EWyNRURjzNyKRtAPJazDmXVa7BKHlzy5AzQxHPknTgGqaDaUhFLiVJOoz8YPd_EgnrcBDdpoIWMNv3IAKTGLHLoJ7MYmFBYIRqokyub_zHkO_PjRWY3M9FvM-rLTPLgZStoj5ekwTYos59vo7AHtVa35rzaGle0lSKNRJqAOugPfluxioTCcecWaZ7n2SbNt5s8UzLj9j2WGCMO1bJTDRev8DLgqby3DtK2a9qRHxhVOh-sC501_Hm6ULvJt5pJdWuBAca29Etm35emWVBwerDYKI82a1dxId2XJ3pjAJdxulZSXpJoncrL6hbj7K_kPROHVN6xIxzSOzZdPwF0ltFP"
     }
   ],
   "chains": []
