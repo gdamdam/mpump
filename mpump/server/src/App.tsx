@@ -28,6 +28,7 @@ export function App() {
   const autoStarted = useRef(false);
   const [loadTimeout, setLoadTimeout] = useState(false);
   const [showContinueModal, setShowContinueModal] = useState(false);
+  const [openDiscoverOnStart, setOpenDiscoverOnStart] = useState(false);
 
   // ?reset=true — prompt to clear all data and reload
   useEffect(() => {
@@ -216,6 +217,7 @@ export function App() {
     return (
       <>
         <MidiGate midiState={midiState} onConnectMidi={connectMidi} onPreview={(genre?: string) => {
+          setOpenDiscoverOnStart(false);
           if (genre) {
             setItem("mpump-start-genre", genre);
             trackEvent("play-start");
@@ -228,6 +230,11 @@ export function App() {
             trackEvent("play-start");
             startPreview();
           }
+        }} onOpenDiscover={() => {
+          setOpenDiscoverOnStart(true);
+          setShowContinueModal(false);
+          trackEvent("play-start");
+          startPreview();
         }} midiSupported={isSupported()} />
         {showContinueModal && lastSession && (() => {
           const ago = Math.round((Date.now() - lastSession.timestamp) / 60000);
@@ -291,6 +298,8 @@ export function App() {
         catalog={catalog}
         command={command}
         isPreview={midiState === "preview"}
+        showDiscoverOnStart={openDiscoverOnStart}
+        onConsumeDiscoverOnStart={() => setOpenDiscoverOnStart(false)}
         getAnalyser={getAnalyser}
         getChannelAnalyser={getChannelAnalyser}
         onConnectMidi={isSupported() ? connectMidi : undefined}

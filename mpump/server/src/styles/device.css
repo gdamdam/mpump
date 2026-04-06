@@ -12,6 +12,21 @@
   line-height: 1.7;
 }
 
+.midi-gate-actions {
+  margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.midi-gate-actions .midi-gate-btn-preview {
+  flex: 0 1 285px;
+  min-width: 220px;
+  max-width: 305px;
+}
+
 .midi-gate-about {
   margin-top: 10px;
   text-align: center;

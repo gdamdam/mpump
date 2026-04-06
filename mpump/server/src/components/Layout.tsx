@@ -46,6 +46,8 @@ interface Props {
   catalog: Catalog | null;
   command: (msg: ClientMessage) => void;
   isPreview?: boolean;
+  showDiscoverOnStart?: boolean;
+  onConsumeDiscoverOnStart?: () => void;
   getAnalyser?: () => AnalyserNode | null;
   getChannelAnalyser?: (ch: number) => AnalyserNode | null;
   onConnectMidi?: () => void;
@@ -93,7 +95,7 @@ function CpuDot({ getCpuLoad }: { getCpuLoad?: () => number }) {
   return <span ref={ref} style={{ fontSize: 7, fontWeight: 700, marginLeft: 4, verticalAlign: "top", color: "var(--border)", opacity: 0.4, letterSpacing: 0.5 }}>CPU</span>;
 }
 
-export function Layout({ state, catalog, command: rawCommand, isPreview, getAnalyser, getChannelAnalyser, onConnectMidi, onStartPreview, onLoadSamples, getMutedDrumNotes, playNote, stopNote, getMixerState, getCpuLoad, songState }: Props) {
+export function Layout({ state, catalog, command: rawCommand, isPreview, showDiscoverOnStart, onConsumeDiscoverOnStart, getAnalyser, getChannelAnalyser, onConnectMidi, onStartPreview, onLoadSamples, getMutedDrumNotes, playNote, stopNote, getMixerState, getCpuLoad, songState }: Props) {
   // Ref to access current state inside Link callback (avoids stale closure)
   const stateRef = useRef(state);
   stateRef.current = state;
@@ -108,6 +110,11 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, getAnal
   const connectedDevices = Object.values(state.devices).filter(d => d.connected);
   const anyConnected = connectedDevices.length > 0;
   const [previewMode, setPreviewMode] = useState<PreviewMode>("kaos");
+  useEffect(() => {
+    if (!isPreview || !showDiscoverOnStart) return;
+    setShowDiscover(true);
+    onConsumeDiscoverOnStart?.();
+  }, [isPreview, showDiscoverOnStart, onConsumeDiscoverOnStart]);
 
   // Track title — BPM-aware name generator
   const pick = <T,>(a: T[]) => a[Math.floor(Math.random() * a.length)];

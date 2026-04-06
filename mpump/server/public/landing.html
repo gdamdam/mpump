@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>mpump — Online Groovebox With Shareable Beat Links</title>
-  <meta name="description" content="Create electronic beats in the browser and share the whole groove as a link. Browser groovebox for remixable beats, live jam, and live set." />
+  <title>mpump — Browser Groovebox, Drum Machine, and Shareable Beat Links</title>
+  <meta name="description" content="Create electronic beats in the browser and share the whole groove as a link. Browser groovebox, drum machine, and web electronic instrument for remixable beats, live jam, and live set." />
   <meta property="og:title" content="A beat that lives in a link. — mpump" />
   <meta property="og:description" content="Make a beat, share the link, let someone else change it, and get it back different." />
   <meta property="og:url" content="https://mpump.live/" />
@@ -13,7 +13,7 @@
   <meta property="og:image" content="https://mpump.live/og-image.png" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Make a beat. Send a link. Let it come back different. — mpump" />
-  <meta name="twitter:description" content="Browser groovebox for making, sharing, and remixing beats. No install. No account. Free." />
+  <meta name="twitter:description" content="Browser groovebox, drum machine, and web electronic instrument for making, sharing, and remixing beats. No install. No account. Free." />
   <meta name="twitter:image" content="https://mpump.live/og-image.png" />
   <link rel="canonical" href="https://mpump.live/" />
   <meta name="theme-color" content="#090e09" />
@@ -418,6 +418,51 @@
     }
     .manifesto em { color: var(--text); font-style: normal; }
 
+    .explore-strip {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 18px;
+      padding: 14px 18px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: rgba(102,255,153,0.03);
+    }
+    .explore-label {
+      color: var(--accent);
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 1.4px;
+      text-transform: uppercase;
+      opacity: 0.8;
+    }
+    .explore-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+    .explore-links a {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 34px;
+      padding: 8px 14px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      color: var(--dim);
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.6px;
+      text-decoration: none;
+    }
+    .explore-links a:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
     footer {
       display: flex;
       justify-content: space-between;
@@ -612,8 +657,18 @@
     </section>
   </div>
 
+  <div class="explore-strip">
+    <div class="explore-label">Explore mpump</div>
+    <div class="explore-links">
+      <a href="./browser-groovebox.html">Browser Groovebox</a>
+      <a href="./shareable-beat-links.html">Shareable Beat Links</a>
+      <a href="./live-jam-live-set.html">Live Jam / Live Set</a>
+    </div>
+  </div>
+
   <footer>
     <span>Built by <a href="https://github.com/gdamdam/mpump">gdamdam</a> · <a href="https://github.com/gdamdam/mpump">Source Code (AGPL-3.0)</a></span>
+    <span><a href="./browser-groovebox.html">Browser Groovebox</a> · <a href="./shareable-beat-links.html">Shareable Beat Links</a> · <a href="./live-jam-live-set.html">Live Jam / Live Set</a></span>
     <span>mpump v1.9.6</span>
   </footer>
 </div>

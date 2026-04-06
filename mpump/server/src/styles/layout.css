@@ -106,6 +106,9 @@
 
 .midi-gate-btn-preview {
   margin-top: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: transparent;
   border: 2px solid rgba(102,255,153,0.3);
   color: var(--preview);

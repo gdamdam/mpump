@@ -7,12 +7,13 @@ interface Props {
   midiState: MidiState;
   onConnectMidi: () => void;
   onPreview: (genre?: string) => void;
+  onOpenDiscover: () => void;
   midiSupported: boolean;
 }
 
 const SEQ_PATTERN = [1,0,0,0,1,0,1,0,1,0,0,1,0,0,1,0];
 
-export function MidiGate({ midiState, onConnectMidi, onPreview, midiSupported }: Props) {
+export function MidiGate({ midiState, onConnectMidi, onPreview, onOpenDiscover, midiSupported }: Props) {
   const [canInstall, setCanInstall] = useState(isInstallAvailable);
   const [logoKey, setLogoKey] = useState(0);
   const logoClickCount = useRef(0);
@@ -71,10 +72,24 @@ export function MidiGate({ midiState, onConnectMidi, onPreview, midiSupported }:
 
       <div className="midi-gate-subtitle">Make a beat. Send a link. Let it come back different.</div>
 
-      <button className="midi-gate-btn-preview" title="Start playing with browser audio"
-        onClick={() => { trackEvent("play-start"); setLogoKey(k => k + 1); clearTimeout(flashTimer.current); flashTimer.current = window.setTimeout(() => onPreview(), 450); }}>
-        Open mpump
-      </button>
+      <div className="midi-gate-actions">
+        <button className="midi-gate-btn-preview" title="Start playing with browser audio"
+          onClick={() => { trackEvent("play-start"); setLogoKey(k => k + 1); clearTimeout(flashTimer.current); flashTimer.current = window.setTimeout(() => onPreview(), 450); }}>
+          Open mpump
+        </button>
+        <button
+          className="midi-gate-btn-preview"
+          title="Start from a featured beat"
+          onClick={() => {
+            trackEvent("gate-open-discover");
+            setLogoKey(k => k + 1);
+            clearTimeout(flashTimer.current);
+            flashTimer.current = window.setTimeout(() => onOpenDiscover(), 450);
+          }}
+        >
+          Start from a featured beat
+        </button>
+      </div>
 
       <div className="midi-gate-intro">
         Open mpump and music starts instantly.
