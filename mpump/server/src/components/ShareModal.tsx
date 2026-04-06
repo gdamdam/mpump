@@ -5,7 +5,9 @@ import { decodeSharePayload } from "../utils/shareCodec";
 
 import type { StepData, DrumHit } from "../types";
 import { trackEvent } from "../utils/metrics";
-import { trackShare } from "../utils/shareRelay";
+import { trackShare, submitBeat } from "../utils/shareRelay";
+
+const GENRES = ["techno","acid-techno","trance","dub-techno","idm","edm","drum-and-bass","house","breakbeat","jungle","garage","ambient","glitch","electro","downtempo","dubstep","lo-fi","synthwave","deep-house","psytrance"] as const;
 
 interface Props {
   url: string;
@@ -18,9 +20,10 @@ interface Props {
   hideActions?: boolean;
   onOpen?: () => void;
   onClose: () => void;
+  onOpenDiscover?: () => void;
 }
 
-export function ShareModal({ url, longUrl, parentId, qrUrl, gestureNote, getAnalyser, currentStep = -1, hideActions, onOpen, onClose }: Props) {
+export function ShareModal({ url, longUrl, parentId, qrUrl, gestureNote, getAnalyser, currentStep = -1, hideActions, onOpen, onClose, onOpenDiscover }: Props) {
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", handleEsc);
@@ -39,7 +42,13 @@ export function ShareModal({ url, longUrl, parentId, qrUrl, gestureNote, getAnal
   const cardCanvasRef = useRef<HTMLCanvasElement>(null);
   const staticCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const rafRef = useRef(0);
-  const [showInfo, setShowInfo] = useState(false);
+  const [showSubmit, setShowSubmit] = useState(false);
+  const [submitTitle, setSubmitTitle] = useState("");
+  const [submitGenre, setSubmitGenre] = useState("");
+  const [submitNote, setSubmitNote] = useState("");
+  const [submitContact, setSubmitContact] = useState("");
+  const [submitConfirm, setSubmitConfirm] = useState(false);
+  const [submitState, setSubmitState] = useState<"idle" | "submitting" | "done" | "duplicate" | "error">("idle");
 
   // Extract beat ID from short URL (e.g. "abc123" from "https://s.mpump.live/abc123")
   const beatId = isShortened ? url.split("/").pop() || null : null;
@@ -627,9 +636,9 @@ export function ShareModal({ url, longUrl, parentId, qrUrl, gestureNote, getAnal
   // Decode for info panel
   const decodeFullPayload = (): Record<string, string> => {
     try {
-      const u = new URL(url);
+      const u = new URL(longUrl || url);
       const hash = (u.searchParams.get("z") || u.searchParams.get("b") || "").replace(/ /g, "+")
-        || url.split("#")[1]
+        || (longUrl || url).split("#")[1]
         || u.pathname.slice(1); // Worker URL: payload is the path
       if (!hash) return {};
       const data = decodeSharePayload(hash) as any;
@@ -700,20 +709,128 @@ export function ShareModal({ url, longUrl, parentId, qrUrl, gestureNote, getAnal
             >{showLongUrl ? "Show short link" : "Show full link (works offline)"}</button>
           )}
 
-          {/* Info toggle */}
-          <button className="share-info-btn" title="What's encoded?" onClick={() => setShowInfo(!showInfo)}>?</button>
-          {showInfo && (
-            <div className="share-info-panel">
-              <div className="share-info-title">Encoded in this link:</div>
-              {Object.entries(decodeFullPayload()).map(([k, v]) => (
-                <div key={k} className="share-info-row">
-                  <span className="share-info-key">{k}</span>
-                  <span className="share-info-val">{v}</span>
+          {/* Submit to Discover */}
+          <>
+            {!beatId ? (
+              <span className="share-submit-toggle share-submit-disabled" title="Share your beat first to get a short link">
+                ↑ Submit to Discover
+              </span>
+            ) : (
+              <button
+                className="share-submit-toggle"
+                onClick={() => {
+                  if (!showSubmit) {
+                    const meta = decodePayload();
+                    if (!submitTitle && meta.trackName) setSubmitTitle(meta.trackName);
+                    if (!submitGenre && meta.genre) setSubmitGenre(meta.genre.split(" · ")[0]);
+                    setSubmitState("idle");
+                  }
+                  setShowSubmit(v => !v);
+                }}
+              >
+                {showSubmit ? "▲ cancel" : "↑ Submit to Discover"}
+              </button>
+            )}
+              {showSubmit && beatId && submitState !== "done" && submitState !== "duplicate" && (
+                <div className="share-submit-panel">
+                  <div className="share-submit-label">title</div>
+                  <input
+                    className="share-submit-input"
+                    value={submitTitle}
+                    maxLength={80}
+                    placeholder="give this beat a name"
+                    onChange={e => setSubmitTitle(e.target.value)}
+                  />
+                  <div className="share-submit-label">genre</div>
+                  <input
+                    className="share-submit-input"
+                    value={submitGenre}
+                    maxLength={40}
+                    placeholder="techno, house, ambient…"
+                    list="submit-genres"
+                    onChange={e => setSubmitGenre(e.target.value)}
+                  />
+                  <datalist id="submit-genres">
+                    {GENRES.map(g => <option key={g} value={g} />)}
+                  </datalist>
+                  <div className="share-submit-label">note <span style={{ opacity: 0.4 }}>optional · 120 chars</span></div>
+                  <input
+                    className="share-submit-input"
+                    value={submitNote}
+                    maxLength={120}
+                    placeholder="what's the vibe?"
+                    onChange={e => setSubmitNote(e.target.value)}
+                  />
+                  <div className="share-submit-label">contact <span style={{ opacity: 0.4 }}>optional · handle or URL</span></div>
+                  <input
+                    className="share-submit-input"
+                    value={submitContact}
+                    maxLength={100}
+                    placeholder="email or URL"
+                    onChange={e => setSubmitContact(e.target.value)}
+                  />
+                  <label className="share-submit-confirm">
+                    <input
+                      type="checkbox"
+                      checked={submitConfirm}
+                      onChange={e => setSubmitConfirm(e.target.checked)}
+                    />
+                    <span>submit this exact beat to Discover for review</span>
+                  </label>
+                  <button
+                    className="share-submit-btn"
+                    disabled={!submitTitle.trim() || !submitGenre.trim() || !submitConfirm || submitState === "submitting"}
+                    onClick={async () => {
+                      if (!beatId) return;
+                      setSubmitState("submitting");
+                      const result = await submitBeat({
+                        id: beatId,
+                        shortUrl: url,
+                        title: submitTitle.trim(),
+                        genre: submitGenre.trim(),
+                        note: submitNote.trim() || undefined,
+                        contact: submitContact.trim() || undefined,
+                        parentId: parentId || null,
+                      });
+                      if (!result) setSubmitState("error");
+                      else if (result.duplicate) setSubmitState("duplicate");
+                      else setSubmitState("done");
+                    }}
+                  >
+                    {submitState === "submitting" ? "submitting…" : "submit"}
+                  </button>
+                  {submitState === "error" && (
+                    <div className="share-submit-status share-submit-error">submission failed — try again</div>
+                  )}
                 </div>
-              ))}
-            </div>
-          )}
+              )}
+              {showSubmit && (submitState === "done" || submitState === "duplicate") && (
+                <div className="share-submit-result">
+                  <div className="share-submit-result-title">
+                    {submitState === "done" ? "submitted" : "already submitted"}
+                  </div>
+                  <div className="share-submit-result-body">
+                    {submitState === "done"
+                      ? <>{submitTitle && <><span className="share-submit-result-name">"{submitTitle}"</span>{" "}is in the queue.<br /></>}We review everything by hand.<br />Nothing is auto-published.</>
+                      : <>This beat is already in the review queue.</>
+                    }
+                  </div>
+                  <div className="share-submit-result-actions">
+                    {onOpenDiscover && (
+                      <button className="share-submit-result-btn share-submit-result-primary" onClick={() => { onClose(); onOpenDiscover(); }}>
+                        Browse Discover
+                      </button>
+                    )}
+                    <button className="share-submit-result-btn" onClick={() => { setSubmitState("idle"); setShowSubmit(false); }}>
+                      {submitState === "done" ? "Close" : "Back"}
+                    </button>
+                  </div>
+                </div>
+              )}
+          </>
+
         </>)}
+
       </div>
     </div>
   );

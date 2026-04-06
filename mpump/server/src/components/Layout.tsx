@@ -2152,7 +2152,7 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, showDis
       )}
 
       {shareUrl && (
-        <ShareModal url={shareUrl} longUrl={shareQrUrl} parentId={parentId} qrUrl={shareQrUrl} gestureNote={shareGestureNote} getAnalyser={getAnalyser ?? undefined} currentStep={drumsStep} onOpen={() => { if (allPaused) toggleAllPause(); }} onClose={() => { setShareUrl(null); setShareQrUrl(null); setShareGestureNote(false); }} />
+        <ShareModal url={shareUrl} longUrl={shareQrUrl} parentId={parentId} qrUrl={shareQrUrl} gestureNote={shareGestureNote} getAnalyser={getAnalyser ?? undefined} currentStep={drumsStep} onOpen={() => { if (allPaused) toggleAllPause(); }} onClose={() => { setShareUrl(null); setShareQrUrl(null); setShareGestureNote(false); }} onOpenDiscover={() => setShowDiscover(true)} />
       )}
 
       {showJam && (

@@ -63,3 +63,27 @@ export function getParentId(): string | null {
 export function shortUrl(id: string): string {
   return `${RELAY}/${id}`;
 }
+
+/** Submit a beat for Discover review. Returns null on network failure. */
+export async function submitBeat(payload: {
+  id: string;
+  shortUrl: string;
+  title: string;
+  genre: string;
+  note?: string;
+  contact?: string;
+  parentId?: string | null;
+}): Promise<{ ok: boolean; duplicate?: boolean } | null> {
+  try {
+    const r = await fetch(`${RELAY}/submit`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!r.ok) return null;
+    return r.json();
+  } catch {
+    return null;
+  }
+}

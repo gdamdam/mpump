@@ -427,6 +427,21 @@ function escJs(s) {
 
 const BOT_RE = /bot|crawl|spider|preview|fetch|slack|discord|telegram|whatsapp|facebook|twitter|linkedin|signal|mastodon|bluesky|cardyb|okhttp|cfnetwork/i;
 
+/** Pattern for valid short beat IDs. */
+const ID_RE = /^[a-z0-9]{4,8}$/;
+
+/** Paginate through all KV keys matching an optional prefix. */
+async function listKVKeys(env, options = {}) {
+  const keys = [];
+  let cursor;
+  do {
+    const page = await env.BEATS.list({ ...options, cursor, limit: 1000 });
+    keys.push(...page.keys);
+    cursor = page.list_complete ? undefined : page.cursor;
+  } while (cursor);
+  return keys;
+}
+
 /** Generate a random 6-char alphanumeric ID. */
 function generateId() {
   const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
@@ -513,9 +528,39 @@ export default {
       return handleShorten(request, env);
     }
 
+    // Submit to Discover — must be before short-URL regex (6 chars matches)
+    if (url.pathname === "/submit" && request.method === "POST") {
+      return handleSubmit(request, env);
+    }
+
+    // Dismiss a submission (delete sub:{id})
+    if (url.pathname === "/submit" && request.method === "DELETE") {
+      try {
+        const { id } = await request.json();
+        if (!id || typeof id !== "string" || !ID_RE.test(id)) {
+          return new Response(JSON.stringify({ error: "Invalid id" }), {
+            status: 400, headers: { "Content-Type": "application/json", ...CORS },
+          });
+        }
+        await env.BEATS.delete(`sub:${id}`);
+        return new Response(JSON.stringify({ ok: true }), {
+          headers: { "Content-Type": "application/json", ...CORS },
+        });
+      } catch {
+        return new Response(JSON.stringify({ error: "Bad request" }), {
+          status: 400, headers: { "Content-Type": "application/json", ...CORS },
+        });
+      }
+    }
+
+    // List submissions (unlinked admin endpoint)
+    if (url.pathname === "/submissions" && request.method === "GET") {
+      return handleSubmissions(env);
+    }
+
     // Short URL resolution (4-8 char alphanumeric path)
     const shortPath = url.pathname.slice(1);
-    if (/^[a-z0-9]{4,8}$/.test(shortPath) && env.BEATS) {
+    if (ID_RE.test(shortPath) && env.BEATS) {
       return handleShortUrl(shortPath, url, request, env, ctx);
     }
 
@@ -671,14 +716,7 @@ async function handleDashboard(env) {
 /** GET /stats — return all beats with counters in one response. */
 async function handleStats(env) {
   try {
-    // List all keys in one go
-    const allKeys = [];
-    let cursor = undefined;
-    do {
-      const page = await env.BEATS.list({ cursor, limit: 1000 });
-      allKeys.push(...page.keys);
-      cursor = page.list_complete ? undefined : page.cursor;
-    } while (cursor);
+    const allKeys = await listKVKeys(env);
 
     // Bucket keys by prefix
     const beats = {};
@@ -711,6 +749,98 @@ async function handleStats(env) {
     }, { plays: 0, remixes: 0, shares: 0 });
 
     return new Response(JSON.stringify({ beats: results, totals, count: results.length }, null, 2), {
+      headers: { "Content-Type": "application/json", ...CORS },
+    });
+  } catch (e) {
+    return new Response(JSON.stringify({ error: e.message }), {
+      status: 500, headers: { "Content-Type": "application/json", ...CORS },
+    });
+  }
+}
+
+/** POST /submit — submit a beat for Discover review. Stores under sub:{id}. Does NOT auto-publish. */
+async function handleSubmit(request, env) {
+  try {
+    const body = await request.json();
+    const { id, shortUrl, title, genre, note, contact, parentId } = body;
+
+    if (!id || typeof id !== "string" || !ID_RE.test(id)) {
+      return new Response(JSON.stringify({ error: "Invalid beat ID" }), {
+        status: 400, headers: { "Content-Type": "application/json", ...CORS },
+      });
+    }
+    if (!title || typeof title !== "string" || title.trim().length === 0 || title.length > 80) {
+      return new Response(JSON.stringify({ error: "Title required (max 80 chars)" }), {
+        status: 400, headers: { "Content-Type": "application/json", ...CORS },
+      });
+    }
+    if (!genre || typeof genre !== "string" || genre.trim().length === 0 || genre.length > 40) {
+      return new Response(JSON.stringify({ error: "Genre required (max 40 chars)" }), {
+        status: 400, headers: { "Content-Type": "application/json", ...CORS },
+      });
+    }
+    if (note && (typeof note !== "string" || note.length > 120)) {
+      return new Response(JSON.stringify({ error: "Note too long (max 120 chars)" }), {
+        status: 400, headers: { "Content-Type": "application/json", ...CORS },
+      });
+    }
+    if (contact && (typeof contact !== "string" || contact.length > 100)) {
+      return new Response(JSON.stringify({ error: "Contact too long (max 100 chars)" }), {
+        status: 400, headers: { "Content-Type": "application/json", ...CORS },
+      });
+    }
+
+    const [beatData, existing] = await Promise.all([
+      env.BEATS.get(`beat:${id}`),
+      env.BEATS.get(`sub:${id}`),
+    ]);
+
+    if (!beatData) {
+      return new Response(JSON.stringify({ error: "Beat not found" }), {
+        status: 404, headers: { "Content-Type": "application/json", ...CORS },
+      });
+    }
+
+    if (existing) {
+      return new Response(JSON.stringify({ ok: true, duplicate: true }), {
+        headers: { "Content-Type": "application/json", ...CORS },
+      });
+    }
+
+    await env.BEATS.put(`sub:${id}`, JSON.stringify({
+      id,
+      shortUrl: shortUrl || `https://s.mpump.live/${id}`,
+      title: title.trim(),
+      genre: genre.trim(),
+      note: note ? note.trim() : "",
+      contact: contact ? contact.trim() : "",
+      parentId: parentId || null,
+      submittedAt: new Date().toISOString(),
+    }));
+
+    return new Response(JSON.stringify({ ok: true }), {
+      headers: { "Content-Type": "application/json", ...CORS },
+    });
+  } catch {
+    return new Response(JSON.stringify({ error: "Invalid request" }), {
+      status: 400, headers: { "Content-Type": "application/json", ...CORS },
+    });
+  }
+}
+
+/** GET /submissions — list all submissions sorted newest first. */
+async function handleSubmissions(env) {
+  try {
+    const allKeys = await listKVKeys(env, { prefix: "sub:" });
+
+    const submissions = await Promise.all(
+      allKeys.map(({ name }) => env.BEATS.get(name).then(v => v ? JSON.parse(v) : null))
+    );
+
+    const valid = submissions.filter(Boolean);
+    valid.sort((a, b) => (b.submittedAt || "").localeCompare(a.submittedAt || ""));
+
+    return new Response(JSON.stringify({ submissions: valid, count: valid.length }, null, 2), {
       headers: { "Content-Type": "application/json", ...CORS },
     });
   } catch (e) {

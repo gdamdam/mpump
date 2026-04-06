@@ -717,3 +717,169 @@
 .beat-cell.bar-start:first-child {
   margin-left: 0;
 }
+
+/* ── Submit to Discover ───────────────────────────────────────── */
+.share-submit-toggle {
+  font-size: 11px;
+  background: none;
+  border: 1px solid rgba(102, 255, 153, 0.25);
+  border-radius: 3px;
+  color: var(--preview);
+  cursor: pointer;
+  padding: 5px 10px;
+  opacity: 0.85;
+  font-family: inherit;
+  letter-spacing: 0.06em;
+  display: block;
+  width: 100%;
+  transition: background 0.12s, opacity 0.12s;
+}
+.share-submit-toggle:hover { opacity: 1; background: rgba(102, 255, 153, 0.06); }
+.share-submit-disabled {
+  opacity: 0.25;
+  cursor: not-allowed;
+}
+
+.share-submit-panel {
+  background: rgba(102, 255, 153, 0.03);
+  border: 1px solid rgba(102, 255, 153, 0.14);
+  border-radius: 4px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+  font-size: 11px;
+}
+
+.share-submit-label {
+  color: var(--preview);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  opacity: 0.6;
+  margin-top: 5px;
+}
+.share-submit-label:first-child { margin-top: 0; }
+
+.share-submit-input {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(102, 255, 153, 0.18);
+  border-radius: 3px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 11px;
+  padding: 4px 7px;
+  outline: none;
+  width: 100%;
+}
+.share-submit-input:focus {
+  border-color: rgba(102, 255, 153, 0.45);
+}
+
+.share-submit-confirm {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  opacity: 0.75;
+  cursor: pointer;
+  margin-top: 5px;
+  line-height: 1.4;
+}
+.share-submit-confirm input[type="checkbox"] {
+  accent-color: var(--preview);
+  flex-shrink: 0;
+}
+
+.share-submit-btn {
+  margin-top: 5px;
+  background: none;
+  border: 1px solid rgba(102, 255, 153, 0.35);
+  border-radius: 3px;
+  color: var(--preview);
+  font-family: inherit;
+  font-size: 10px;
+  padding: 5px 14px;
+  cursor: pointer;
+  letter-spacing: 0.08em;
+  align-self: flex-start;
+  transition: background 0.12s;
+}
+.share-submit-btn:hover:not(:disabled) {
+  background: rgba(102, 255, 153, 0.08);
+}
+.share-submit-btn:disabled {
+  opacity: 0.28;
+  cursor: not-allowed;
+}
+
+.share-submit-error {
+  font-size: 10px;
+  color: #ff6b6b;
+  opacity: 0.85;
+}
+
+.share-submit-status {
+  margin-top: 2px;
+}
+
+/* ── Submit result (inline, replaces form) ────────────────────── */
+.share-submit-result {
+  background: rgba(102, 255, 153, 0.03);
+  border: 1px solid rgba(102, 255, 153, 0.2);
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 16px;
+  margin-top: 4px;
+  text-align: center;
+}
+
+.share-submit-result-title {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--preview);
+}
+
+.share-submit-result-body {
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--text);
+  opacity: 0.7;
+}
+
+.share-submit-result-name {
+  opacity: 1;
+  color: var(--text);
+}
+
+.share-submit-result-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.share-submit-result-btn {
+  background: none;
+  border: 1px solid rgba(102, 255, 153, 0.3);
+  border-radius: 3px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 11px;
+  padding: 6px 14px;
+  cursor: pointer;
+  letter-spacing: 0.06em;
+  transition: background 0.12s;
+}
+.share-submit-result-btn:hover {
+  background: rgba(102, 255, 153, 0.08);
+}
+.share-submit-result-primary {
+  color: var(--preview);
+  border-color: rgba(102, 255, 153, 0.5);
+}
