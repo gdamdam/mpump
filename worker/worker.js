@@ -457,6 +457,33 @@ export default {
       });
     }
 
+    // Stats endpoint
+    if (url.pathname === "/stats" && request.method === "GET") {
+      return handleStats(env);
+    }
+
+    // Track endpoint — increment share counter
+    if (url.pathname === "/track" && request.method === "POST") {
+      try {
+        const { id } = await request.json();
+        if (!id || typeof id !== "string") {
+          return new Response(JSON.stringify({ error: "Missing id" }), {
+            status: 400, headers: { "Content-Type": "application/json", ...CORS },
+          });
+        }
+        const key = `sc:${id}`;
+        const current = parseInt(await env.BEATS.get(key) || "0", 10);
+        ctx.waitUntil(env.BEATS.put(key, String(current + 1)));
+        return new Response(JSON.stringify({ ok: true }), {
+          headers: { "Content-Type": "application/json", ...CORS },
+        });
+      } catch {
+        return new Response(JSON.stringify({ error: "Bad request" }), {
+          status: 400, headers: { "Content-Type": "application/json", ...CORS },
+        });
+      }
+    }
+
     // Shorten endpoint
     if (url.pathname === "/shorten" && request.method === "POST") {
       return handleShorten(request, env);
@@ -486,7 +513,7 @@ export default {
   },
 };
 
-/** POST /shorten — create a short URL for a beat. */
+/** POST /shorten — create a short URL for a beat. Deduplicates by payload hash. */
 async function handleShorten(request, env) {
   try {
     const body = await request.json();
@@ -494,6 +521,17 @@ async function handleShorten(request, env) {
     if (!url || typeof url !== "string") {
       return new Response(JSON.stringify({ error: "Missing url" }), {
         status: 400, headers: { "Content-Type": "application/json", ...CORS },
+      });
+    }
+
+    // Deduplicate: hash the payload and check if it already exists
+    const hashBuf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(url));
+    const hashHex = [...new Uint8Array(hashBuf)].map(b => b.toString(16).padStart(2, "0")).join("");
+    const hashKey = `hash:${hashHex}`;
+    const existingId = await env.BEATS.get(hashKey);
+    if (existingId) {
+      return new Response(JSON.stringify({ id: existingId, short: `https://s.mpump.live/${existingId}` }), {
+        headers: { "Content-Type": "application/json", ...CORS },
       });
     }
 
@@ -510,16 +548,17 @@ async function handleShorten(request, env) {
       }
     }
 
-    // Store beat
-    await env.BEATS.put(`beat:${id}`, JSON.stringify({
-      url,
-      parent: parent || null,
-      created: new Date().toISOString(),
-    }));
+    // Store beat + hash→id mapping
+    await Promise.all([
+      env.BEATS.put(`beat:${id}`, JSON.stringify({
+        url,
+        parent: parent || null,
+        created: new Date().toISOString(),
+      })),
+      env.BEATS.put(hashKey, id),
+    ]);
 
-    // Increment share counter (tracked but not shown)
-    const scKey = `sc:${id}`;
-    env.BEATS.put(scKey, "1"); // fire-and-forget, first share = 1
+    // sc: incremented via /track when user copies link or uses native share
 
     // Increment parent's remix count only if payload differs
     if (parent && typeof parent === "string") {
@@ -546,6 +585,58 @@ async function handleShorten(request, env) {
 }
 
 /** Resolve a short URL — serve OG tags to bots, redirect browsers. */
+/** GET /stats — return all beats with counters in one response. */
+async function handleStats(env) {
+  try {
+    // List all keys in one go
+    const allKeys = [];
+    let cursor = undefined;
+    do {
+      const page = await env.BEATS.list({ cursor, limit: 1000 });
+      allKeys.push(...page.keys);
+      cursor = page.list_complete ? undefined : page.cursor;
+    } while (cursor);
+
+    // Bucket keys by prefix
+    const beats = {};
+    const counters = { pc: {}, rc: {}, sc: {} };
+    const beatKeys = [];
+
+    for (const { name } of allKeys) {
+      const [prefix, id] = [name.slice(0, name.indexOf(":")), name.slice(name.indexOf(":") + 1)];
+      if (prefix === "beat") beatKeys.push({ name, id });
+      else if (counters[prefix]) counters[prefix][id] = name;
+    }
+
+    // Fetch all beat data + counters in parallel
+    const fetches = beatKeys.map(async ({ name, id }) => {
+      const [beatJson, plays, remixes, shares] = await Promise.all([
+        env.BEATS.get(name),
+        env.BEATS.get(`pc:${id}`).then(v => parseInt(v || "0", 10)),
+        env.BEATS.get(`rc:${id}`).then(v => parseInt(v || "0", 10)),
+        env.BEATS.get(`sc:${id}`).then(v => parseInt(v || "0", 10)),
+      ]);
+      const beat = beatJson ? JSON.parse(beatJson) : {};
+      return { id, created: beat.created || null, parent: beat.parent || null, plays, remixes, shares };
+    });
+
+    const results = await Promise.all(fetches);
+    results.sort((a, b) => (b.created || "").localeCompare(a.created || ""));
+
+    const totals = results.reduce((t, b) => {
+      t.plays += b.plays; t.remixes += b.remixes; t.shares += b.shares; return t;
+    }, { plays: 0, remixes: 0, shares: 0 });
+
+    return new Response(JSON.stringify({ beats: results, totals, count: results.length }, null, 2), {
+      headers: { "Content-Type": "application/json", ...CORS },
+    });
+  } catch (e) {
+    return new Response(JSON.stringify({ error: e.message }), {
+      status: 500, headers: { "Content-Type": "application/json", ...CORS },
+    });
+  }
+}
+
 async function handleShortUrl(id, url, request, env, ctx) {
   const beatData = await env.BEATS.get(`beat:${id}`);
   if (!beatData) {

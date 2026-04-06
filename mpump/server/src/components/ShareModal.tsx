@@ -5,6 +5,7 @@ import { decodeSharePayload } from "../utils/shareCodec";
 
 import type { StepData, DrumHit } from "../types";
 import { trackEvent } from "../utils/metrics";
+import { trackShare } from "../utils/shareRelay";
 
 interface Props {
   url: string;
@@ -40,6 +41,9 @@ export function ShareModal({ url, longUrl, parentId, qrUrl, gestureNote, getAnal
   const rafRef = useRef(0);
   const [showInfo, setShowInfo] = useState(false);
 
+  // Extract beat ID from short URL (e.g. "abc123" from "https://s.mpump.live/abc123")
+  const beatId = isShortened ? url.split("/").pop() || null : null;
+
   const copyToClipboard = () => {
     const textToCopy = showLongUrl && longUrl ? longUrl : url;
     const copyText = () => {
@@ -56,6 +60,7 @@ export function ShareModal({ url, longUrl, parentId, qrUrl, gestureNote, getAnal
     } else {
       copyText();
     }
+    if (beatId) trackShare(beatId);
     setCopied(true);
     setTimeout(() => setCopied(false), 3000);
   };
@@ -604,6 +609,7 @@ export function ShareModal({ url, longUrl, parentId, qrUrl, gestureNote, getAnal
         const file = new File([blob], "mpump-beat.jpg", { type: "image/jpeg" });
         if (navigator.canShare({ files: [file] })) {
           await navigator.share({ files: [file], url, title: "mpump beat" });
+          if (beatId) trackShare(beatId);
           return;
         }
       } catch (e) {

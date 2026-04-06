@@ -44,6 +44,16 @@ export async function shortenBeat(
   }
 }
 
+/** Fire-and-forget share tracking. Call when user copies link or uses native share. */
+export function trackShare(id: string): void {
+  fetch(`${RELAY}/track`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id }),
+    signal: AbortSignal.timeout(3000),
+  }).catch(() => {});
+}
+
 /** Extract parent ID from current URL params. */
 export function getParentId(): string | null {
   return new URLSearchParams(window.location.search).get("p");
