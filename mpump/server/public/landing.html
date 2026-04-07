@@ -3,19 +3,18 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>mpump — Browser Groovebox for iPhone, Android, and Shareable Beat Links</title>
-  <meta name="description" content="Create electronic beats in the browser and share the whole groove as a link. mpump is a browser groovebox and drum machine for iPhone, iPad, Android, and desktop, with remixable beats, live jam, and live set." />
+  <title>mpump — A beat that lives in a link</title>
+  <meta name="description" content="mpump is a free open-source browser groovebox where the beat itself travels as a link. No install. No account. Works on phone and desktop." />
   <meta property="og:title" content="A beat that lives in a link. — mpump" />
-  <meta property="og:description" content="Make a beat, share the link, let someone else change it, and get it back different." />
-  <meta property="og:url" content="https://mpump.live/" />
+  <meta property="og:description" content="Open a groove, change it in the browser, and send it on." />
+  <meta property="og:url" content="https://mpump.live/landing-2.html" />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="mpump" />
   <meta property="og:image" content="https://mpump.live/og-image.png" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Make a beat. Send a link. Let it come back different. — mpump" />
-  <meta name="twitter:description" content="Browser groovebox, drum machine, and web electronic instrument for making, sharing, and remixing beats. No install. No account. Free." />
+  <meta name="twitter:title" content="A beat that lives in a link. — mpump" />
+  <meta name="twitter:description" content="Free open-source browser groovebox. No install. No account." />
   <meta name="twitter:image" content="https://mpump.live/og-image.png" />
-  <link rel="canonical" href="https://mpump.live/" />
   <meta name="theme-color" content="#090e09" />
   <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
   <link rel="icon" type="image/png" sizes="32x32" href="./favicon-32.png" />
@@ -27,41 +26,39 @@
     @font-face { font-family: 'Chakra Petch'; font-style: normal; font-weight: 400; font-display: swap; src: url('./fonts/chakra-petch-400.woff2') format('woff2'); }
     @font-face { font-family: 'Chakra Petch'; font-style: normal; font-weight: 600; font-display: swap; src: url('./fonts/chakra-petch-600.woff2') format('woff2'); }
     @font-face { font-family: 'Chakra Petch'; font-style: normal; font-weight: 700; font-display: swap; src: url('./fonts/chakra-petch-700.woff2') format('woff2'); }
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
       --bg: #090e09;
-      --panel: #0d160d;
-      --panel-2: rgba(102,255,153,0.03);
+      --panel: rgba(12, 20, 12, 0.94);
+      --panel-soft: rgba(102, 255, 153, 0.03);
       --border: #1a2e1a;
-      --text: #d4ead4;
-      --dim: #84a184;
+      --text: #d6ead6;
+      --dim: #86a786;
       --accent: #66ff99;
-      --accent-soft: rgba(102,255,153,0.12);
-      --ui: "Chakra Petch", sans-serif;
       --mono: "SF Mono", "Fira Code", monospace;
-      --shadow: 0 18px 60px rgba(0,0,0,0.45);
+      --ui: "Chakra Petch", sans-serif;
+      --shadow: 0 20px 60px rgba(0, 0, 0, 0.42);
     }
     html, body { min-height: 100%; }
     body {
       font-family: var(--ui);
       color: var(--text);
       background:
-        radial-gradient(circle at top left, rgba(102,255,153,0.09), transparent 28%),
-        radial-gradient(circle at 85% 12%, rgba(102,255,153,0.05), transparent 22%),
-        linear-gradient(180deg, #071007 0%, #090e09 100%);
-      overflow-x: hidden;
+        radial-gradient(circle at top left, rgba(102,255,153,0.10), transparent 26%),
+        radial-gradient(circle at 88% 10%, rgba(102,255,153,0.06), transparent 22%),
+        linear-gradient(180deg, #061006 0%, #090e09 100%);
     }
     a { color: inherit; }
 
     .seq-header {
       position: sticky;
       top: 0;
-      z-index: 30;
+      z-index: 10;
       display: flex;
       align-items: center;
       gap: 12px;
       padding: 12px 20px;
-      background: rgba(9,14,9,0.92);
+      background: rgba(9,14,9,0.9);
       backdrop-filter: blur(10px);
       border-bottom: 1px solid var(--border);
     }
@@ -91,29 +88,28 @@
     .seq-step.on { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 10px rgba(102,255,153,0.45); }
 
     .shell {
-      width: min(1180px, calc(100vw - 32px));
+      width: min(1120px, calc(100vw - 32px));
       margin: 0 auto;
       padding: 28px 0 40px;
     }
 
     .hero {
       display: grid;
-      grid-template-columns: 1.15fr 0.85fr;
-      gap: 26px;
+      grid-template-columns: minmax(0, 1.02fr) minmax(320px, 0.98fr);
+      gap: 20px;
       align-items: stretch;
-      min-height: 72vh;
     }
-    @media (max-width: 900px) {
+    @media (max-width: 920px) {
       .hero { grid-template-columns: 1fr; }
     }
 
     .card {
       position: relative;
-      background: linear-gradient(180deg, rgba(13,22,13,0.96), rgba(9,14,9,0.98));
+      overflow: hidden;
+      background: linear-gradient(180deg, rgba(13,22,13,0.96), rgba(9,14,9,0.99));
       border: 1px solid var(--border);
       border-radius: 18px;
       box-shadow: var(--shadow);
-      overflow: hidden;
     }
     .card::before {
       content: "";
@@ -127,10 +123,10 @@
     .card-body {
       position: relative;
       z-index: 1;
-      padding: 34px;
+      padding: 30px;
     }
-    @media (max-width: 600px) {
-      .card-body { padding: 24px 20px; }
+    @media (max-width: 640px) {
+      .card-body { padding: 22px 18px; }
     }
 
     .hero-logo {
@@ -140,7 +136,7 @@
       font-size: clamp(9px, 2vw, 14px);
       line-height: 1.15;
       text-shadow: 0 0 10px rgba(102,255,153,0.35);
-      margin-bottom: 22px;
+      margin-bottom: 20px;
     }
     .beta {
       display: inline-block;
@@ -158,37 +154,38 @@
       color: var(--accent);
       font-family: var(--mono);
       font-size: 11px;
-      letter-spacing: 1.8px;
+      letter-spacing: 1.7px;
       text-transform: uppercase;
-      opacity: 0.7;
-      margin-bottom: 14px;
+      opacity: 0.74;
+      margin-bottom: 12px;
     }
-    .hero h1 {
-      font-size: clamp(40px, 7vw, 82px);
-      line-height: 1;
+    h1 {
+      font-size: clamp(38px, 7vw, 78px);
+      line-height: 0.98;
       letter-spacing: -2px;
       color: #fff;
-      margin-bottom: 20px;
+      margin-bottom: 18px;
+      max-width: 9ch;
     }
-    .hero h1 em { color: var(--accent); font-style: normal; }
+    h1 em { color: var(--accent); font-style: normal; }
     .lede {
-      font-size: clamp(17px, 2.4vw, 22px);
-      line-height: 1.7;
+      font-size: clamp(17px, 2.2vw, 22px);
+      line-height: 1.72;
       color: var(--text);
-      max-width: 620px;
-      margin-bottom: 22px;
+      max-width: 34rem;
+      margin-bottom: 18px;
     }
     .proof-strip {
       display: flex;
       flex-wrap: wrap;
       gap: 10px;
-      margin-bottom: 28px;
+      margin-bottom: 22px;
     }
     .proof-pill {
       padding: 8px 12px;
       border: 1px solid rgba(102,255,153,0.24);
       border-radius: 999px;
-      background: var(--accent-soft);
+      background: rgba(102,255,153,0.08);
       color: var(--text);
       font-family: var(--mono);
       font-size: 11px;
@@ -199,7 +196,6 @@
       flex-wrap: wrap;
       gap: 12px;
       align-items: center;
-      margin-bottom: 24px;
     }
     .cta-link,
     .cta-link-sec {
@@ -207,12 +203,12 @@
       align-items: center;
       justify-content: center;
       min-height: 48px;
+      padding: 12px 22px;
       border-radius: 999px;
       text-decoration: none;
       transition: 0.2s ease;
     }
     .cta-link {
-      padding: 12px 28px;
       border: 2px solid rgba(102,255,153,0.5);
       color: var(--accent);
       font-weight: 700;
@@ -220,11 +216,9 @@
     }
     .cta-link:hover {
       border-color: rgba(210,255,225,1);
-      box-shadow: 0 0 34px rgba(102,255,153,0.35);
-      text-decoration: none;
+      box-shadow: 0 0 30px rgba(102,255,153,0.32);
     }
     .cta-link-sec {
-      padding: 12px 22px;
       border: 1px solid var(--border);
       color: var(--dim);
       font-weight: 600;
@@ -232,13 +226,13 @@
     .cta-link-sec:hover {
       border-color: var(--accent);
       color: var(--accent);
-      text-decoration: none;
     }
-    .cta-note {
+    .hero-note {
+      margin-top: 14px;
+      color: var(--dim);
       font-family: var(--mono);
       font-size: 11px;
-      color: var(--dim);
-      opacity: 0.8;
+      line-height: 1.6;
     }
 
     .hero-video-wrap {
@@ -246,104 +240,130 @@
       border-radius: 14px;
       overflow: hidden;
       background: #081008;
+      margin-bottom: 16px;
     }
-    .hero-video { width: 100%; display: block; }
-    .mini-grid {
+    .hero-video {
+      width: 100%;
+      display: block;
+      aspect-ratio: 640 / 502;
+      object-fit: cover;
+    }
+    .summary {
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 12px;
-      margin-top: 16px;
+      gap: 10px;
     }
-    .mini-stat {
-      padding: 14px;
+    .summary-item {
+      padding: 14px 16px;
       border: 1px solid var(--border);
       border-radius: 12px;
-      background: rgba(102,255,153,0.03);
+      background: var(--panel-soft);
     }
-    .mini-stat strong {
+    .summary-item strong {
       display: block;
       color: var(--accent);
       font-family: var(--mono);
       font-size: 11px;
       letter-spacing: 1px;
-      margin-bottom: 6px;
       text-transform: uppercase;
+      margin-bottom: 6px;
     }
-    .mini-stat span {
+    .summary-item span {
       color: var(--text);
-      font-size: 14px;
-      line-height: 1.55;
+      font-size: 15px;
+      line-height: 1.6;
     }
 
-    .sections {
+    .stack {
       display: grid;
       gap: 18px;
       margin-top: 18px;
     }
-    .section-grid {
-      display: grid;
-      grid-template-columns: 0.95fr 1.05fr;
-      gap: 18px;
+    .section-head {
+      margin-bottom: 14px;
     }
-    @media (max-width: 900px) {
-      .section-grid { grid-template-columns: 1fr; }
-    }
-    .section-title {
+    .section-label {
       color: var(--accent);
       font-family: var(--mono);
       font-size: 11px;
-      letter-spacing: 1.8px;
+      letter-spacing: 1.6px;
       text-transform: uppercase;
       opacity: 0.75;
-      margin-bottom: 14px;
+      margin-bottom: 10px;
     }
-    .section-big {
-      font-size: clamp(24px, 4vw, 40px);
-      line-height: 1.2;
-      margin-bottom: 14px;
+    .section-title {
+      font-size: clamp(26px, 4vw, 42px);
+      line-height: 1.16;
       color: #f4fff4;
+      margin-bottom: 10px;
     }
-    .section-big em { color: var(--accent); font-style: normal; }
-    .section-p {
+    .section-copy {
       font-size: 17px;
       line-height: 1.75;
-      color: #a4c2a4;
-      max-width: 760px;
+      color: #a2c0a2;
+      max-width: 54rem;
     }
 
-    .steps {
+    .three-up {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 10px;
-      margin-top: 22px;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
     }
-    @media (max-width: 700px) {
-      .steps { grid-template-columns: 1fr 1fr; }
+    @media (max-width: 860px) {
+      .three-up { grid-template-columns: 1fr; }
     }
-    .step-box {
-      padding: 14px;
+    .feature {
+      padding: 16px;
       border: 1px solid var(--border);
-      border-radius: 12px;
-      background: rgba(102,255,153,0.025);
+      border-radius: 14px;
+      background: var(--panel-soft);
     }
-    .step-num {
-      color: var(--accent);
-      font-family: var(--mono);
-      font-size: 11px;
-      letter-spacing: 1px;
+    .feature strong {
+      display: block;
+      color: var(--text);
+      font-size: 16px;
       margin-bottom: 8px;
     }
-    .step-box p {
-      font-size: 14px;
-      line-height: 1.6;
+    .feature p {
+      color: var(--dim);
+      font-size: 15px;
+      line-height: 1.7;
+    }
+
+    .split {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+    }
+    @media (max-width: 920px) {
+      .split { grid-template-columns: 1fr; }
+    }
+    .list {
+      display: grid;
+      gap: 12px;
+    }
+    .list-item {
+      padding: 14px 16px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--panel-soft);
+    }
+    .list-item strong {
+      display: block;
       color: var(--text);
+      margin-bottom: 6px;
+      font-size: 15px;
+    }
+    .list-item span {
+      color: var(--dim);
+      font-size: 14px;
+      line-height: 1.65;
     }
 
     .share-cards {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 12px;
-      margin-top: 22px;
+      margin-top: 16px;
     }
     @media (max-width: 900px) {
       .share-cards { grid-template-columns: 1fr; }
@@ -355,13 +375,12 @@
       border: 1px solid var(--border);
       border-radius: 14px;
       overflow: hidden;
-      background: rgba(102,255,153,0.03);
+      background: var(--panel-soft);
       transition: transform 0.15s ease, border-color 0.2s ease;
     }
     .share-card:hover {
       transform: translateY(-3px);
       border-color: rgba(102,255,153,0.55);
-      text-decoration: none;
     }
     .share-card-img {
       width: 100%;
@@ -387,41 +406,6 @@
       text-transform: uppercase;
     }
 
-    .proof-list {
-      display: grid;
-      gap: 12px;
-      margin-top: 18px;
-    }
-    .proof-item {
-      padding: 14px 16px;
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      background: rgba(102,255,153,0.025);
-    }
-    .proof-item strong {
-      display: block;
-      color: var(--text);
-      margin-bottom: 6px;
-      font-size: 15px;
-    }
-    .proof-item span {
-      color: #9cb89c;
-      font-size: 14px;
-      line-height: 1.6;
-    }
-
-    .manifesto {
-      display: grid;
-      gap: 14px;
-      max-width: 760px;
-    }
-    .manifesto p {
-      font-size: 16px;
-      line-height: 1.85;
-      color: #9ebc9e;
-    }
-    .manifesto em { color: var(--text); font-style: normal; }
-
     .explore-strip {
       display: flex;
       flex-wrap: wrap;
@@ -432,7 +416,7 @@
       padding: 14px 18px;
       border: 1px solid var(--border);
       border-radius: 14px;
-      background: rgba(102,255,153,0.03);
+      background: var(--panel-soft);
     }
     .explore-label {
       color: var(--accent);
@@ -480,7 +464,7 @@
       font-family: var(--mono);
       font-size: 11px;
       text-decoration: none;
-      opacity: 0.75;
+      opacity: 0.78;
     }
     footer a:hover { color: var(--accent); }
   </style>
@@ -495,23 +479,23 @@
   <section class="hero">
     <div class="card">
       <div class="card-body">
-        <pre class="hero-logo" id="heroLogo">█▀▄▀█ █▀█ █ █ █▀▄▀█ █▀█
+        <pre class="hero-logo">█▀▄▀█ █▀█ █ █ █▀▄▀█ █▀█
 █ ▀ █ █▀▀ ▀▄▀ █ ▀ █ █▀▀ <span class="beta">BETA</span></pre>
-        <div class="eyebrow">shareable beat links / browser groovebox / live jam + live set</div>
-        <h1>A beat that lives in a link.<br>Open it.<br><em>Change it.</em> Send it on.</h1>
-        <p class="lede">mpump is a browser groovebox built around a simple idea: the whole beat can travel as a link. It works on iPhone, iPad, Android, laptop, and desktop wherever there is a modern browser.</p>
+        <div class="eyebrow">free / open source / no account / no install</div>
+        <h1>A beat that lives in a <em>link.</em></h1>
+        <p class="lede">mpump is a browser groovebox built around one simple idea: the whole beat can travel as a URL. Open it, change it, and send it on from phone or desktop in any modern browser.</p>
         <div class="proof-strip">
           <span class="proof-pill">Works on iPhone, iPad, Android, desktop</span>
+          <span class="proof-pill">Free and open source</span>
           <span class="proof-pill">No install</span>
           <span class="proof-pill">No account</span>
-          <span class="proof-pill">Free and open source</span>
         </div>
         <div class="cta-row">
-          <a href="./app.html" class="cta-link" onclick="localStorage.setItem('mpump-returning','1');gcEvent('landing-open-hero')">Open mpump</a>
-          <a href="#examples" class="cta-link-sec" onclick="gcEvent('landing-jump-examples')">Open a shared beat</a>
-          <a href="https://github.com/gdamdam/mpump" class="cta-link-sec" onclick="gcEvent('landing-github')">Source on GitHub</a>
+          <a href="./app.html" class="cta-link" onclick="localStorage.setItem('mpump-returning','1');gcEvent('landing2-open')">Open mpump</a>
+          <a href="#beats" class="cta-link-sec" onclick="gcEvent('landing2-examples')">Try a shared beat</a>
+          <a href="https://github.com/gdamdam/mpump" class="cta-link-sec" onclick="gcEvent('landing2-github')">Source on GitHub</a>
         </div>
-        <div class="cta-note">Shareable beat links, remixable grooves, drums, bass, synth, live jam + live set.</div>
+        <div class="hero-note">drums + bass + synth + FX + shareable beat links + live jam / live set</div>
       </div>
     </div>
 
@@ -522,135 +506,118 @@
             <source src="./mpump-demo.mp4" type="video/mp4">
           </video>
         </div>
-        <div class="mini-grid">
-          <div class="mini-stat">
-            <strong>Instant start</strong>
-            <span>Open the app and a beat is already alive. You are editing motion, not configuring silence.</span>
+        <div class="summary">
+          <div class="summary-item">
+            <strong>Open fast</strong>
+            <span>You start from a working groove instead of a blank project and setup screens.</span>
           </div>
-          <div class="mini-stat">
-            <strong>Link as format</strong>
-            <span>The groove lives in the URL, so sharing it is as simple as sending the link.</span>
+          <div class="summary-item">
+            <strong>Share state, not just audio</strong>
+            <span>The groove itself can move as a link, not only as a bounce or screenshot.</span>
           </div>
-          <div class="mini-stat">
-            <strong>Remixable</strong>
-            <span>The next person does not just hear it. They can change it and pass it on.</span>
-          </div>
-          <div class="mini-stat">
-            <strong>Private by default</strong>
-            <span>No account wall, no ads, no personal profile, no project folder living somewhere else.</span>
+          <div class="summary-item">
+            <strong>Remix in the browser</strong>
+            <span>The next person opens the same beat, changes it, and sends back a new version.</span>
           </div>
         </div>
       </div>
     </div>
   </section>
 
-  <div class="sections">
+  <div class="stack">
     <section class="card">
       <div class="card-body">
-        <div class="section-big">A simple loop: <em>make, send, change, resend.</em></div>
-        <p class="section-p">You make a beat, send it as a link, someone else opens it, changes it, and sends it back different. The beat can keep moving without turning into a dead export.</p>
-        <div class="steps">
-          <div class="step-box">
-            <div class="step-num">01 / MAKE</div>
-            <p>Start from a working groove and push it somewhere else.</p>
+        <div class="section-head">
+          <div class="section-label">Why It Feels Different</div>
+          <div class="section-title">Make. Send. Change. Resend.</div>
+          <p class="section-copy">mpump is not trying to be a full DAW in the browser. It is a fast loop instrument designed for motion. You make something while it still feels alive, send the link, and someone else can keep the same groove moving.</p>
+        </div>
+        <div class="three-up">
+          <div class="feature">
+            <strong>Instant groovebox</strong>
+            <p>Drums, bass, synth, mixer, and effects are there right away.</p>
           </div>
-          <div class="step-box">
-            <div class="step-num">02 / SEND</div>
-            <p>Share a playable beat as a link instead of a file or screenshot.</p>
+          <div class="feature">
+            <strong>Link-native sharing</strong>
+            <p>The beat itself is the thing being shared, not just a rendered file.</p>
           </div>
-          <div class="step-box">
-            <div class="step-num">03 / CHANGE</div>
-            <p>The next person opens the same beat and mutates it in their browser.</p>
-          </div>
-          <div class="step-box">
-            <div class="step-num">04 / RESEND</div>
-            <p>The groove keeps moving from person to person instead of stopping at export.</p>
+          <div class="feature">
+            <strong>Private by default</strong>
+            <p>No account wall, no personal tracking, and your music stays on your device.</p>
           </div>
         </div>
       </div>
     </section>
 
-    <section class="section-grid" id="examples">
+    <section class="split">
       <div class="card">
         <div class="card-body">
-          <div class="section-big">Try one of these beats.</div>
-          <p class="section-p">Open a groove, reshape it, and pass it on.</p>
-          <div class="share-cards" id="share-cards">
-            <a class="share-card" href="https://s.mpump.live/?z=eJyNUttuozAQ_ZXVvC7JGpwQw3u_YR9WVQXYASvcakPaqs2_7xkDUbWVqgWkGcbnzJyZ8TuVY0d5LNOI_AvlYn-MSF8opxMhMsKJFbxyXEM15e80OnO15uVJu7nzHKgtcoA5ss0A54BgGttbdGeUhf9KSL4h-Ld-av6DAcrUQ-NDa6rJ2erH7-JqoPeyoIaK8oQbGjlXwY0KgYBmL8YB20NELpygTDVQLoUA1RnKFRDtCtH4jxFvgZjcbOD5u6d5YL_iFJXbkQmniM5mZZ71OuDZB1F1HxCQccYOqBtq0HrUOdy4ryB1mHDin-fCcTer8HgVLtSmWP6jU27Zs-RebtEhNx3isNaVQiL1-RrEoXIFj45pFD6cdOYZgSTaJVGMX-0CMssydUyz0zFTsVAKXbWYsYTtyqXcK89CbA-XCB1p0xZv7Ey2uysyRpdFdQmJkcG-rgdYf7UNV9ur9XbotxHzzg2W8AfL6nBfvB8cqjS2bka-ZpihnSo3-8ZwvGoG-HDGpvAhgitmXMktWT8NbuLc0arvcVk0yXQfJ-LnIdln4mP3AZuy3X3ypVog6QLhFyz1CU63v3gN6jU">
-              <img class="share-card-img" src="https://s.mpump.live/img?z=eJyNUttuozAQ_ZXVvC7JGpwQw3u_YR9WVQXYASvcakPaqs2_7xkDUbWVqgWkGcbnzJyZ8TuVY0d5LNOI_AvlYn-MSF8opxMhMsKJFbxyXEM15e80OnO15uVJu7nzHKgtcoA5ss0A54BgGttbdGeUhf9KSL4h-Ld-av6DAcrUQ-NDa6rJ2erH7-JqoPeyoIaK8oQbGjlXwY0KgYBmL8YB20NELpygTDVQLoUA1RnKFRDtCtH4jxFvgZjcbOD5u6d5YL_iFJXbkQmniM5mZZ71OuDZB1F1HxCQccYOqBtq0HrUOdy4ryB1mHDin-fCcTer8HgVLtSmWP6jU27Zs-RebtEhNx3isNaVQiL1-RrEoXIFj45pFD6cdOYZgSTaJVGMX-0CMssydUyz0zFTsVAKXbWYsYTtyqXcK89CbA-XCB1p0xZv7Ey2uysyRpdFdQmJkcG-rgdYf7UNV9ur9XbotxHzzg2W8AfL6nBfvB8cqjS2bka-ZpihnSo3-8ZwvGoG-HDGpvAhgitmXMktWT8NbuLc0arvcVk0yXQfJ-LnIdln4mP3AZuy3X3ypVog6QLhFyz1CU63v3gN6jU" alt="Electric Wave" loading="lazy" />
-              <div class="share-card-info">
-                <span class="share-card-title">Electric Wave</span>
-                <span class="share-card-meta">136 bpm / techno</span>
-              </div>
-            </a>
+          <div class="section-head">
+            <div class="section-label">Why It Clicks</div>
+            <div class="section-title">Start from a groove that is already moving.</div>
+            <p class="section-copy">This is the part that matters most: you do not begin from silence, and the thing you make can keep traveling.</p>
           </div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-body">
-          <div class="proof-list">
-            <div class="proof-item">
+          <div class="list">
+            <div class="list-item">
               <strong>Start with a groove.</strong>
               <span>You do not have to build from silence. Open a beat and it is already moving.</span>
             </div>
-            <div class="proof-item">
+            <div class="list-item">
               <strong>Jump in fast.</strong>
               <span>Open mpump and make something, or open a beat first and push it somewhere else.</span>
             </div>
-            <div class="proof-item">
+            <div class="list-item">
               <strong>The beat lives in the link.</strong>
               <span>What you make can travel as a URL, not just as an audio export.</span>
             </div>
-            <div class="proof-item">
+            <div class="list-item">
               <strong>Made to be passed on.</strong>
               <span>The next person can open the same groove, change it, and send it back different.</span>
             </div>
           </div>
         </div>
       </div>
-    </section>
 
-    <section class="section-grid">
       <div class="card">
         <div class="card-body">
-          <div class="section-big">Less setup. More motion.</div>
-          <p class="section-p">mpump is not trying to be a giant DAW in the browser. It is an instrument. The point is to get into a loop fast, make it yours, and send it on while it still feels alive.</p>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-body">
-          <div class="proof-list">
-            <div class="proof-item">
-              <strong>Shareable beat links</strong>
-              <span>The beat can travel as a URL, not just as an audio bounce.</span>
+          <div class="section-head">
+            <div class="section-label">What You Get</div>
+            <div class="section-title">Deep enough to keep going.</div>
+            <p class="section-copy">Fast first, but not shallow. Once you are in, there is room to shape the groove and make it yours.</p>
+          </div>
+          <div class="list">
+            <div class="list-item">
+              <strong>Drums, bass, synth, mixer, FX</strong>
+              <span>A playable groovebox with real-time synthesis in the browser.</span>
             </div>
-            <div class="proof-item">
+            <div class="list-item">
+              <strong>Patterns, arps, Euclidean rhythms</strong>
+              <span>Quick sketch workflow with deeper pattern tools when you want them.</span>
+            </div>
+            <div class="list-item">
               <strong>Live Jam / Live Set</strong>
               <span>Play together without streaming audio. Each browser synthesizes locally.</span>
-            </div>
-            <div class="proof-item">
-              <strong>Offline-capable</strong>
-              <span>Open it like a web app and keep working without turning it into a login product.</span>
             </div>
           </div>
         </div>
       </div>
     </section>
 
-    <section class="card">
+    <section class="card" id="beats">
       <div class="card-body">
-        <div class="section-title">Why I built this</div>
-        <div class="manifesto">
-          <p>I built <em>mpump</em> to make music anywhere. Not files. Just links and a browser.<br>Easy to share.</p>
-          <p>Most music tools make you choose: too simple to be useful, or too complex to be fun.<br>This stays in between. Fast to start. Still worth exploring.</p>
-          <p>Built for techno, acid, and any electronic music that works in loops.</p>
-          <p>No install, no account, no personal tracking.<br>Your music stays on your device. Free forever.</p>
+        <div class="section-head">
+          <div class="section-label">Try It</div>
+          <div class="section-title">Open one of these beats.</div>
+          <p class="section-copy">Start from an existing groove, change it, and see if the idea clicks faster than reading about it.</p>
         </div>
-        <div style="display: flex; justify-content: center; width: 100%; margin-top: 16px; font-size: 24px;">🤟😁</div>
-        <div class="cta-row" style="margin-top: 28px;">
-          <a href="./app.html" class="cta-link" onclick="localStorage.setItem('mpump-returning','1');gcEvent('landing-open-bottom')">Open mpump</a>
-          <a href="https://github.com/gdamdam/mpump" class="cta-link-sec" onclick="gcEvent('landing-github-bottom')">Source on GitHub</a>
+        <div class="share-cards" id="share-cards">
+          <a class="share-card" href="https://s.mpump.live/?z=eJyNUttuozAQ_ZXVvC7JGpwQw3u_YR9WVQXYASvcakPaqs2_7xkDUbWVqgWkGcbnzJyZ8TuVY0d5LNOI_AvlYn-MSF8opxMhMsKJFbxyXEM15e80OnO15uVJu7nzHKgtcoA5ss0A54BgGttbdGeUhf9KSL4h-Ld-av6DAcrUQ-NDa6rJ2erH7-JqoPeyoIaK8oQbGjlXwY0KgYBmL8YB20NELpygTDVQLoUA1RnKFRDtCtH4jxFvgZjcbOD5u6d5YL_iFJXbkQmniM5mZZ71OuDZB1F1HxCQccYOqBtq0HrUOdy4ryB1mHDin-fCcTer8HgVLtSmWP6jU27Zs-RebtEhNx3isNaVQiL1-RrEoXIFj45pFD6cdOYZgSTaJVGMX-0CMssydUyz0zFTsVAKXbWYsYTtyqXcK89CbA-XCB1p0xZv7Ey2uysyRpdFdQmJkcG-rgdYf7UNV9ur9XbotxHzzg2W8AfL6nBfvB8cqjS2bka-ZpihnSo3-8ZwvGoG-HDGpvAhgitmXMktWT8NbuLc0arvcVk0yXQfJ-LnIdln4mP3AZuy3X3ypVog6QLhFyz1CU63v3gN6jU">
+            <img class="share-card-img" src="https://s.mpump.live/img?z=eJyNUttuozAQ_ZXVvC7JGpwQw3u_YR9WVQXYASvcakPaqs2_7xkDUbWVqgWkGcbnzJyZ8TuVY0d5LNOI_AvlYn-MSF8opxMhMsKJFbxyXEM15e80OnO15uVJu7nzHKgtcoA5ss0A54BgGttbdGeUhf9KSL4h-Ld-av6DAcrUQ-NDa6rJ2erH7-JqoPeyoIaK8oQbGjlXwY0KgYBmL8YB20NELpygTDVQLoUA1RnKFRDtCtH4jxFvgZjcbOD5u6d5YL_iFJXbkQmniM5mZZ71OuDZB1F1HxCQccYOqBtq0HrUOdy4ryB1mHDin-fCcTer8HgVLtSmWP6jU27Zs-RebtEhNx3isNaVQiL1-RrEoXIFj45pFD6cdOYZgSTaJVGMX-0CMssydUyz0zFTsVAKXbWYsYTtyqXcK89CbA-XCB1p0xZv7Ey2uysyRpdFdQmJkcG-rgdYf7UNV9ur9XbotxHzzg2W8AfL6nBfvB8cqjS2bka-ZpihnSo3-8ZwvGoG-HDGpvAhgitmXMktWT8NbuLc0arvcVk0yXQfJ-LnIdln4mP3AZuy3X3ypVog6QLhFyz1CU63v3gN6jU" alt="Electric Wave" loading="lazy" />
+            <div class="share-card-info">
+              <span class="share-card-title">Electric Wave</span>
+              <span class="share-card-meta">136 bpm / techno</span>
+            </div>
+          </a>
         </div>
       </div>
     </section>
@@ -667,7 +634,7 @@
 
   <footer>
     <span>Built by <a href="https://github.com/gdamdam/mpump">gdamdam</a> · <a href="https://github.com/gdamdam/mpump">Source Code (AGPL-3.0)</a> · <a href="mailto:info@mpump.live">info@mpump.live</a></span>
-    <span><a href="./browser-groovebox.html">Browser Groovebox</a> · <a href="./shareable-beat-links.html">Shareable Beat Links</a> · <a href="./live-jam-live-set.html">Live Jam / Live Set</a></span>
+    <span><a href="./app.html">Open mpump</a> · <a href="https://github.com/gdamdam/mpump">GitHub</a> · <a href="./shareable-beat-links.html">Shareable Beat Links</a></span>
     <span>mpump v1.10.2</span>
   </footer>
 </div>
@@ -714,7 +681,7 @@
       var a = document.createElement('a');
       a.className = 'share-card';
       a.href = beat.url;
-      a.onclick = function() { gcEvent('landing-card-click'); };
+      a.onclick = function() { gcEvent('landing2-card-click'); };
 
       var img = document.createElement('img');
       img.className = 'share-card-img';
@@ -743,7 +710,7 @@
     fetch('./data/featured.json')
       .then(function(r) { return r.json(); })
       .then(function(data) {
-        var beats = (data.featured || []).slice(0, 3);
+        var beats = (data.featured || []).slice(0, 6);
         if (!beats.length) return;
         container.innerHTML = '';
         beats.forEach(function(beat) {
