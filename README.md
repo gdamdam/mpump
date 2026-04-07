@@ -305,7 +305,7 @@ It does keep a small amount of anonymous operational data so the project can wor
 - **No cookies**: no login cookies, no ad cookies, no analytics cookies
 - **No user IDs**: no persistent personal identifier assigned to you
 - **No fingerprinting**: no hidden identity built from your device or browser
-- **No third-party trackers**: no Google, no Facebook, no ad networks
+- **No third-party trackers**: no Google ads, no Facebook ads, no ad networks
 
 ### What mpump does collect
 
