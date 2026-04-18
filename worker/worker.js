@@ -474,11 +474,15 @@ export default {
 
     // Dashboard
     if (url.pathname === "/mpdashboard" && request.method === "GET") {
+      const unauthorized = requireBasicAuth(request, env);
+      if (unauthorized) return unauthorized;
       return handleDashboard(env);
     }
 
     // Submissions review page
     if (url.pathname === "/mpdiscovery" && request.method === "GET") {
+      const unauthorized = requireBasicAuth(request, env);
+      if (unauthorized) return unauthorized;
       return handleDiscovery(env);
     }
 
@@ -728,6 +732,28 @@ const ADMIN_SCRIPT = `
   }
 })();
 </script>`;
+
+/** Basic-auth gate for admin pages. Returns a 401 Response or null. */
+function requireBasicAuth(request, env) {
+  const user = env.DASHBOARD_USER;
+  const pass = env.DASHBOARD_PASS;
+  if (!user || !pass) {
+    return new Response("Dashboard auth not configured", { status: 503 });
+  }
+  const header = request.headers.get("Authorization") ?? "";
+  if (header.startsWith("Basic ")) {
+    try {
+      const [u, p] = atob(header.slice(6)).split(":");
+      if (u === user && p === pass) return null;
+    } catch {
+      // fall through to 401
+    }
+  }
+  return new Response("Authentication required", {
+    status: 401,
+    headers: { "WWW-Authenticate": 'Basic realm="mpump-admin", charset="UTF-8"' },
+  });
+}
 
 /** Resolve a short URL — serve OG tags to bots, redirect browsers. */
 /** GET /dashboard — HTML dashboard. */

@@ -12,6 +12,8 @@ scripts/
 *.swp
 *.swo
 .wrangler/
+.dev.vars
+worker/.dev.vars
 node_modules/
 package-lock.json
 tsconfig.tsbuildinfo
