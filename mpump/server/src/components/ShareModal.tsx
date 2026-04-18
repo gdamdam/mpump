@@ -527,30 +527,31 @@ export function ShareModal({ url, longUrl, parentId, qrUrl, gestureNote, getAnal
 
         // ── QR overlay (when toggled) ──────────────────────────────────
         if (showQR) {
-          const gb = gridBoundsRef.current;
-          const accent = "#66ff99";
-          const mono = '"SF Mono", "Menlo", "Consolas", monospace';
-          // Dark overlay on grid area
-          ctx.fillStyle = "rgba(13, 17, 23, 0.88)";
-          ctx.fillRect(gb.x, gb.y, gb.w, gb.h);
-          // Render QR centered in grid area
+          // Expanded region: from just below title to just above footer
+          const qrRegionX = 8;
+          const qrRegionY = 30;
+          const qrRegionW = W - 16;
+          const qrRegionH = H - qrRegionY - 16;
+          // Dark overlay covering the expanded region
+          ctx.fillStyle = "rgba(13, 17, 23, 0.95)";
+          ctx.fillRect(qrRegionX, qrRegionY, qrRegionW, qrRegionH);
+          // Render QR centered in expanded region
           try {
             const qrInput = qrUrl || url;
             let qrData;
-            let qrEc: "H" | "M" | "L" = "H";
             try { qrData = QRCode.create(qrInput, { errorCorrectionLevel: "H" }); }
             catch {
-              try { qrEc = "M"; qrData = QRCode.create(qrInput, { errorCorrectionLevel: "M" }); }
-              catch { qrEc = "L"; qrData = QRCode.create(url, { errorCorrectionLevel: "L" }); }
+              try { qrData = QRCode.create(qrInput, { errorCorrectionLevel: "M" }); }
+              catch { qrData = QRCode.create(url, { errorCorrectionLevel: "L" }); }
             }
             const modules = qrData.modules;
             const moduleCount = modules.size;
             const margin = 2;
             const totalModules = moduleCount + margin * 2;
-            const qrSize = Math.min(gb.w, gb.h) - 16;
+            const qrSize = Math.min(qrRegionW, qrRegionH) - 16;
             const cellSize = qrSize / totalModules;
-            const qrX = gb.x + (gb.w - qrSize) / 2;
-            const qrY = gb.y + (gb.h - qrSize) / 2;
+            const qrX = qrRegionX + (qrRegionW - qrSize) / 2;
+            const qrY = qrRegionY + (qrRegionH - qrSize) / 2;
             ctx.fillStyle = "#000000";
             ctx.fillRect(qrX, qrY, qrSize, qrSize);
             ctx.fillStyle = "#ffffff";
@@ -560,28 +561,6 @@ export function ShareModal({ url, longUrl, parentId, qrUrl, gestureNote, getAnal
                   ctx.fillRect(qrX + (col + margin) * cellSize, qrY + (row + margin) * cellSize, Math.ceil(cellSize), Math.ceil(cellSize));
                 }
               }
-            }
-            // Logo overlay on QR center (only at H level)
-            if (qrEc === "H") {
-              const logoSize = qrSize * 0.18;
-              const lx = qrX + (qrSize - logoSize) / 2;
-              const ly = qrY + (qrSize - logoSize) / 2;
-              const lr = logoSize / 2;
-              const line1 = "\u2588\u2580\u2584\u2580\u2588 \u2588\u2580\u2588 \u2588 \u2588 \u2588\u2580\u2584\u2580\u2588 \u2588\u2580\u2588";
-              const line2 = "\u2588 \u2580 \u2588 \u2588\u2580\u2580 \u2580\u2584\u2580 \u2588 \u2580 \u2588 \u2588\u2580\u2580";
-              const logoFontSize = Math.round(logoSize * 0.14);
-              ctx.font = `bold ${logoFontSize}px ${mono}`;
-              ctx.textAlign = "center";
-              ctx.textBaseline = "middle";
-              const lcy = ly + lr;
-              for (const [text, tly] of [[line1, lcy - logoFontSize * 0.6], [line2, lcy + logoFontSize * 0.6]] as const) {
-                const tw = ctx.measureText(text).width;
-                ctx.fillStyle = "rgba(0, 0, 0, 0.9)";
-                ctx.fillRect(lx + lr - tw / 2 - 4, (tly as number) - logoFontSize / 2 - 2, tw + 8, logoFontSize + 4);
-              }
-              ctx.fillStyle = accent;
-              ctx.fillText(line1, lx + lr, lcy - logoFontSize * 0.6);
-              ctx.fillText(line2, lx + lr, lcy + logoFontSize * 0.6);
             }
           } catch { /* QR too large — silently skip */ }
         }
