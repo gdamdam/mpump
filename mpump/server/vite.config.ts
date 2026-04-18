@@ -16,6 +16,18 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
   },
+  build: {
+    chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          react: ["react", "react-dom", "react-dom/client"],
+          qrcode: ["qrcode"],
+          pako: ["pako"],
+        },
+      },
+    },
+  },
   test: {
     exclude: ["e2e/**", "node_modules/**", "dist/**"],
   },
