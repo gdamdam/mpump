@@ -20,6 +20,17 @@ export { envValueAt } from "./drumSynth";
 
 const DRUM_CH = 9;
 
+/** Logical FX source identity. In worklet mode synth+bass share one output ("synthBass"). */
+type SourceKey = "drums" | "synth" | "bass" | "synthBass";
+
+interface FxGroup {
+  patternKey: string;
+  sourceKeys: SourceKey[];
+  activeEffects: EffectName[];
+  inputBus: GainNode;
+  outputNode: AudioNode;
+}
+
 // ── AudioPort class ──────────────────────────────────────────────────────
 
 /**
@@ -111,11 +122,12 @@ export class AudioPort {
   /** Per-channel gate fractions for poly-synth (set by Engine from device config). */
   private polySynthGateFractions = new Map<number, number>();
   private polySynthGateFractionDefault = 0.8;
-  /** Drums bypass FX chain: when true, drums connect directly to fxOutput (skip reverb/delay/etc). */
-  private drumsDirectOut: GainNode | null = null;
-  private drumsBypassFx = false;
-  /** Synth/bass bypass FX chain (shared node — worklet mixes both channels). */
-  private synthBassDirectOut: GainNode | null = null;
+  /** Default FX input bus — sources connect here when their group has the common exclude pattern. */
+  private defaultGroupBus!: GainNode;
+  /** Secondary FX input buses, keyed by exclude-pattern string (one per divergent group). */
+  private secondaryGroupBuses: Map<string, GainNode> = new Map();
+  /** Per-source current FX target bus (for clean reconnect on rebuild). */
+  private sourceFxTarget: Map<SourceKey, GainNode> = new Map();
   /** MB (multiband) bypass: excluded channels skip FX+EQ+MB, connect to driveGain. */
   private mbDrumsDirectOut: GainNode | null = null;
   private mbExcludeDrums = true;
@@ -224,18 +236,11 @@ export class AudioPort {
     // Default mode is "limiter": fxOutput → limiter → analyser
     this.rebuildAntiClipChain();
 
-    // Initial chain: master → fxOutput (no effects)
+    // Initial chain: defaultGroupBus → master → fxOutput (no effects, no excludes)
+    this.defaultGroupBus = this.ctx.createGain();
+    this.defaultGroupBus.gain.value = 1;
+    this.defaultGroupBus.connect(this.master);
     this.master.connect(this.fxOutput);
-
-    // Drums bypass node: connects directly to fxOutput, skipping all effects
-    this.drumsDirectOut = this.ctx.createGain();
-    this.drumsDirectOut.gain.value = 1;
-    this.drumsDirectOut.connect(this.fxOutput);
-
-    // Synth/bass bypass node (worklet mixes both channels into one output)
-    this.synthBassDirectOut = this.ctx.createGain();
-    this.synthBassDirectOut.gain.value = 1;
-    this.synthBassDirectOut.connect(this.fxOutput);
 
     // MB bypass nodes: skip FX+EQ+MB, connect directly to driveGain
     this.mbDrumsDirectOut = this.ctx.createGain();
@@ -346,8 +351,9 @@ export class AudioPort {
         numberOfOutputs: 1,
         outputChannelCount: [2],
       });
-      // Connect poly-synth to master and sync params
-      this.polySynth.connect(this.master);
+      // Connect poly-synth to the default FX input bus (rebuildFxChain reroutes if needed)
+      this.polySynth.connect(this.defaultGroupBus);
+      this.sourceFxTarget.set("synthBass", this.defaultGroupBus);
       for (const [ch, params] of this.channelParams) {
         if (ch !== 9) this.sendPolySynthParams(params, ch);
       }
@@ -547,70 +553,100 @@ export class AudioPort {
   setEffect<K extends EffectName>(name: K, params: Partial<EffectParams[K]>): void {
     const prev = this.fx[name];
     const onChanged = "on" in params && (params as { on?: boolean }).on !== (prev as { on?: boolean }).on;
+    const excludeChanged = "excludeDrums" in params || "excludeBass" in params || "excludeSynth" in params;
     this.fx[name] = { ...prev, ...params } as EffectParams[K];
-    if ("excludeDrums" in params) this.updateDrumsBypassFx();
-    if ("excludeBass" in params || "excludeSynth" in params) this.updateSynthBassBypassFx();
-    // Debounce ALL rebuilds — multiple rapid toggles collapse into one.
-    // 100ms delay is imperceptible; old chain plays through until rebuild.
+    // All param changes (params, on/off, exclude flips) flow through rebuildFxChain.
+    // Exclude flips alter chain topology (groups), so they use the same debounce as on/off.
     clearTimeout(this.fxRebuildTimer);
-    this.fxRebuildTimer = window.setTimeout(() => this.rebuildFxChain(), onChanged ? 100 : 200);
+    this.fxRebuildTimer = window.setTimeout(() => this.rebuildFxChain(), (onChanged || excludeChanged) ? 100 : 200);
   }
 
-  /** Check if any effect has a given exclude flag set. */
-  private anyFxExcludes(flag: "excludeDrums" | "excludeBass" | "excludeSynth"): boolean {
-    for (const name of Object.keys(this.fx) as (keyof EffectParams)[]) {
-      const p = this.fx[name] as Record<string, unknown>;
-      if (p[flag]) return true;
-    }
-    return false;
-  }
+  /** Compute exclude pattern per source, group sources by identical patterns.
+   *  One group per unique pattern; each group gets its own FX chain in rebuildFxChain.
+   *  Drums are skipped entirely when MB-bypassed (they go straight to driveGain, never through FX). */
+  private computeFxGroups(): FxGroup[] {
+    const activeEffects = this.effectOrder.filter(n => this.fx[n].on);
+    const workletActive = !!this.polySynth;
+    const sourceKeys: SourceKey[] = workletActive
+      ? (this.mbExcludeDrums ? ["synthBass"] : ["drums", "synthBass"])
+      : (this.mbExcludeDrums ? ["synth", "bass"] : ["drums", "synth", "bass"]);
 
-  /** Reroute synth (ch 0) and bass (ch 1) based on excludeSynth/excludeBass state.
-   *  In worklet mode both channels share one output node, so either flag bypasses both. */
-  private updateSynthBassBypassFx(): void {
-    if (!this.synthBassDirectOut) return;
-    const excludeSynth = this.anyFxExcludes("excludeSynth");
-    const excludeBass  = this.anyFxExcludes("excludeBass");
-
-    // Worklet mode: polySynth mixes ch0+ch1 — reroute entire worklet output
-    if (this.polySynth) {
-      const bypass = excludeSynth || excludeBass;
-      if (bypass) {
-        try { this.polySynth.disconnect(this.master); } catch { /* */ }
-        try { this.polySynth.connect(this.synthBassDirectOut); } catch { /* already connected */ }
-      } else {
-        try { this.polySynth.disconnect(this.synthBassDirectOut); } catch { /* */ }
-        try { this.polySynth.connect(this.master); } catch { /* already connected */ }
+    const patternFor = (key: SourceKey): string => {
+      const bits: string[] = [];
+      for (const name of activeEffects) {
+        const p = this.fx[name] as Record<string, unknown>;
+        let excluded = false;
+        if (key === "drums") excluded = !!p.excludeDrums;
+        else if (key === "synth") excluded = !!p.excludeSynth;
+        else if (key === "bass") excluded = !!p.excludeBass;
+        else excluded = !!p.excludeSynth || !!p.excludeBass; // synthBass: OR (worklet shares output)
+      bits.push(excluded ? "1" : "0");
       }
+      return bits.join("");
+    };
+
+    const groupMap = new Map<string, SourceKey[]>();
+    for (const key of sourceKeys) {
+      const pk = patternFor(key);
+      const list = groupMap.get(pk) ?? [];
+      list.push(key);
+      groupMap.set(pk, list);
     }
 
-    // Non-worklet: reroute individual channel panners
-    for (const [ch, shouldBypass] of [[0, excludeSynth], [1, excludeBass]] as [number, boolean][]) {
-      const panner = this.channelPanners.get(ch);
-      if (!panner) continue;
-      if (shouldBypass) {
-        try { panner.disconnect(this.master); } catch { /* */ }
-        try { panner.connect(this.synthBassDirectOut); } catch { /* already connected */ }
-      } else {
-        try { panner.disconnect(this.synthBassDirectOut); } catch { /* */ }
-        try { panner.connect(this.master); } catch { /* already connected */ }
-      }
-    }
+    return [...groupMap.entries()].map(([patternKey, keys]) => {
+      const activeForGroup = activeEffects.filter((_, i) => patternKey[i] === "0");
+      return {
+        patternKey,
+        sourceKeys: keys,
+        activeEffects: activeForGroup,
+        inputBus: null as unknown as GainNode,
+        outputNode: null as unknown as AudioNode,
+      };
+    });
   }
 
-  /** Reroute drum channel based on excludeDrums state of any effect. */
-  private updateDrumsBypassFx(): void {
-    const shouldBypass = this.anyFxExcludes("excludeDrums");
-    if (shouldBypass === this.drumsBypassFx) return;
-    this.drumsBypassFx = shouldBypass;
-    const panner = this.channelPanners.get(DRUM_CH);
-    if (!panner || !this.drumsDirectOut) return;
-    if (shouldBypass) {
-      try { panner.disconnect(this.master); } catch { /* */ }
-      panner.connect(this.drumsDirectOut);
+  /** Get the FX graph node for a given source key, or null if that source isn't in the audio path. */
+  private sourceNode(key: SourceKey): AudioNode | null {
+    if (key === "drums")     return this.channelPanners.get(DRUM_CH) ?? null;
+    if (key === "synthBass") return this.polySynth;
+    if (key === "synth")     return this.channelPanners.get(0) ?? null;
+    if (key === "bass")      return this.channelPanners.get(1) ?? null;
+    return null;
+  }
+
+  /** Reroute each source to its group's input bus. Idempotent; skips sources already connected. */
+  private routeSourcesToGroups(groups: FxGroup[]): void {
+    // Build source-key → target-bus map
+    const target = new Map<SourceKey, GainNode>();
+    for (const g of groups) for (const sk of g.sourceKeys) target.set(sk, g.inputBus);
+
+    // When worklet is active, ch0/ch1 panners don't carry audio but keep them graph-attached
+    // to the synthBass bus for consistency (disconnecting them is a no-op otherwise).
+    const workletActive = !!this.polySynth;
+
+    const reroute = (key: SourceKey, node: AudioNode | null, wantBus: GainNode | undefined) => {
+      if (!node || !wantBus) return;
+      const prev = this.sourceFxTarget.get(key);
+      if (prev === wantBus) return;
+      if (prev) { try { node.disconnect(prev); } catch { /* */ } }
+      try { node.connect(wantBus); } catch { /* */ }
+      this.sourceFxTarget.set(key, wantBus);
+    };
+
+    // Drums participate in FX chain only if NOT MB-bypassed (MB-bypass routes drums to driveGain directly).
+    if (!this.mbExcludeDrums) {
+      reroute("drums", this.sourceNode("drums"), target.get("drums"));
+    }
+
+    if (workletActive) {
+      const bus = target.get("synthBass");
+      reroute("synthBass", this.polySynth, bus);
+      // Also keep unused panners pointed at the synthBass bus (no signal, just graph hygiene)
+      reroute("synth", this.channelPanners.get(0) ?? null, bus);
+      reroute("bass",  this.channelPanners.get(1) ?? null, bus);
     } else {
-      try { panner.disconnect(this.drumsDirectOut); } catch { /* */ }
-      panner.connect(this.master);
+      reroute("synth", this.sourceNode("synth"), target.get("synth"));
+      reroute("bass",  this.sourceNode("bass"),  target.get("bass"));
     }
   }
 
@@ -630,16 +666,17 @@ export class AudioPort {
     const panner = this.channelPanners.get(DRUM_CH);
     if (!panner || !this.mbDrumsDirectOut) return;
     if (this.mbExcludeDrums) {
-      try { panner.disconnect(this.master); } catch { /* */ }
-      try { panner.disconnect(this.drumsDirectOut!); } catch { /* */ }
+      const prev = this.sourceFxTarget.get("drums");
+      if (prev) { try { panner.disconnect(prev); } catch { /* */ } }
+      this.sourceFxTarget.delete("drums");
       try { panner.connect(this.mbDrumsDirectOut); } catch { /* already connected */ }
     } else {
       try { panner.disconnect(this.mbDrumsDirectOut); } catch { /* */ }
-      if (this.drumsBypassFx && this.drumsDirectOut) {
-        try { panner.connect(this.drumsDirectOut); } catch { /* already connected */ }
-      } else {
-        try { panner.connect(this.master); } catch { /* already connected */ }
-      }
+      // Re-attach to default FX bus; rebuildFxChain will reroute to the correct group.
+      try { panner.connect(this.defaultGroupBus); } catch { /* already connected */ }
+      this.sourceFxTarget.set("drums", this.defaultGroupBus);
+      clearTimeout(this.fxRebuildTimer);
+      this.fxRebuildTimer = window.setTimeout(() => this.rebuildFxChain(), 10);
     }
   }
 
@@ -659,58 +696,93 @@ export class AudioPort {
     return this.effectOrder;
   }
 
-  /** Rebuild the audio effects chain with crossfade to avoid signal gaps.
-   *  Keeps direct master→fxOutput path live during rebuild, uses a fade-in
-   *  gain on the new chain, then removes the direct path once faded in. */
+  /** Rebuild the audio effects chain per-group (Option 1+: one chain per unique
+   *  exclude pattern across sources). Sources with identical exclude patterns
+   *  share a chain; divergent patterns get their own secondary bus + chain.
+   *  Crossfade keeps each group's bus→master bypass live while new chains fade in. */
   private fxCleanupTimer = 0;
   private rebuildFxChain(): void {
     const ct = this.ctx.currentTime;
     const FADE = 0.015; // 15ms crossfade
 
-    // Ensure direct master→fxOutput path is live (carries signal during rebuild)
-    try { this.master.connect(this.fxOutput); } catch { /* already connected */ }
+    // Compute groups from current excludes
+    const groups = this.computeFxGroups();
 
-    // Tear down old effect nodes immediately — the direct master→fxOutput path
-    // carries signal during rebuild, so no gap. Deferred cleanup was leaking nodes
-    // when rapid rebuilds cancelled the previous cleanup timer before it fired.
+    // Assign buses: first group uses defaultGroupBus; others use secondary buses (reused across
+    // rebuilds when their patternKey persists, so sources on those patterns don't migrate).
+    let firstGroup = true;
+    const usedSecondary = new Set<string>();
+    for (const g of groups) {
+      if (firstGroup) {
+        g.inputBus = this.defaultGroupBus;
+        firstGroup = false;
+      } else {
+        usedSecondary.add(g.patternKey);
+        let bus = this.secondaryGroupBuses.get(g.patternKey);
+        if (!bus) {
+          bus = this.ctx.createGain();
+          this.secondaryGroupBuses.set(g.patternKey, bus);
+        }
+        g.inputBus = bus;
+      }
+      // Ensure bypass path (bus → master) exists before chain swap — carries audio during rebuild.
+      try { g.inputBus.connect(this.master); } catch { /* already connected */ }
+    }
+
+    // Drop secondary buses whose patterns no longer have any source
+    for (const [key, bus] of [...this.secondaryGroupBuses]) {
+      if (!usedSecondary.has(key)) {
+        try { bus.disconnect(); } catch { /* */ }
+        this.secondaryGroupBuses.delete(key);
+      }
+    }
+
+    // Tear down old FX nodes. Bus→master bypass (ensured above) carries signal during rebuild.
     clearTimeout(this.fxCleanupTimer);
     for (const n of this.fxNodes) { try { n.disconnect(); } catch { /* */ } }
     for (const lfo of this.fxLFOs) { try { lfo.stop(); lfo.disconnect(); } catch { /* */ } }
-
-    // Build new chain
     this.fxNodes = [];
     this.fxLFOs = [];
 
-    let prev: AudioNode = this.master;
-    for (const name of this.effectOrder) {
-      if (!this.fx[name].on) continue;
-      prev = this.buildEffect(name, prev);
+    // Build new FX chain per group
+    for (const g of groups) {
+      let tail: AudioNode = g.inputBus;
+      for (const name of g.activeEffects) {
+        tail = this.buildEffect(name, tail);
+      }
+      g.outputNode = tail;
     }
 
-    if (this.fxNodes.length > 0) {
-      // Equal-power crossfade: direct path fades out while new chain fades in.
-      // Insert a crossfade gain on the direct bypass path.
+    // Crossfade only for groups with a non-empty chain
+    const groupsWithChain = groups.filter(g => g.outputNode !== g.inputBus);
+    if (groupsWithChain.length > 0) {
       const xfadeOut = this.ctx.createGain();
       xfadeOut.gain.setValueAtTime(1, ct);
       xfadeOut.gain.linearRampToValueAtTime(0, ct + FADE);
-      try { this.master.disconnect(this.fxOutput); } catch { /* */ }
-      this.master.connect(xfadeOut);
-      xfadeOut.connect(this.fxOutput);
+      for (const g of groupsWithChain) {
+        try { g.inputBus.disconnect(this.master); } catch { /* */ }
+        g.inputBus.connect(xfadeOut);
+      }
+      xfadeOut.connect(this.master);
 
       const fadeIn = this.ctx.createGain();
       fadeIn.gain.setValueAtTime(0, ct);
       fadeIn.gain.linearRampToValueAtTime(1, ct + FADE);
-      prev.connect(fadeIn);
-      fadeIn.connect(this.fxOutput);
+      for (const g of groupsWithChain) g.outputNode.connect(fadeIn);
+      fadeIn.connect(this.master);
       this.fxNodes.push(fadeIn);
 
-      // After crossfade: remove bypass, clean up xfade node
+      // After fade: remove bypass xfade; bus's sole path is now through chain→fadeIn
       setTimeout(() => {
-        try { this.master.disconnect(xfadeOut); } catch { /* */ }
+        for (const g of groupsWithChain) {
+          try { g.inputBus.disconnect(xfadeOut); } catch { /* */ }
+        }
         try { xfadeOut.disconnect(); } catch { /* */ }
       }, FADE * 1000 + 5);
     }
-    // If no effects active, direct path stays (already connected above)
+
+    // Migrate sources between buses (if their group changed)
+    this.routeSourcesToGroups(groups);
   }
 
   /** Build a single effect and connect it to the chain. Returns the new tail node. */
@@ -1117,14 +1189,16 @@ export class AudioPort {
       eqLow.connect(eqMid);
       eqMid.connect(eqHigh);
       eqHigh.connect(panner);
-      // Channel may bypass effects chain depending on exclude flags
-      const excludeSynth = this.anyFxExcludes("excludeSynth");
-      const excludeBass  = this.anyFxExcludes("excludeBass");
+      // Initial FX routing: drums may be MB-bypassed; otherwise attach to default group bus.
+      // rebuildFxChain reroutes to the correct group based on current exclude flags.
       const drumsMbBypass = ch === DRUM_CH && this.mbExcludeDrums && this.mbDrumsDirectOut;
-      const drumsBypass = ch === DRUM_CH && this.drumsBypassFx && this.drumsDirectOut;
-      const synthBass = (ch === 0 && excludeSynth) || (ch === 1 && excludeBass);
-      const nonDrumBypass = synthBass && this.synthBassDirectOut;
-      panner.connect(drumsMbBypass ? this.mbDrumsDirectOut! : drumsBypass ? this.drumsDirectOut! : nonDrumBypass ? this.synthBassDirectOut! : this.master);
+      if (drumsMbBypass) {
+        panner.connect(this.mbDrumsDirectOut!);
+      } else {
+        panner.connect(this.defaultGroupBus);
+        const key: SourceKey | null = ch === DRUM_CH ? "drums" : ch === 0 ? "synth" : ch === 1 ? "bass" : null;
+        if (key) this.sourceFxTarget.set(key, this.defaultGroupBus);
+      }
       this.channelPanners.set(ch, panner);
 
       const analyser = this.ctx.createAnalyser();
