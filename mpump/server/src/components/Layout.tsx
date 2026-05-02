@@ -6,6 +6,7 @@ import { Settings, getSongModeEnabled, getBottomTransportEnabled, PALETTES, appl
 import { DrumKitEditor } from "./DrumKitEditor";
 import { snapToScale } from "../data/keys";
 import { getItem, setItem, getBool, setBool, getJSON, setJSON } from "../utils/storage";
+import { isJamEnabled } from "../utils/jamConfig";
 import { DevicePanel } from "./DevicePanel";
 
 import { KaosPanel } from "./KaosPanel";
@@ -232,7 +233,12 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, showDis
   const [showJam, setShowJam] = useState(false);
   const jam = useJam();
   const jamReactions = useJamReactions();
-  const jamEnabled = true;
+  const [jamEnabled, setJamEnabledState] = useState(isJamEnabled);
+  useEffect(() => {
+    const handler = () => setJamEnabledState(isJamEnabled());
+    window.addEventListener("mpump-settings-changed", handler);
+    return () => window.removeEventListener("mpump-settings-changed", handler);
+  }, []);
   const pendingSyncSounds = useRef<{ dk?: string; sp?: string; bp?: string } | null>(null);
   const prevMuteState = useRef<string>("");
   const jamSyncedRef = useRef(false); // joiner: don't broadcast until sync received
@@ -584,6 +590,7 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, showDis
     const params = new URLSearchParams(window.location.search);
     const jamRoom = params.get("jam");
     if (!jamRoom) return;
+    if (!isJamEnabled()) return;
     if (jamRoom === "new") {
       setShowJam(true);
       return;
@@ -949,6 +956,21 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, showDis
       window.location.hash = "";
     } catch { /* invalid hash */ }
     return () => window.clearTimeout(tid);
+  }, [isPreview, anyConnected]);
+
+  // Fresh-load default: mute bass and synth so drums plays alone.
+  // Skipped when arriving via share link (?z, ?b, #hash) or jam room (?jam).
+  const defaultMutesAppliedRef = useRef(false);
+  useEffect(() => {
+    if (!isPreview || !anyConnected) return;
+    if (defaultMutesAppliedRef.current) return;
+    const params = new URLSearchParams(window.location.search);
+    const hasShare = !!(params.get("z") || params.get("b") || window.location.hash.slice(1));
+    const hasJam = !!params.get("jam");
+    if (hasShare || hasJam) return;
+    defaultMutesAppliedRef.current = true;
+    command({ type: "set_bass_mute", device: "preview_bass", muted: true } as ClientMessage);
+    command({ type: "set_drums_mute", device: "preview_synth", muted: true } as ClientMessage);
   }, [isPreview, anyConnected]);
 
 
@@ -1631,7 +1653,6 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, showDis
       <header className="header">
         <div className="title">
           <pre ref={logoRef} className={`title-art ${logoFlash ? "logo-flash" : ""} ${logoKick ? "logo-kick" : ""}`} key={logoFlash} title="1× pulse · 2× beat sync · 3× theme · 4× credits" onClick={handleLogoClick}>{"█▀▄▀█ █▀█ █ █ █▀▄▀█ █▀█\n█ ▀ █ █▀▀ ▀▄▀ █ ▀ █ █▀▀"}</pre>
-          <span className="beta-badge" title={"⚡ Sound engine tuning in progress\nThings may change 🚧"}>BETA</span>
           {(() => { const p = new URLSearchParams(window.location.search); const pm = p.get("eco") === "true" ? "eco" : p.get("lite") === "true" ? "lite" : localStorage.getItem("mpump-perf-mode"); return pm === "eco" || pm === "lite" ? <span className="beta-badge" style={{ background: pm === "eco" ? "#ff8c00" : "#ffcc00", color: pm === "eco" ? "#000" : "#000", marginLeft: 3, cursor: "pointer" }} title="Tap to switch back to Normal" onClick={() => { if (confirm(`Switch from ${pm === "eco" ? "Eco" : "Lite"} to Normal mode?\n\nThis restores full animations and audio quality.`)) { localStorage.setItem("mpump-perf-mode", "normal"); window.location.reload(); } }}>{pm === "eco" ? "ECO" : "LITE"}</span> : null; })()}
           <CpuDot getCpuLoad={getCpuLoad} />
           {linkConnected && <span style={{ color: "#66ff99", fontSize: 10, marginLeft: 2, verticalAlign: "top" }} title="Ableton Link connected">●</span>}

@@ -67,7 +67,6 @@ export function MidiGate({ midiState, onConnectMidi, onPreview, onOpenDiscover, 
             logoClickCount.current = 0;
           }, 400);
         }}>{"█▀▄▀█ █▀█ █ █ █▀▄▀█ █▀█\n█ ▀ █ █▀▀ ▀▄▀ █ ▀ █ █▀▀"}</pre>
-        <span className="beta-badge" style={{ position: "absolute", bottom: 2, right: -34 }}>BETA</span>
       </div>
 
       <div className="midi-gate-subtitle">Make a beat. Send a link. Let it come back different.</div>
@@ -98,7 +97,7 @@ export function MidiGate({ midiState, onConnectMidi, onPreview, onOpenDiscover, 
       <div className="midi-gate-featured">
         <span className="midi-gate-pill">Instant grooves</span>
         <span className="midi-gate-pill">Remixable links</span>
-        <span className="midi-gate-pill">Live Jam / Live Set</span>
+        <span className="midi-gate-pill">Free &amp; open source</span>
       </div>
 
       <div className="midi-gate-about">

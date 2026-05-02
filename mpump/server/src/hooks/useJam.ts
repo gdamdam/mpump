@@ -14,11 +14,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import type { ClientMessage } from "../types";
 import { trackEvent } from "../utils/metrics";
-
-// Relay URL — in dev uses local server, in production point to hosted relay
-const RELAY_URL = import.meta.env.DEV
-  ? `ws://${location.hostname}:4444`
-  : "wss://mpump-jam-relay.fly.dev";
+import { getJamRelayUrl } from "../utils/jamConfig";
 
 // Commands worth broadcasting — excludes local-only operations (step edits, save, clipboard)
 const BROADCAST_TYPES = new Set([
@@ -121,16 +117,17 @@ export function useJam() {
     clearTimeout(retryTimerRef.current);
     roomTypeRef.current = roomType;
 
+    const relayUrl = getJamRelayUrl();
     setState(s => ({ ...s, status: "connecting", roomId, roomType, peerCount: 0 }));
-    console.log("[jam] connecting to relay:", RELAY_URL, "room:", roomId, retryRef.current > 0 ? `(retry ${retryRef.current})` : "");
+    console.log("[jam] connecting to relay:", relayUrl, "room:", roomId, retryRef.current > 0 ? `(retry ${retryRef.current})` : "");
 
-    // Pre-warm the Fly.io machine with an HTTP request (wakes it from auto-stop)
+    // Pre-warm the relay (wakes Fly.io machines from auto-stop; harmless elsewhere)
     if (retryRef.current === 0) {
-      const httpUrl = RELAY_URL.replace("ws://", "http://").replace("wss://", "https://");
+      const httpUrl = relayUrl.replace("ws://", "http://").replace("wss://", "https://");
       fetch(`${httpUrl}/health`).catch(() => {});
     }
 
-    const ws = new WebSocket(RELAY_URL);
+    const ws = new WebSocket(relayUrl);
     wsRef.current = ws;
 
     ws.onopen = () => {

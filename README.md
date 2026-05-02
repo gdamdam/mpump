@@ -8,7 +8,7 @@
 ---
 
 <p align="center">
-  <img src="mpump-demo.gif?v=1.10.5" width="600" alt="mpump demo">
+  <img src="mpump-demo.gif?v=1.11.0" width="600" alt="mpump demo">
 </p>
 
 mpump is a browser groovebox for loop-based electronic music.
@@ -18,7 +18,7 @@ It starts fast, sounds good, and keeps the beat shareable.
 - **Make a groove in the browser** — drums, bass, synth, and effects are ready right away.
 - **Send it as a link** — the other person opens the same beat in their browser.
 - **Let them change it** — they can reshape it and send it back different.
-- **Play together live** — start a Jam session or run a Live Set.
+- **Play together live (opt-in)** — Jam and Live Set are off by default. Enable in Settings and point at your own self-hosted relay.
 - **Stay private** — no install, no account, no personal tracking. Your music stays on your device.
 
 The core idea is simple: the beat lives in the link.
@@ -28,10 +28,10 @@ Go deeper if you want:
 - 1210+ patterns
 - step editor, arpeggiator, Euclidean rhythms, and mixer controls
 - shareable songs, saved sessions, and remix lineage
-- MIDI clock, Ableton Link bridge, and live jam / live set support
+- MIDI clock, Ableton Link bridge, and optional self-hosted live jam / live set
 
 <p align="center">
-  <a href="https://github.com/gdamdam/mpump"><img src="https://img.shields.io/badge/version-1.10.5-blue" alt="Version"></a>
+  <a href="https://github.com/gdamdam/mpump"><img src="https://img.shields.io/badge/version-1.11.0-blue" alt="Version"></a>
   <a href="https://github.com/gdamdam/mpump/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue" alt="License"></a>
   <img src="https://img.shields.io/badge/Web%20Audio-API-FF6600" alt="Web Audio API">
   <img src="https://img.shields.io/badge/AudioWorklet-DSP-FF6600" alt="AudioWorklet">
@@ -44,7 +44,7 @@ Go deeper if you want:
 - **Make a groove in seconds** — hit MIX and a beat is already playing. Drums, bass, synth, effects.
 - **Send it as a link** — share the URL. The other person opens it and hears exactly what you made.
 - **Let them change it** — they can tweak the beat, switch genres, change sounds, and send it back different.
-- **Play together live** — start a Live Jam with up to 4 friends, or a Live Set for up to 49 listeners.
+- **Play together live (opt-in)** — Live Jam (up to 4) and Live Set (up to 49) are disabled by default. Enable in Settings and configure a WebSocket relay (the public hosted relay is currently offline; bring your own).
 - **Go deep if you want** — 20 genres, 1210+ patterns, step editor, arpeggiator, effects chain, mixer with EQ and compression.
 
 No install. No account. No personal tracking. Your stuff stays on your device.
@@ -140,7 +140,9 @@ All sounds are synthesized in real-time via the Web Audio API. No sample files n
 - Remix lineage — shared beats track their parent; one-tap remix share when you change something
 - Record to WAV
 
-**Jam & Live Set**
+**Jam & Live Set** (opt-in, off by default)
+- Disabled by default. Enable in Settings → Jam / Live Set
+- Pluggable relay: pick the built-in default or add your own self-hosted WebSocket endpoint (the public hosted relay is currently offline)
 - Live Jam: up to 4 peers, everyone controls the music together
 - Live Set: 1 controller performs for up to 49 listeners
 - WebSocket relay (no audio streaming, each browser synthesizes locally)
@@ -341,9 +343,13 @@ Share links go through a relay (`s.mpump.live`) that does three things:
 
 The relay is fully open source in [`worker/`](worker/).
 
-### Live Jam
+### Live Jam (opt-in)
 
-Jam and Live Set sessions use a lightweight WebSocket relay for peer discovery and message passing. Mutes and effects can be bar-synced (quantized to beat boundaries) for tighter coordination.
+Jam and Live Set are **off by default**. Turn them on in Settings → Jam / Live Set, then choose a WebSocket relay (built-in default or one you add yourself).
+
+> **Heads up:** the public hosted relay (Fly.io) is currently disabled. To use jam features, run your own relay from [`worker/jam-relay/`](worker/jam-relay/) and add it as a custom provider in Settings.
+
+When enabled, sessions use a lightweight WebSocket relay for peer discovery and message passing. Mutes and effects can be bar-synced (quantized to beat boundaries) for tighter coordination.
 
 **What flows through the relay:**
 - Control data only (~50 bytes/msg): BPM, genre, pattern index, effect toggles, mute states, XY pad positions
@@ -355,15 +361,15 @@ Jam and Live Set sessions use a lightweight WebSocket relay for peer discovery a
 - No cookies or tokens
 - No persistent data. Rooms vanish when empty
 
-The relay runs is fully open source in [`worker/jam-relay/`](worker/jam-relay/).
+The relay is fully open source in [`worker/jam-relay/`](worker/jam-relay/).
 
 ### Hosting
 
-mpump is hosted on [GitHub Pages](https://pages.github.com). 
+mpump is hosted on [GitHub Pages](https://pages.github.com).
 
-The share relay runs on [Cloudflare Workers](https://workers.cloudflare.com). 
+The share relay runs on [Cloudflare Workers](https://workers.cloudflare.com).
 
-The jam relay runs on [Fly.io](https://fly.io).
+The jam relay is self-hostable — configure your endpoint in Settings → Jam / Live Set.
 
 ---
 

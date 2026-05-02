@@ -38,7 +38,7 @@ export function PrivacyModal({ onClose }: Props) {
           <p style={{ marginTop: 14, marginBottom: 6, fontWeight: 700, fontSize: 13 }}>What stays local</p>
           <ul style={{ paddingLeft: 18, margin: 0 }}>
             <li><strong>Your sessions, patterns, and settings</strong>: stored in your browser on your device</li>
-            <li><strong>Your music</strong>: generated locally in the browser unless you choose to share a beat or join a jam</li>
+            <li><strong>Your music</strong>: generated locally in the browser unless you choose to share a beat or opt into a jam session</li>
             <li><strong>Open source</strong>: full source code at <a href="https://github.com/gdamdam/mpump" target="_blank" rel="noopener noreferrer" style={{ color: "var(--preview)" }}>github.com/gdamdam/mpump</a> under AGPL-3.0</li>
           </ul>
           <p style={{ marginTop: 14, marginBottom: 6, fontWeight: 700, fontSize: 13 }}>Sharing</p>
@@ -49,14 +49,15 @@ export function PrivacyModal({ onClose }: Props) {
             <li>Short URLs (<code style={{ fontSize: 12 }}>s.mpump.live/abc123</code>) redirect to the full self-contained link. You can always use the full link instead</li>
             <li>The share relay code is open source in the same <a href="https://github.com/gdamdam/mpump/tree/main/worker" target="_blank" rel="noopener noreferrer" style={{ color: "var(--preview)" }}>GitHub repo</a></li>
           </ul>
-          <p style={{ marginTop: 14, marginBottom: 6, fontWeight: 700, fontSize: 13 }}>Jam &amp; Live Set</p>
+          <p style={{ marginTop: 14, marginBottom: 6, fontWeight: 700, fontSize: 13 }}>Jam &amp; Live Set (opt-in)</p>
           <ul style={{ paddingLeft: 18, margin: 0 }}>
-            <li>Jam sessions relay <strong>control data only</strong> such as BPM, genre, effects, mute states, and pad movement. No audio is transmitted. Each browser makes its own sound locally</li>
-            <li>No accounts, names, or personal IDs are required. Rooms are short random codes that exist only in memory</li>
-            <li>The jam relay is meant to be lightweight and temporary. It does not keep user profiles, saved histories, or cookies</li>
-            <li>The jam relay is <a href="https://github.com/gdamdam/mpump/tree/main/worker/jam-relay" target="_blank" rel="noopener noreferrer" style={{ color: "var(--preview)" }}>open source</a></li>
+            <li>Jam and Live Set are <strong>off by default</strong>. Enable them in Settings → Jam / Live Set if you want to use them</li>
+            <li>The hosted public jam relay is currently <strong>disabled</strong>. To use jam features, point Settings at your own self-hosted WebSocket relay</li>
+            <li>When enabled, sessions relay <strong>control data only</strong> such as BPM, genre, effects, mute states, and pad movement. No audio is transmitted — each browser makes its own sound locally</li>
+            <li>No accounts, names, or personal IDs are required. Rooms are short random codes that exist only in memory on the relay you connect to</li>
+            <li>The jam relay code is <a href="https://github.com/gdamdam/mpump/tree/main/worker/jam-relay" target="_blank" rel="noopener noreferrer" style={{ color: "var(--preview)" }}>open source</a> so you can run your own</li>
           </ul>
-          <p style={{ marginTop: 12, fontSize: 12, lineHeight: 1.6 }}>mpump is hosted on <a href="https://pages.github.com" target="_blank" rel="noopener noreferrer" style={{ color: "var(--preview)" }}>GitHub Pages</a>.<br />The share relay runs on <a href="https://workers.cloudflare.com" target="_blank" rel="noopener noreferrer" style={{ color: "var(--preview)" }}>Cloudflare Workers</a>.<br />The jam relay runs on <a href="https://fly.io" target="_blank" rel="noopener noreferrer" style={{ color: "var(--preview)" }}>Fly.io</a>.</p>
+          <p style={{ marginTop: 12, fontSize: 12, lineHeight: 1.6 }}>mpump is hosted on <a href="https://pages.github.com" target="_blank" rel="noopener noreferrer" style={{ color: "var(--preview)" }}>GitHub Pages</a>.<br />The share relay runs on <a href="https://workers.cloudflare.com" target="_blank" rel="noopener noreferrer" style={{ color: "var(--preview)" }}>Cloudflare Workers</a>.<br />The jam relay is self-hostable (configure in Settings).</p>
           <p style={{ marginTop: 8, fontSize: 12 }}>Short version: mpump tries to know as little about you as possible while still being usable, shareable, and maintainable.</p>
           <p style={{ marginTop: 12, opacity: 0.7, fontSize: 12 }}>Your music stays on your device. Always.</p>
         </div>

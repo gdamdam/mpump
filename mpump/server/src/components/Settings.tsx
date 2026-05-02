@@ -9,6 +9,13 @@ import { getItem, setItem, getBool, setBool } from "../utils/storage";
 import { isInstallAvailable, triggerInstallPrompt } from "../main";
 import { MidiSyncGuide } from "./MidiSyncGuide";
 import { enableLinkBridge, onLinkState, getLinkState, type LinkState } from "../utils/linkBridge";
+import {
+  isJamEnabled, setJamEnabled,
+  getCustomJamProviders, setCustomJamProviders,
+  getSelectedJamProviderId, setSelectedJamProviderId,
+  getAllJamProviders, DEFAULT_JAM_PROVIDER,
+  type JamProvider,
+} from "../utils/jamConfig";
 
 export type PaletteId = "midnight" | "neon" | "forest" | "ember" | "cobalt" | "violet" | "minimal" | "cream" | "artic" | "sand" | "rose" | "slate";
 
@@ -139,6 +146,11 @@ export function Settings({ volume, onVolumeChange, onClose, swing, onSwingChange
   const [linkEnabled, setLinkEnabled] = useState(() => getBool("mpump-link-bridge", false));
   const [linkState, setLinkState] = useState<LinkState>(getLinkState);
   const [expanded, setExpanded] = useState<string | null>("audio");
+  const [jamOn, setJamOn] = useState<boolean>(isJamEnabled);
+  const [jamProviderId, setJamProviderId] = useState<string>(getSelectedJamProviderId);
+  const [jamCustom, setJamCustom] = useState<JamProvider[]>(getCustomJamProviders);
+  const [newProvName, setNewProvName] = useState("");
+  const [newProvUrl, setNewProvUrl] = useState("");
 
   const toggle = (section: string) => setExpanded(expanded === section ? null : section);
 
@@ -351,6 +363,84 @@ export function Settings({ volume, onVolumeChange, onClose, swing, onSwingChange
             )}
           </div>
         )}
+
+        {/* ── Jam ────────────────────────────────────────── */}
+        <div className="settings-accordion">
+          <SectionHeader title="Jam / Live Set" expanded={expanded === "jam"} onClick={() => toggle("jam")} tag="beta" />
+          {expanded === "jam" && (
+            <div className="settings-accordion-body">
+              <div className="settings-toggles">
+                <button className={`settings-toggle ${jamOn ? "on" : ""}`} title="Enable multiplayer jam and live-set sessions"
+                  onClick={() => {
+                    const next = !jamOn;
+                    setJamOn(next);
+                    setJamEnabled(next);
+                    window.dispatchEvent(new Event("mpump-settings-changed"));
+                  }}>
+                  <span className="settings-toggle-dot" />Enable Jam / Live Set
+                </button>
+              </div>
+              {jamOn && (<>
+                <div className="settings-label" style={{ marginTop: 10 }}>Relay Provider</div>
+                <select className="synth-preset-select" value={jamProviderId} style={{ fontSize: 11, width: "100%" }}
+                  onChange={(e) => { setJamProviderId(e.target.value); setSelectedJamProviderId(e.target.value); }}>
+                  {getAllJamProviders().map(p => (
+                    <option key={p.id} value={p.id}>{p.name} — {p.url}</option>
+                  ))}
+                </select>
+                <div className="settings-hint" style={{ marginTop: 6 }}>
+                  Active relay used for new connections. Default is the public mpump relay; add your own to self-host.
+                </div>
+
+                {jamCustom.length > 0 && (
+                  <div style={{ marginTop: 10 }}>
+                    <div className="settings-label">Custom Providers</div>
+                    {jamCustom.map((p) => (
+                      <div key={p.id} style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 4 }}>
+                        <span style={{ flex: 1, fontSize: 11, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          <strong>{p.name}</strong> · <span style={{ opacity: 0.7 }}>{p.url}</span>
+                        </span>
+                        <button className="settings-toggle" style={{ fontSize: 10 }}
+                          onClick={() => {
+                            const next = jamCustom.filter(x => x.id !== p.id);
+                            setJamCustom(next);
+                            setCustomJamProviders(next);
+                            if (jamProviderId === p.id) {
+                              setJamProviderId(DEFAULT_JAM_PROVIDER.id);
+                              setSelectedJamProviderId(DEFAULT_JAM_PROVIDER.id);
+                            }
+                          }}>Remove</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="settings-label" style={{ marginTop: 10 }}>Add Provider</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                  <input className="jam-join-input" placeholder="Name (e.g. home)" value={newProvName}
+                    maxLength={24} onChange={(e) => setNewProvName(e.target.value)} />
+                  <input className="jam-join-input" placeholder="wss://your-relay.example.com" value={newProvUrl}
+                    onChange={(e) => setNewProvUrl(e.target.value)} />
+                  <button className="settings-toggle" style={{ fontSize: 11 }}
+                    disabled={!newProvName.trim() || !/^wss?:\/\//i.test(newProvUrl.trim())}
+                    onClick={() => {
+                      const name = newProvName.trim();
+                      const url = newProvUrl.trim();
+                      if (!name || !/^wss?:\/\//i.test(url)) return;
+                      const id = `c-${Date.now().toString(36)}`;
+                      const next = [...jamCustom, { id, name, url }];
+                      setJamCustom(next);
+                      setCustomJamProviders(next);
+                      setNewProvName("");
+                      setNewProvUrl("");
+                    }}>
+                    Add
+                  </button>
+                </div>
+              </>)}
+            </div>
+          )}
+        </div>
 
         {/* ── Sync ───────────────────────────────────────── */}
         <div className="settings-accordion">
