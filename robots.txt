@@ -16,14 +16,14 @@ Allow: /
 User-agent: Baiduspider
 Allow: /
 
-# All allowed bots: keep out of app and data
+# All allowed bots: keep out of raw data/assets. app.html is intentionally
+# crawlable so its rel=canonical (→ /) is seen and it consolidates onto the
+# homepage instead of being indexed as a thin duplicate.
 User-agent: Googlebot
-Disallow: /app.html
 Disallow: /data/
 Disallow: /assets/
 
 User-agent: Bingbot
-Disallow: /app.html
 Disallow: /data/
 Disallow: /assets/
 
@@ -103,6 +103,5 @@ Disallow: /
 # Default: allow (catches other legit crawlers)
 User-agent: *
 Allow: /
-Disallow: /app.html
 Disallow: /data/
 Disallow: /assets/
