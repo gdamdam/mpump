@@ -2307,6 +2307,7 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, showDis
       <footer className="app-footer" style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: "0 6px" }}>
         <span><span className="app-footer-link" onClick={() => setShowAbout(true)}>v{__APP_VERSION__}</span> · © 2026 · <a href="https://github.com/gdamdam/mpump" target="_blank" rel="noopener noreferrer">github.com/gdamdam/mpump</a> · <a className="app-footer-link" href="mailto:info@mpump.live">info@mpump.live</a></span>
         <span><a className="app-footer-link" href="https://ko-fi.com/gdamdam" target="_blank" rel="noopener noreferrer" style={{ color: "#ff0000", fontWeight: 700, filter: "brightness(2)" }} onClick={() => trackEvent("kofi-footer")}>Support ♥</a> · <a className="app-footer-link" href="https://github.com/gdamdam/mpump/blob/main/LICENSE" target="_blank" rel="noopener noreferrer">AGPL-3.0</a> · <span className="app-footer-link" onClick={() => setShowPrivacy(true)}>No cookies · No personal tracking</span></span>
+        <span>Also by gdamdam: <a className="app-footer-link" href="https://mdrone.org" target="_blank" rel="noopener noreferrer">mdrone</a> · <a className="app-footer-link" href="https://mloop.mpump.live" target="_blank" rel="noopener noreferrer">mloop</a></span>
       </footer>
     </div>
   );
