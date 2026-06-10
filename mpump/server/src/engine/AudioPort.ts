@@ -56,12 +56,18 @@ export class AudioPort {
   private channelHPFs: Map<number, BiquadFilterNode> = new Map();
   /** Per-channel trance gate (LFO or pattern → GainNode). */
   private channelGates: Map<number, { lfo: OscillatorNode | null; depth: GainNode | null; gate: GainNode; on: boolean; timerId?: number; smoother?: BiquadFilterNode }> = new Map();
+  /** Last gate settings per channel — gate rates are derived from BPM at
+   *  creation, so setBpm re-applies these to stay on tempo. */
+  private channelGateSettings: Map<number, { rate: string; depth: number; shape: string; mode: string; pattern?: number[] }> = new Map();
   /** Per-note drum voice params (tune, decay, level). */
   private drumVoiceParams: Map<number, DrumVoiceParams> = new Map();
   /** Custom user samples (overrides synthesized kit when present). */
   private customSamples: Map<number, AudioBuffer> = new Map();
   /** Cached reverb impulse response. */
   private reverbIRCache: { decay: number; type: string; buffer: AudioBuffer } | null = null;
+  /** Per-channel ctx time until which scheduled gain automation (transition
+   *  ramps) is in flight — the heartbeat must not flush these timelines. */
+  private channelAutomationEnd: Map<number, number> = new Map();
   /** CPU load indicator: max scheduling drift in ms (updated by sequencer). */
   private _maxDrift = 0;
   /** Fixed ring buffer for drift samples — avoids per-second array allocation. */
@@ -122,6 +128,10 @@ export class AudioPort {
   /** Per-channel gate fractions for poly-synth (set by Engine from device config). */
   private polySynthGateFractions = new Map<number, number>();
   private polySynthGateFractionDefault = 0.8;
+  /** Notes scheduled before the poly-synth worklet finished loading (bounded). */
+  private pendingSynthNotes: { ch: number; note: number; vel: number; gate: number }[] = [];
+  /** True when the poly-synth worklet can never load (no audioWorklet support or addModule failed). */
+  private polySynthFailed = false;
   /** Default FX input bus — sources connect here when their group has the common exclude pattern. */
   private defaultGroupBus!: GainNode;
   /** Secondary FX input buses, keyed by exclude-pattern string (one per divergent group). */
@@ -141,6 +151,9 @@ export class AudioPort {
   private _userWidth = 0.5; // logical width set by user (0–1)
   /** Low cut filter on master output. */
   private lowCutFilter: BiquadFilterNode | null = null;
+  /** Whether the low cut filter is wired into the chain (set by the last
+   *  rebuild) — a rebuild while bypassed leaves the node unwired. */
+  private lowCutWired = false;
   /** Performance mode: "normal" | "lite" (no viz) | "eco" (lite + reduced audio). */
   readonly perfMode: "normal" | "lite" | "eco";
   /** Multiband compressor: splits into low/mid/high bands with per-band compression. */
@@ -248,8 +261,10 @@ export class AudioPort {
     this.mbDrumsDirectOut.connect(this.driveGain);
 
 
-    // Load AudioWorklet modules (skip in eco mode — fallback to standard biquad filters)
-    if (this.perfMode !== "eco") this.loadWorklets();
+    // Load AudioWorklet modules in every perf mode — the poly-synth worklet
+    // is the only synth/bass playback path (playSynth has no standard-node
+    // fallback), so skipping it would leave eco mode drums-only.
+    this.loadWorklets();
 
     // CV output
     this.cv = new CVOutput(this.ctx);
@@ -282,7 +297,10 @@ export class AudioPort {
         this.master.gain.cancelScheduledValues(0);
         this.master.gain.setValueAtTime(this._masterVol, ct);
       } catch { /* */ }
-      for (const [, bus] of this.channelBuses) {
+      for (const [ch, bus] of this.channelBuses) {
+        // Skip buses with in-flight transition ramps — cancelScheduledValues
+        // would freeze the ramp mid-flight (fades last ~2 bars).
+        if ((this.channelAutomationEnd.get(ch) ?? 0) > ct) continue;
         try {
           bus.gain.cancelScheduledValues(0);
           bus.gain.setValueAtTime(bus.gain.value, ct);
@@ -333,7 +351,21 @@ export class AudioPort {
   // ── AudioWorklet loading ─────────────────────────────────────────────
 
   private async loadWorklets(): Promise<void> {
-    if (!this.ctx.audioWorklet) return;
+    if (!this.ctx.audioWorklet) {
+      this.polySynthFailed = true;
+      this.pendingSynthNotes.length = 0;
+      return;
+    }
+    // Poly-synth first and separately — it is required (the only synth/bass
+    // path), so a failure in an optional module must not take it down.
+    try {
+      await this.ctx.audioWorklet.addModule("./worklets/poly-synth.js");
+    } catch (e) {
+      console.error("poly-synth worklet failed to load — synth and bass will be silent:", e);
+      this.polySynthFailed = true;
+      this.pendingSynthNotes.length = 0;
+      return;
+    }
     try {
       await Promise.all([
         this.ctx.audioWorklet.addModule("./worklets/moog-filter.js"),
@@ -342,33 +374,37 @@ export class AudioPort {
         this.ctx.audioWorklet.addModule("./worklets/sync-osc.js"),
         this.ctx.audioWorklet.addModule("./worklets/fm-osc.js"),
         this.ctx.audioWorklet.addModule("./worklets/wavetable-osc.js"),
-        this.ctx.audioWorklet.addModule("./worklets/poly-synth.js"),
       ]);
       this.workletsLoaded = true;
-      // Create persistent poly-synth node (output channels = 2 for stereo)
-      this.polySynth = new AudioWorkletNode(this.ctx, "poly-synth", {
-        numberOfInputs: 0,
-        numberOfOutputs: 1,
-        outputChannelCount: [2],
-      });
-      // Connect poly-synth to the default FX input bus (rebuildFxChain reroutes if needed)
-      this.polySynth.connect(this.defaultGroupBus);
-      this.sourceFxTarget.set("synthBass", this.defaultGroupBus);
-      for (const [ch, params] of this.channelParams) {
-        if (ch !== 9) this.sendPolySynthParams(params, ch);
-      }
-      for (const [ch, vol] of this.channelVolumes) {
-        if (ch !== 9) this.polySynth.port.postMessage({ type: "volume", channel: ch, volume: vol });
-      }
-      for (const [ch, panner] of this.channelPanners) {
-        if (ch !== 9) this.polySynth.port.postMessage({ type: "pan", channel: ch, pan: panner.pan.value });
-      }
-      this.polySynth.port.postMessage({ type: "bpm", bpm: this.bpm });
-      this.polySynth.port.postMessage({ type: "duck_params", depth: this.duckDepth, release: this.duckRelease });
     } catch (e) {
-      console.warn("AudioWorklet modules failed to load, using standard nodes:", e);
+      console.warn("Optional AudioWorklet modules failed to load, using standard nodes:", e);
       this.workletsLoaded = false;
     }
+    // Create persistent poly-synth node (output channels = 2 for stereo)
+    this.polySynth = new AudioWorkletNode(this.ctx, "poly-synth", {
+      numberOfInputs: 0,
+      numberOfOutputs: 1,
+      outputChannelCount: [2],
+    });
+    // Connect poly-synth to the default FX input bus (rebuildFxChain reroutes if needed)
+    this.polySynth.connect(this.defaultGroupBus);
+    this.sourceFxTarget.set("synthBass", this.defaultGroupBus);
+    for (const [ch, params] of this.channelParams) {
+      if (ch !== 9) this.sendPolySynthParams(params, ch);
+    }
+    for (const [ch, vol] of this.channelVolumes) {
+      if (ch !== 9) this.polySynth.port.postMessage({ type: "volume", channel: ch, volume: vol });
+    }
+    for (const [ch, panner] of this.channelPanners) {
+      if (ch !== 9) this.polySynth.port.postMessage({ type: "pan", channel: ch, pan: panner.pan.value });
+    }
+    this.polySynth.port.postMessage({ type: "bpm", bpm: this.bpm });
+    this.polySynth.port.postMessage({ type: "duck_params", depth: this.duckDepth, release: this.duckRelease });
+    // Flush notes that were scheduled while the worklet was still loading
+    for (const n of this.pendingSynthNotes) {
+      this.polySynth.port.postMessage({ type: "noteOn", channel: n.ch, note: n.note, vel: n.vel, gate: n.gate });
+    }
+    this.pendingSynthNotes.length = 0;
   }
 
   /** Set gate fraction for poly-synth per channel (called by Engine with device config value). */
@@ -1108,7 +1144,13 @@ export class AudioPort {
 
   /** Update BPM for tempo-synced LFO and delay. */
   setBpm(bpm: number): void {
+    if (bpm === this.bpm) return;
     this.bpm = bpm;
+    // Re-apply active trance gates — LFO rates and pattern step durations
+    // are derived from BPM at creation and would otherwise drift off-tempo.
+    for (const [ch, g] of this.channelGateSettings) {
+      this.setChannelGate(ch, true, g.rate, g.depth, g.shape, g.mode, g.pattern);
+    }
     if (this.polySynth) {
       this.polySynth.port.postMessage({ type: "bpm", bpm });
       // Re-sync LFO rates for tempo-synced channels
@@ -1244,6 +1286,9 @@ export class AudioPort {
   /** Set per-channel gate. Supports LFO mode (regular) and pattern mode (step-sequenced).
    *  Pattern mode: 16-step array of 0/1 values synced to BPM for irregular stutter effects. */
   setChannelGate(ch: number, on: boolean, rate: string, depth: number, shape: string, mode = "lfo", pattern?: number[]): void {
+    // Remember settings so setBpm can re-derive the BPM-based rates
+    if (on) this.channelGateSettings.set(ch, { rate, depth, shape, mode, pattern });
+    else this.channelGateSettings.delete(ch);
     // Worklet output bypasses channel buses — gate must run inside the worklet
     if (this.polySynth && ch !== DRUM_CH) {
       if (mode === "pattern" && pattern) {
@@ -1521,8 +1566,10 @@ export class AudioPort {
       if (this.lowCutFilter && this.lowCutFilter.type === "highpass") {
         this.fxOutput.connect(this.lowCutFilter);
         this.lowCutFilter.connect(this.eqLow);
+        this.lowCutWired = true;
       } else {
         this.fxOutput.connect(this.eqLow);
+        this.lowCutWired = false;
       }
       this.eqLow.connect(this.eqMid);
       this.eqMid.connect(this.eqHigh);
@@ -1647,7 +1694,9 @@ export class AudioPort {
       }
       return;
     }
-    const needsRebuild = !this.lowCutFilter;
+    // Rebuild when the filter isn't wired into the chain — either it doesn't
+    // exist yet, or a rebuild ran while bypassed and left it disconnected.
+    const needsRebuild = !this.lowCutWired;
     if (!this.lowCutFilter) {
       this.lowCutFilter = this.ctx.createBiquadFilter();
       this.lowCutFilter.Q.value = 0.7;
@@ -1698,6 +1747,7 @@ export class AudioPort {
       bus.gain.cancelScheduledValues(now);
       bus.gain.setValueAtTime(bus.gain.value, now);
       bus.gain.linearRampToValueAtTime(target, now + durationSec);
+      this.channelAutomationEnd.set(ch, now + durationSec);
     }
     // Update stored volumes to match targets
     for (const [ch, v] of Object.entries(targetVolumes)) {
@@ -1741,6 +1791,7 @@ export class AudioPort {
     bus.gain.linearRampToValueAtTime(0, now + 0.05);
     bus.gain.setValueAtTime(0, now + half - 0.05);
     bus.gain.linearRampToValueAtTime(origVol, now + half);
+    this.channelAutomationEnd.set(drumChannel, now + half);
   }
 
   /** Placeholder for dedicated transition LP filter node. */
@@ -2008,11 +2059,14 @@ export class AudioPort {
     // Send gate duration (seconds) so worklet handles its own release timing.
     // This avoids the issue where look-ahead scheduling sends noteOn+noteOff
     // back-to-back in the same tick, killing the voice before attack ramps up.
+    const stepDur = 60 / (this.bpm * 4); // 16th note duration in seconds
+    const noteLen = this.channelParams.get(ch)?.noteLength ?? 1;
+    const gateSec = stepDur * noteLen * (this.polySynthGateFractions.get(ch) ?? this.polySynthGateFractionDefault);
     if (this.polySynth) {
-      const stepDur = 60 / (this.bpm * 4); // 16th note duration in seconds
-      const noteLen = this.channelParams.get(ch)?.noteLength ?? 1;
-      const gateSec = stepDur * noteLen * (this.polySynthGateFractions.get(ch) ?? this.polySynthGateFractionDefault);
       this.polySynth.port.postMessage({ type: "noteOn", channel: ch, note, vel, gate: gateSec });
+    } else if (!this.polySynthFailed && this.pendingSynthNotes.length < 64) {
+      // Worklet still loading — queue so the first scheduled notes aren't dropped
+      this.pendingSynthNotes.push({ ch, note, vel, gate: gateSec });
     }
   }
   private releaseSynth(_ch: number, _note: number, _time?: number): void {

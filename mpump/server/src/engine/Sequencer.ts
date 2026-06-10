@@ -53,6 +53,9 @@ export class Sequencer {
   /** Velocity humanize: apply random ±15% variation at playback time. */
   private humanize = false;
 
+  /** External clock sync: when true, steps come from advanceStep() only. */
+  private externalSync = false;
+
   /** Arpeggiator state. */
   private arpEnabled = false;
   private arpMode: ArpMode = "up";
@@ -94,7 +97,25 @@ export class Sequencer {
       this.port.programChange(this.channel, this.programChange);
     }
 
-    this.timerId = window.setInterval(() => this.schedule(), SCHEDULE_INTERVAL_MS);
+    // In external sync mode the clock receiver drives steps via advanceStep()
+    if (!this.externalSync) {
+      this.timerId = window.setInterval(() => this.schedule(), SCHEDULE_INTERVAL_MS);
+    }
+  }
+
+  /** Enable/disable external clock sync. Suspends the internal look-ahead
+   *  scheduler while synced so MIDI clock ticks are the only step source
+   *  (otherwise both paths play notes — doubled, racing playback). */
+  setExternalSync(on: boolean): void {
+    if (this.externalSync === on) return;
+    this.externalSync = on;
+    if (on) {
+      window.clearInterval(this.timerId);
+    } else if (this.running) {
+      // Resume internal scheduling from now
+      this.nextStepTime = performance.now();
+      this.timerId = window.setInterval(() => this.schedule(), SCHEDULE_INTERVAL_MS);
+    }
   }
 
   stop(): void {

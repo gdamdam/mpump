@@ -33,6 +33,9 @@ export class T8Sequencer {
   /** Velocity humanize: apply random ±15% variation at playback time. */
   private humanize = false;
 
+  /** External clock sync: when true, steps come from advanceStep() only. */
+  private externalSync = false;
+
   constructor(opts: {
     port: MidiPort;
     drumChannel: number;
@@ -68,7 +71,25 @@ export class T8Sequencer {
     this.running = true;
     this.stepIndex = 0;
     this.pendingBassNote = null;
-    this.timerId = window.setInterval(() => this.schedule(), SCHEDULE_INTERVAL_MS);
+    // In external sync mode the clock receiver drives steps via advanceStep()
+    if (!this.externalSync) {
+      this.timerId = window.setInterval(() => this.schedule(), SCHEDULE_INTERVAL_MS);
+    }
+  }
+
+  /** Enable/disable external clock sync. Suspends the internal look-ahead
+   *  scheduler while synced so MIDI clock ticks are the only step source
+   *  (otherwise both paths play notes — doubled, racing playback). */
+  setExternalSync(on: boolean): void {
+    if (this.externalSync === on) return;
+    this.externalSync = on;
+    if (on) {
+      window.clearInterval(this.timerId);
+    } else if (this.running) {
+      // Resume internal scheduling from now
+      this.nextStepTime = performance.now();
+      this.timerId = window.setInterval(() => this.schedule(), SCHEDULE_INTERVAL_MS);
+    }
   }
 
   stop(): void {

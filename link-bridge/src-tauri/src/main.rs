@@ -8,7 +8,10 @@
 //!   2. Link poller — reads Link state 20× per second and broadcasts to all WS clients
 //!   3. Tauri — renders the companion app window
 //!
-//! No internet connections are made. Only local network UDP (Link) and localhost TCP (WebSocket).
+//! No internet connections are made. Only local network UDP (Link) and local network TCP
+//! (WebSocket). The WebSocket server intentionally binds 0.0.0.0 so any device on the LAN
+//! (phones, tablets, other laptops) can use the bridge — which also means any LAN host can
+//! read Link state and control tempo/transport through it.
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
@@ -131,7 +134,9 @@ async fn poll_link_state(
 }
 
 /// Listens for WebSocket connections on port 19876.
-/// Binds to 0.0.0.0 (falls back to [::] for IPv6-only systems).
+/// Intentionally binds 0.0.0.0 (falls back to [::] for IPv6-only systems) so any
+/// client on the LAN can use the bridge — not just this machine. Note this means
+/// any LAN host can control tempo/transport via the bridge.
 /// Both IPv4 and IPv6 are needed because Safari on macOS may connect via [::1].
 async fn run_ws_server(
     link: Arc<Mutex<AblLink>>,

@@ -432,6 +432,9 @@ export function useJam() {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      // Cancel any pending reconnect — it would reopen the socket and
+      // setState after unmount.
+      clearTimeout(retryTimerRef.current);
       if (wsRef.current) {
         wsRef.current.close();
         wsRef.current = null;

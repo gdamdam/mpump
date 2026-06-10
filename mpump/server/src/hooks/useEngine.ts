@@ -310,6 +310,11 @@ export function useEngine() {
   const startPreview = useCallback(async (skipRandomize = false) => {
     setMidiState("preview");
 
+    // Shut down any existing engine (mirrors connectMidi) — otherwise the old
+    // one keeps its sequencers and statechange/visibility/beforeunload
+    // listeners, and both engines dispatch full_state.
+    engineRef.current?.shutdown();
+
     const engine = new Engine(null, {
       onStateChange: (s) => dispatch({ type: "full_state", data: s }),
       onStep: (device, step) => dispatch({ type: "step", device, step }),

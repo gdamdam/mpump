@@ -7,7 +7,7 @@
   <a href="https://github.com/gdamdam/mpump"><img src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey" alt="Platforms"></a>
 </p>
 
-> **Open source & safe:** The Link Bridge is fully open source (AGPL-3.0). It makes no internet connections — only local network UDP for Link peer discovery and localhost WebSocket for browser sync. All code is auditable at [github.com/gdamdam/mpump/tree/main/link-bridge](https://github.com/gdamdam/mpump/tree/main/link-bridge).
+> **Open source & safe:** The Link Bridge is fully open source (AGPL-3.0). It makes no internet connections — only local network UDP for Link peer discovery and a local-network WebSocket (served to the whole LAN) for browser sync. All code is auditable at [github.com/gdamdam/mpump/tree/main/link-bridge](https://github.com/gdamdam/mpump/tree/main/link-bridge).
 
 ---
 
@@ -123,11 +123,11 @@ link-bridge/
 
 ## Network
 
-The Link Bridge makes **two types of network connections**, both local:
+The Link Bridge makes **two types of network connections**, both confined to your local network:
 
 1. **UDP multicast** on `224.76.78.75:20808` (LAN only) — this is how Ableton Link discovers peers on your local network. It triggers the macOS firewall prompt on first launch. **Click Allow** — without it, Link can't find Ableton or other apps. Nothing leaves your local network.
 
-2. **TCP listen** on `127.0.0.1:19876` (localhost only) — the WebSocket server that mpump.live connects to. Only your own machine can reach it.
+2. **TCP listen** on `0.0.0.0:19876` (whole LAN) — the WebSocket server that mpump.live connects to. This intentionally serves every device on your local network, so phones/tablets/other laptops running mpump can sync too. Implication: any host on your LAN can read Link state and control tempo/transport through the bridge — run it only on networks you trust.
 
 **No internet connection is made.** The app never contacts any external server.
 

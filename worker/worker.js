@@ -519,6 +519,8 @@ export default {
           });
         }
         const key = `sc:${id}`;
+        // Best-effort counter: KV is eventually consistent, so concurrent
+        // read-modify-write increments can be lost. Acceptable for stats.
         const current = parseInt(await env.BEATS.get(key) || "0", 10);
         ctx.waitUntil(env.BEATS.put(key, String(current + 1)));
         if (env.ANALYTICS) env.ANALYTICS.writeDataPoint({ blobs: ["share", id], doubles: [1] });
@@ -582,9 +584,11 @@ export default {
 
     const response = await handleRequest(url);
 
-    // Cache successful GET responses
+    // Cache successful GET responses (waitUntil keeps the worker alive until
+    // the async put settles — a floating promise can be cancelled or reject
+    // unobserved once the response returns)
     if (request.method === "GET" && response.status === 200) {
-      try { caches.default.put(request, response.clone()); } catch {}
+      try { ctx.waitUntil(caches.default.put(request, response.clone())); } catch {}
     }
 
     return response;
@@ -646,6 +650,8 @@ async function handleShorten(request, env) {
         const parentBeat = JSON.parse(parentData);
         if (parentBeat.url !== url) {
           const countKey = `rc:${parent}`;
+          // Best-effort counter: KV read-modify-write can lose concurrent
+          // increments (eventual consistency). Acceptable for stats.
           const current = parseInt(await env.BEATS.get(countKey) || "0", 10);
           await env.BEATS.put(countKey, String(current + 1));
           if (env.ANALYTICS) env.ANALYTICS.writeDataPoint({ blobs: ["remix", parent, id], doubles: [1] });
@@ -1012,7 +1018,8 @@ async function handleShortUrl(id, url, request, env, ctx) {
     env.BEATS.get(`pc:${id}`).then(v => parseInt(v || "0", 10)),
   ]);
 
-  // Increment play counter for non-bot requests (non-blocking), skip if ?nc=1
+  // Increment play counter for non-bot requests (non-blocking), skip if ?nc=1.
+  // Best-effort: KV read-modify-write can lose concurrent increments.
   const ua = request.headers.get("user-agent") || "";
   if (!BOT_RE.test(ua) && ctx && !url.searchParams.has("nc")) {
     ctx.waitUntil(env.BEATS.put(`pc:${id}`, String(playCount + 1)));

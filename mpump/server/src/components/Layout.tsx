@@ -705,6 +705,12 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, showDis
 
   // Ableton Link Bridge — runs at Layout level so it works even when Settings is closed
   const [linkConnected, setLinkConnected] = useState(false);
+  /** Last BPM considered in sync with Link (null until connected). */
+  const prevLocalBpm = useRef<number | null>(null);
+  /** Last tempo received from Link (rounded), or the value we last sent —
+   *  the push effect must never echo these back (re-sending the rounded
+   *  value would force-quantize fractional session tempos for all peers). */
+  const lastLinkTempo = useRef<number | null>(null);
   useEffect(() => {
     // Link Bridge off by default — users enable via Settings
     enableLinkBridge(getBool("mpump-link-bridge", false));
@@ -716,6 +722,7 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, showDis
         const rounded = Math.round(s.tempo);
         if (rounded !== prevLinkBpm) {
           prevLinkBpm = rounded;
+          lastLinkTempo.current = rounded;
           command({ type: "set_bpm", bpm: rounded });
         }
         // Sync play/stop — only react to changes
@@ -731,13 +738,25 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, showDis
     });
     return unsub;
   }, [command]);
-  // Push local BPM changes to Link so peers stay in sync
-  const prevLocalBpm = useRef(0);
+  // Push genuine user-initiated BPM changes to Link so peers stay in sync.
+  // Never push on connect (don't clobber the existing session tempo before
+  // the first Link state arrives) and never re-send a tempo just received.
   useEffect(() => {
-    if (linkConnected && state.bpm !== prevLocalBpm.current) {
-      prevLocalBpm.current = state.bpm;
-      sendLinkTempo(state.bpm);
+    if (!linkConnected) {
+      prevLocalBpm.current = null;
+      lastLinkTempo.current = null;
+      return;
     }
+    if (prevLocalBpm.current === null) {
+      // Just connected — adopt the current BPM without pushing
+      prevLocalBpm.current = state.bpm;
+      return;
+    }
+    if (state.bpm === prevLocalBpm.current) return;
+    prevLocalBpm.current = state.bpm;
+    if (state.bpm === lastLinkTempo.current) return; // applying a received tempo
+    lastLinkTempo.current = state.bpm; // Link will echo this back
+    sendLinkTempo(state.bpm);
   }, [state.bpm, linkConnected]);
   const mixHistoryRef = useRef<Array<{ bpm: number; genres: Record<string, { gi: number; pi: number; bgi: number; bpi: number }>; dk: string; sp: string; bp: string }>>([]);
   const mixCountRef = useRef(1);

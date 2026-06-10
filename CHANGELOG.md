@@ -1,5 +1,27 @@
 # Changelog
 
+## v1.12.0 — Review Fixes
+
+_Stability and correctness fixes from the 2026-06-09 code review._
+
+### Audio Engine
+- External MIDI clock sync no longer double-triggers: internal sequencer schedulers suspend while synced
+- Poly-synth worklet now loads in eco mode, with notes queued until the worklet is ready
+- Removed per-`process()` Float64Array allocation in the poly-synth worklet
+- Song-transition and breakdown ramps stay alive through heartbeat and scene loads
+- Trance gate rates re-derive on tempo change
+- Metronome click driven from the synth device only (fixes doubled metronome)
+- `songStop` pauses only connected devices; `setLowCut` rewires correctly after a bypassed rebuild
+- Prior engine shuts down before a preview starts (no more duplicate engines)
+
+### Link, Jam & Worker
+- Link bridge never pushes the browser BPM on connect and never echoes received tempo back
+- Jam reconnect timer cleared on unmount
+- Worker: cache writes wrapped in `waitUntil`; KV counters documented as best-effort
+
+### Docs
+- Link bridge docs corrected: the WS server intentionally serves the whole LAN, not just localhost
+
 ## v1.5.0 — Sound Quality Overhaul
 
 _103 commits. The biggest update to mpump's audio engine since launch._

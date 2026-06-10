@@ -495,6 +495,7 @@ export class Engine {
         programChange: null,
       });
       seq.setHumanize(this.humanize);
+      seq.setExternalSync(this.midiClockReceiver.enabled);
       seq.setArp(this.arpSettings.enabled, this.arpSettings.mode, this.arpSettings.rate);
       seq.onStep = (step) => {
         ds.step = step;
@@ -502,8 +503,10 @@ export class Engine {
         if (step === 0 && ds.chainEnabled) this.chainSwap(id);
         if (step === 0 && this.restartAtLoop.has(id)) this.restartDevice(id, true);
         if (step === 0 && this.songPlaying && id === this.songDriverDevice) this.songBarTick();
-        // Metronome click on quarter notes (every 4th step)
-        if (step % 4 === 0 && this.audioPort) this.audioPort.playClick();
+        // Metronome click on quarter notes (every 4th step).
+        // Only the synth-mode device drives the click — synth and bass run on
+        // separate timers, so letting both fire produces flamming double clicks.
+        if (step % 4 === 0 && config.mode === "synth" && this.audioPort) this.audioPort.playClick();
       };
       seq.start();
       this.sequencers.set(id, seq);
@@ -534,6 +537,7 @@ export class Engine {
         bpm: this.bpm, swing: this.swing, tStart,
       });
       seq.setHumanize(this.humanize);
+      seq.setExternalSync(this.midiClockReceiver.enabled);
       seq.onStep = (step) => {
         ds.step = step;
         this.cb.onStep(id, step);
@@ -1484,6 +1488,9 @@ export class Engine {
     } else {
       this.midiClockReceiver.disable(this.access);
     }
+    // Suspend internal look-ahead scheduling while externally synced —
+    // otherwise both the internal timers and the clock ticks play notes.
+    for (const [, seq] of this.sequencers) seq.setExternalSync(on);
   }
 
   /** Sweep C3→C4→C5 with 1 second each (CV calibration). */
@@ -1894,8 +1901,12 @@ export class Engine {
         setTimeout(() => this.applySongScene(scene), (barDuration * 500));
         break;
       case "breakdown":
-        if (this.audioPort) this.audioPort.transitionBreakdown(barDuration, 9);
+        // Apply the scene first — applySongScene's loadScene→setChannelVolume
+        // cancels bus automation, which would kill the breakdown instantly.
+        // Scheduling the breakdown after lets it restore to the new scene's
+        // drum volume for the drop.
         this.applySongScene(scene);
+        if (this.audioPort) this.audioPort.transitionBreakdown(barDuration, 9);
         break;
     }
   }
@@ -1945,9 +1956,10 @@ export class Engine {
   /** Stop song playback and stop all devices. */
   songStop(): void {
     this.songPlaying = false;
-    // Stop all devices
-    for (const [id] of this.deviceStates) {
-      if (!this.stopped.has(id)) {
+    // Stop connected devices only — pausing never-connected registry entries
+    // would add them to `stopped` and block auto-start on later hot-plug.
+    for (const [id, ds] of this.deviceStates) {
+      if (ds.connected && !this.stopped.has(id)) {
         this.togglePause(id);
       }
     }
