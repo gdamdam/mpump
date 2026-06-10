@@ -195,6 +195,9 @@ class PolySynthProcessor extends AudioWorkletProcessor {
     this._chGateCurrent = new Float64Array(16).fill(1); // smoothed gate value (starts open)
     this._chGateLfoRate = new Float64Array(16).fill(4); // Hz (LFO mode)
     this._chGateLfoShape = new Uint8Array(16);          // 0=square, 1=triangle
+    // Scratch buffer for per-block gate gains — preallocated, reused by
+    // process() (zero-allocation rule: no `new` on the audio thread)
+    this._gateGains = new Float64Array(16);
 
     // Wavetable data (generated once)
     this._wavetables = generateWavetables();
@@ -440,8 +443,9 @@ class PolySynthProcessor extends AudioWorkletProcessor {
       }
     }
 
-    // Pre-compute per-channel trance gate gain for this block
-    const gateGains = new Float64Array(16).fill(1);
+    // Pre-compute per-channel trance gate gain for this block (reused buffer)
+    const gateGains = this._gateGains;
+    gateGains.fill(1);
     const gateSmoothRate = 1 - Math.exp(-N / (0.002 * sr)); // ~2ms smoothing
     for (let ch = 0; ch < 16; ch++) {
       if (!this._chGateOn[ch]) { this._chGateCurrent[ch] = 1; continue; }
