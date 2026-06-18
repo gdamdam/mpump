@@ -1215,16 +1215,19 @@ export class Engine {
     const seq = this.sequencers.get(device);
     if (patternData && seq && "setPattern" in seq) {
       ds.melodicEdit = [...patternData];
-      (seq as Sequencer).setPattern(ds.melodicEdit);
     }
     if (drumData && seq && "setDrumPattern" in seq) {
       ds.drumEdit = drumData.map(hits => [...hits]);
-      (seq as T8Sequencer).setDrumPattern(ds.drumEdit);
     }
     if (bassData && seq && "setBassPattern" in seq) {
       ds.bassEdit = [...bassData];
-      (seq as T8Sequencer).setBassPattern(ds.bassEdit);
     }
+    // Apply via hotSwapPatterns so the device's mute state is respected. Calling
+    // seq.setPattern() directly here overwrote the muted silent pattern with the
+    // audible saved pattern, so a muted instrument played on the first Continue /
+    // shared-link load until a manual stop/play rebuilt it. hotSwapPatterns uses
+    // the edits we just stored, and substitutes a silent pattern while muted.
+    this.hotSwapPatterns(device);
     this.emitState();
   }
 
