@@ -1175,6 +1175,19 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, showDis
     for (const [id, d] of Object.entries(session.devices)) {
       genres[id] = { gi: d.genre_idx, pi: d.pattern_idx, bgi: d.bass_genre_idx, bpi: d.bass_pattern_idx };
     }
+    // Restore mute state BEFORE load_preset: loadPreset does stopDevice+startDevice
+    // (the same clean-restart path as a manual stop/play), and startDevice builds
+    // each sequencer's pattern from drumsMuted. Setting mute first means devices
+    // start already muted. Applying it afterwards left the freshly started
+    // sequencer audible — the later live hot-swap didn't stick — so a muted
+    // instrument kept playing on the first Continue / shared-link play.
+    // drumsMuted is the effective mute for all browser devices; bassMuted only
+    // applies to legacy drums+bass devices — only set when true so we don't
+    // clobber a standalone bass device's drumsMuted via setBassMute.
+    for (const [id, d] of Object.entries(session.devices)) {
+      command({ type: "set_drums_mute", device: id, muted: !!d.drumsMuted });
+      if (d.bassMuted) command({ type: "set_bass_mute", device: id, muted: true });
+    }
     command({ type: "load_preset", bpm: session.bpm, genres });
     // Restore edited pattern data (overrides catalog patterns with saved edits)
     for (const [id, d] of Object.entries(session.devices)) {
@@ -1183,13 +1196,6 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, showDis
           command({ type: "bulk_set_pattern", device: id, pattern_data: d.pattern_data as any, drum_data: d.drum_data as any, bass_data: d.bass_data as any });
         } catch (e) { console.warn("Failed to restore pattern for", id, e); }
       }
-    }
-    // Restore mute state (drumsMuted is the effective mute for all browser devices;
-    // bassMuted only applies to legacy drums+bass devices — only set when true so we
-    // don't clobber a standalone bass device's drumsMuted via setBassMute).
-    for (const [id, d] of Object.entries(session.devices)) {
-      command({ type: "set_drums_mute", device: id, muted: !!d.drumsMuted });
-      if (d.bassMuted) command({ type: "set_bass_mute", device: id, muted: true });
     }
     // Restore sound presets (index first, then override with saved params if tweaked)
     if (session.activeDrumKit) handleDrumKitChange(session.activeDrumKit);
