@@ -1199,12 +1199,14 @@ export class Engine {
       if (!ds.bassEdit) ds.bassEdit = [...this.getDeviceBassPattern(deviceId)];
       ds.bassEdit[stepIdx] = data;
       const seq = this.sequencers.get(deviceId) as T8Sequencer | undefined;
-      if (seq) seq.setBassPattern(ds.bassEdit);
+      // Store the edit, but keep the live pattern silent while muted (otherwise a
+      // muted instrument plays its restored edit, e.g. on a shared-link load).
+      if (seq) seq.setBassPattern(ds.bassMuted ? ds.bassEdit.map(() => null) : ds.bassEdit);
     } else {
       if (!ds.melodicEdit) ds.melodicEdit = [...this.getDeviceMelodicPattern(deviceId)];
       ds.melodicEdit[stepIdx] = data;
       const seq = this.sequencers.get(deviceId) as Sequencer | undefined;
-      seq?.setPattern(ds.melodicEdit);
+      seq?.setPattern(ds.drumsMuted ? ds.melodicEdit.map(() => null) : ds.melodicEdit);
     }
     this.emitState();
   }
@@ -1260,7 +1262,8 @@ export class Engine {
     }
     ds.drumEdit[stepIdx] = hits;
     const seq = this.sequencers.get(device) as T8Sequencer | undefined;
-    if (seq) seq.setDrumPattern(ds.drumEdit);
+    // Store the edit, but keep the live pattern silent while muted.
+    if (seq) seq.setDrumPattern(ds.drumsMuted ? ds.drumEdit.map(() => []) : ds.drumEdit);
     this.emitState();
   }
 
