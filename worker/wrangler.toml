@@ -15,7 +15,12 @@ preview_id = "6a5d6bfdedbb48ca8c1df0f924d8d688"
 [observability]
 enabled = true
 
-# Analytics Engine for time-series event tracking
+# Analytics Engine for time-series event tracking.
+# NOTE: deploying WITH this binding needs an auth credential that has the
+# "Account Analytics Engine: Edit" permission. Wrangler's OAuth login does NOT
+# request that scope, so `wrangler login` tokens fail here with API code 10089.
+# Deploy using a custom API token that includes Analytics Engine: Edit, e.g.
+#   CLOUDFLARE_API_TOKEN=<token> npx wrangler deploy
 [[analytics_engine_datasets]]
 binding = "ANALYTICS"
 dataset = "mpump_events"
