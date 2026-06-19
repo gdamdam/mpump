@@ -14,6 +14,7 @@ const MAX_PAYLOAD_CHARS = 32000;        // max incoming payload string length
 const MAX_DECOMPRESSED_BYTES = 1000000; // 1 MB inflate ceiling
 const MAX_STEPS = 64;                   // longest pattern rendered in the card
 const MAX_HITS = 16;                    // drum hits per step
+const MAX_URL_CHARS = 33000;            // stored share URL ceiling (payload + origin prefix)
 
 /** Decompress a ?z= payload (deflate + url-safe b64) to plain url-safe b64. */
 async function decompressPayload(z) {
@@ -524,8 +525,9 @@ export default {
     if (url.pathname === "/track" && request.method === "POST") {
       try {
         const { id } = await request.json();
-        if (!id || typeof id !== "string") {
-          return new Response(JSON.stringify({ error: "Missing id" }), {
+        // Validate id shape — prevents arbitrary `sc:{id}` KV key creation (storage abuse).
+        if (!id || typeof id !== "string" || !ID_RE.test(id)) {
+          return new Response(JSON.stringify({ error: "Invalid id" }), {
             status: 400, headers: { "Content-Type": "application/json", ...CORS },
           });
         }
@@ -613,6 +615,13 @@ async function handleShorten(request, env) {
     const { url, parent } = body;
     if (!url || typeof url !== "string") {
       return new Response(JSON.stringify({ error: "Missing url" }), {
+        status: 400, headers: { "Content-Type": "application/json", ...CORS },
+      });
+    }
+    // Cap stored URL length — guards against KV storage/cost abuse via the
+    // unauthenticated endpoint. A maxed-out legitimate share URL fits well under this.
+    if (url.length > MAX_URL_CHARS) {
+      return new Response(JSON.stringify({ error: "URL too long" }), {
         status: 400, headers: { "Content-Type": "application/json", ...CORS },
       });
     }

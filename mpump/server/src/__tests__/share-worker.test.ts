@@ -138,6 +138,15 @@ describe.skipIf(!RUN_INTEGRATION)("share worker (live)", () => {
     expect(res.status).toBe(400);
   });
 
+  it("POST /shorten returns 400 for oversized url", async () => {
+    const res = await fetch(`${WORKER_URL}/shorten`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: "https://mpump.live/app.html?z=" + "x".repeat(34000) }),
+    });
+    expect(res.status).toBe(400);
+  });
+
   it("short URL resolves and returns OG HTML", async () => {
     if (!testBeatId) return;
     const res = await fetch(`${WORKER_URL}/${testBeatId}`);
@@ -181,6 +190,15 @@ describe.skipIf(!RUN_INTEGRATION)("share worker (live)", () => {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({}),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it("POST /track returns 400 for malformed id", async () => {
+    const res = await fetch(`${WORKER_URL}/track`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: "../../etc/passwd" }),
     });
     expect(res.status).toBe(400);
   });

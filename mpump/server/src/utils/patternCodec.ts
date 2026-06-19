@@ -166,6 +166,74 @@ export function validateSharePayload(raw: unknown): SharePayload | null {
   return result;
 }
 
+/** Jam sync payload — superset of the share schema with per-device mute/volume
+ *  maps (see Layout's setSharePayloadGetter). Validated separately because
+ *  validateSharePayload would strip the jam-only `mutes`/`volumes` fields. */
+export interface SyncPayload {
+  bpm: number;
+  sw?: number;
+  dk?: string;
+  sp?: string;
+  bp?: string;
+  g: Record<string, { gi: number; pi: number; bgi?: number; bpi?: number }>;
+  mutes?: Record<string, { drums: boolean; bass: boolean }>;
+  volumes?: Record<string, number>; // deviceVolume, 0–1
+}
+
+/** Parse and validate a jam sync payload received from a peer. Returns null if
+ *  invalid. Applies the same hardening as validateSharePayload (proto-key
+ *  rejection, numeric clamping, length caps) plus the jam-only mute/volume maps. */
+export function validateSyncPayload(raw: unknown): SyncPayload | null {
+  if (!isPlainObject(raw)) return null;
+  const keys = Object.keys(raw);
+  if (keys.includes("__proto__") || keys.includes("constructor") || keys.includes("prototype")) return null;
+  const d = raw as Record<string, unknown>;
+
+  if (!isNum(d.bpm)) return null;
+  const bpm = clamp(Math.round(d.bpm as number), 20, 300);
+
+  if (!isPlainObject(d.g)) return null;
+  const g: SyncPayload["g"] = {};
+  for (const [key, val] of Object.entries(d.g as Record<string, unknown>)) {
+    if (typeof key !== "string" || key.length > 50) continue;
+    if (!isPlainObject(val)) continue;
+    const gi = isNum(val.gi) ? clamp(Math.round(val.gi as number), 0, 200) : 0;
+    const pi = isNum(val.pi) ? clamp(Math.round(val.pi as number), 0, 200) : 0;
+    const bgi = isNum(val.bgi) ? clamp(Math.round(val.bgi as number), 0, 200) : undefined;
+    const bpi = isNum(val.bpi) ? clamp(Math.round(val.bpi as number), 0, 200) : undefined;
+    g[key] = { gi, pi, bgi, bpi };
+  }
+  if (Object.keys(g).length === 0) return null;
+
+  const result: SyncPayload = { bpm, g };
+
+  if (isNum(d.sw)) result.sw = clamp(d.sw as number, 0, 1);
+  if (d.dk != null) result.dk = String(d.dk).slice(0, 100);
+  if (d.sp != null) result.sp = String(d.sp).slice(0, 100);
+  if (d.bp != null) result.bp = String(d.bp).slice(0, 100);
+
+  if (isPlainObject(d.mutes)) {
+    const mutes: Record<string, { drums: boolean; bass: boolean }> = {};
+    for (const [key, val] of Object.entries(d.mutes as Record<string, unknown>)) {
+      if (typeof key !== "string" || key.length > 50) continue;
+      if (!isPlainObject(val)) continue;
+      mutes[key] = { drums: !!val.drums, bass: !!val.bass };
+    }
+    result.mutes = mutes;
+  }
+
+  if (isPlainObject(d.volumes)) {
+    const volumes: Record<string, number> = {};
+    for (const [key, val] of Object.entries(d.volumes as Record<string, unknown>)) {
+      if (typeof key !== "string" || key.length > 50) continue;
+      if (isNum(val)) volumes[key] = clamp(val as number, 0, 1);
+    }
+    result.volumes = volumes;
+  }
+
+  return result;
+}
+
 // ── Pattern encoding/decoding ────────────────────────────────────────────
 
 /** Encode melodic/bass steps: "semi,vel,slide|semi,vel,slide|-|..." */

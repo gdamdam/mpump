@@ -22,7 +22,7 @@ import { ShareModal } from "./ShareModal";
 import { JamModal } from "./JamModal";
 import { JamReactions, useJamReactions } from "./JamReactions";
 import { useJam } from "../hooks/useJam";
-import { encodeSteps, decodeSteps, encodeDrumSteps, decodeDrumSteps, validateSharePayload, encodeGesture, decodeGesture, gestureUrlFit, encodeEffectParams, encodeSynthParamsCompact, decodeSynthParamsCompact, SHARE_SCHEMA_VERSION } from "../utils/patternCodec";
+import { encodeSteps, decodeSteps, encodeDrumSteps, decodeDrumSteps, validateSharePayload, validateSyncPayload, encodeGesture, decodeGesture, gestureUrlFit, encodeEffectParams, encodeSynthParamsCompact, decodeSynthParamsCompact, SHARE_SCHEMA_VERSION } from "../utils/patternCodec";
 import { useSupportPrompt, SupportPromptUI } from "./SupportPrompt";
 import { AboutModal } from "./AboutModal";
 import { MegaKaos } from "./MegaKaos";
@@ -532,7 +532,10 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, showDis
   // Apply a sync payload — extracted so it can be called immediately or deferred
   const applySyncPayload = useCallback((payload: string) => {
     try {
-      const data = decodeSharePayload(payload) as any;
+      // Validate before applying: a jam peer's payload is as untrusted as a
+      // share link, so harden it the same way (proto-key rejection, clamping).
+      const data = validateSyncPayload(decodeSharePayload(payload));
+      if (!data) { console.warn("[jam] invalid sync payload — ignoring"); return; }
       if (data.bpm) rawCommand({ type: "set_bpm", bpm: data.bpm } as ClientMessage);
       if (data.sw != null) rawCommand({ type: "set_swing", swing: data.sw } as ClientMessage);
       if (data.g) {

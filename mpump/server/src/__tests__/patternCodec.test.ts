@@ -8,6 +8,7 @@ import {
   encodeDrumSteps, decodeDrumSteps,
   encodeGesture, decodeGesture, gestureUrlFit,
   validateSharePayload,
+  validateSyncPayload,
   encodeSynthParamsCompact, decodeSynthParamsCompact,
 } from "../utils/patternCodec";
 import type { StepData, DrumHit } from "../types";
@@ -232,6 +233,72 @@ describe("validateSharePayload", () => {
   it("rejects invalid mute string", () => {
     const result = validateSharePayload(minimalPayload({ mu: "222" }));
     expect(result!.mu).toBeUndefined();
+  });
+});
+
+// ── validateSyncPayload (jam peer payloads) ──────────────────────────────
+
+describe("validateSyncPayload", () => {
+  const syncPayload = (overrides: Record<string, unknown> = {}) => ({
+    bpm: 128,
+    g: { preview_drums: { gi: 0, pi: 0 } },
+    ...overrides,
+  });
+
+  it("accepts a valid sync payload and preserves jam-only fields", () => {
+    const result = validateSyncPayload(syncPayload({
+      sw: 0.5, dk: "T-8", sp: "S-1", bp: "S-1",
+      mutes: { preview_drums: { drums: true, bass: false } },
+      volumes: { preview_drums: 0.8 },
+    }));
+    expect(result).not.toBeNull();
+    expect(result!.bpm).toBe(128);
+    expect(result!.mutes!.preview_drums).toEqual({ drums: true, bass: false });
+    expect(result!.volumes!.preview_drums).toBeCloseTo(0.8);
+    expect(result!.dk).toBe("T-8");
+  });
+
+  it("rejects non-object input", () => {
+    expect(validateSyncPayload(null)).toBeNull();
+    expect(validateSyncPayload("x")).toBeNull();
+    expect(validateSyncPayload(7)).toBeNull();
+  });
+
+  it("rejects prototype-pollution keys", () => {
+    const obj = syncPayload();
+    Object.defineProperty(obj, "__proto__", { enumerable: true, value: {} });
+    expect(validateSyncPayload(obj)).toBeNull();
+    const obj2: any = syncPayload();
+    Object.defineProperty(obj2, "constructor", { enumerable: true, value: {} });
+    expect(validateSyncPayload(obj2)).toBeNull();
+  });
+
+  it("rejects missing bpm or genres", () => {
+    expect(validateSyncPayload({ g: { d: { gi: 0, pi: 0 } } })).toBeNull();
+    expect(validateSyncPayload({ bpm: 120 })).toBeNull();
+    expect(validateSyncPayload({ bpm: 120, g: {} })).toBeNull();
+  });
+
+  it("clamps bpm, swing, and volume to safe ranges", () => {
+    expect(validateSyncPayload(syncPayload({ bpm: 9999 }))!.bpm).toBe(300);
+    expect(validateSyncPayload(syncPayload({ sw: 5 }))!.sw).toBe(1);
+    const vol = validateSyncPayload(syncPayload({ volumes: { d: 50 } }))!.volumes!.d;
+    expect(vol).toBe(1); // deviceVolume range is 0–1
+  });
+
+  it("coerces mute entries to booleans and drops non-numeric volumes", () => {
+    const result = validateSyncPayload(syncPayload({
+      mutes: { d: { drums: "yes", bass: 0 } },
+      volumes: { d: "loud", e: NaN, f: 0.3 },
+    }))!;
+    expect(result.mutes!.d).toEqual({ drums: true, bass: false });
+    expect(result.volumes).toEqual({ f: 0.3 });
+  });
+
+  it("clamps genre indices like the share validator", () => {
+    const result = validateSyncPayload(syncPayload({ g: { d: { gi: 999, pi: -3 } } }))!;
+    expect(result.g.d.gi).toBe(200);
+    expect(result.g.d.pi).toBe(0);
   });
 });
 
