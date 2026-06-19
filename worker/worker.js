@@ -8,9 +8,17 @@
 
 const APP_ORIGIN = "https://mpump.live";
 
+// Bounds to guard the worker isolate against hostile share payloads
+// (decompression bombs / huge step counts) that could exhaust CPU/memory.
+const MAX_PAYLOAD_CHARS = 32000;        // max incoming payload string length
+const MAX_DECOMPRESSED_BYTES = 1000000; // 1 MB inflate ceiling
+const MAX_STEPS = 64;                   // longest pattern rendered in the card
+const MAX_HITS = 16;                    // drum hits per step
+
 /** Decompress a ?z= payload (deflate + url-safe b64) to plain url-safe b64. */
 async function decompressPayload(z) {
   try {
+    if (z.length > MAX_PAYLOAD_CHARS) return z; // too large — let decode reject it
     const b64 = z.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(z.length / 4) * 4, "=");
     const binary = atob(b64);
     const bytes = new Uint8Array(binary.length);
@@ -21,12 +29,14 @@ async function decompressPayload(z) {
     writer.close();
     const reader = ds.readable.getReader();
     const chunks = [];
+    let total = 0;
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
+      total += value.length;
+      if (total > MAX_DECOMPRESSED_BYTES) { await reader.cancel(); throw new Error("decompressed payload too large"); }
       chunks.push(value);
     }
-    const total = chunks.reduce((n, c) => n + c.length, 0);
     const result = new Uint8Array(total);
     let offset = 0;
     for (const c of chunks) { result.set(c, offset); offset += c.length; }
@@ -52,6 +62,7 @@ function tryDecodeB64(payload) {
 /** Decode full payload for image generation. */
 function decodePayload(payload) {
   try {
+    if (payload.length > MAX_PAYLOAD_CHARS) throw new Error("payload too large");
     const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
     const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
     const data = JSON.parse(atob(padded));
@@ -66,7 +77,7 @@ function decodePayload(payload) {
       : [];
 
     const decodeSteps = (s) =>
-      s.split("|").map((p) => {
+      s.split("|").slice(0, MAX_STEPS).map((p) => {
         if (p === "-") return null;
         const [semi, vel] = p.split(",");
         return { semi: +semi, vel: +vel };
@@ -74,8 +85,8 @@ function decodePayload(payload) {
 
     let drums = [];
     if (data.de) {
-      drums = data.de.split("|").map((s) =>
-        s === "-" ? [] : s.split("+").map((h) => {
+      drums = data.de.split("|").slice(0, MAX_STEPS).map((s) =>
+        s === "-" ? [] : s.split("+").slice(0, MAX_HITS).map((h) => {
           const [n, v] = h.split(".");
           return { note: +n, vel: +v };
         })

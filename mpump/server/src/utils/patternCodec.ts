@@ -11,6 +11,11 @@ import type { StepData, DrumHit, EffectName, EffectParams } from "../types";
 
 // ── Share payload validation ─────────────────────────────────────────────
 
+/** Numeric schema version for share payloads. Absent on legacy links → treated
+ *  as 1. Bump when an existing field's meaning changes so newer-format links can
+ *  be detected instead of silently misdecoded. */
+export const SHARE_SCHEMA_VERSION = 1;
+
 const VALID_EFFECT_NAMES = new Set<string>(["compressor", "highpass", "distortion", "bitcrusher", "chorus", "phaser", "delay", "reverb", "flanger", "tremolo"]);
 const MAX_STEPS = 64;            // longest supported pattern (64 sixteenth-note steps)
 const MAX_HITS_PER_STEP = 16;    // drum polyphony limit per step
@@ -31,6 +36,7 @@ function isPlainObject(v: unknown): v is Record<string, unknown> {
 }
 
 export interface SharePayload {
+  v?: number;   // schema version (see SHARE_SCHEMA_VERSION); absent legacy links default to 1
   bpm: number;
   sw?: number;
   dk?: string;
@@ -87,6 +93,9 @@ export function validateSharePayload(raw: unknown): SharePayload | null {
   if (Object.keys(g).length === 0) return null;
 
   const result: SharePayload = { bpm, g };
+
+  // Schema version: optional; legacy links without it are version 1.
+  result.v = isNum(d.v) ? Math.round(d.v as number) : 1;
 
   // Swing: optional, number, 0–1
   if (isNum(d.sw)) result.sw = clamp(d.sw as number, 0, 1);

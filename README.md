@@ -31,7 +31,7 @@ Go deeper if you want:
 - MIDI clock, Ableton Link bridge, and optional self-hosted live jam / live set
 
 <p align="center">
-  <a href="https://github.com/gdamdam/mpump"><img src="https://img.shields.io/badge/version-1.12.4-blue" alt="Version"></a>
+  <a href="https://github.com/gdamdam/mpump"><img src="https://img.shields.io/badge/version-1.13.0-blue" alt="Version"></a>
   <a href="https://github.com/gdamdam/mpump/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue" alt="License"></a>
   <img src="https://img.shields.io/badge/Web%20Audio-API-FF6600" alt="Web Audio API">
   <img src="https://img.shields.io/badge/AudioWorklet-DSP-FF6600" alt="AudioWorklet">
@@ -80,7 +80,7 @@ No install. No account. No personal tracking. Your stuff stays on your device.
 
 All sounds are synthesized in real-time via the Web Audio API. No sample files needed.
 
-**Drums**: 808/909-tuned synthesized kit — all 9 voices (kick, snare, CH, OH, clap, rimshot, cowbell, crash, ride) level-matched to Roland TR-808 reference samples. Per-voice tune, decay, level, and tone shaping. 7 built-in sample packs (CR-78, DMX, LinnDrum, TR-606, TR-707, TR-808, TR-909) plus custom WAV/MP3/OGG loading.
+**Drums**: 808/909-tuned synthesized kit — all 9 voices (kick, snare, CH, OH, clap, rimshot, cowbell, crash, ride) level-matched to Roland TR-808 reference samples. Per-voice tune, decay, level, and tone shaping. 8 built-in sample packs (CR-78, Drumulator, DMX, LinnDrum, TR-606, TR-707, TR-808, TR-909) plus custom audio sample loading (any format the browser can decode).
 
 **Synth**: AudioWorklet poly-synth engine — zero-allocation voice synthesis running entirely on the audio thread. 8 waveforms — SAW, SQR, SIN, TRI, PWM (pulse width modulation), SYNC (hard sync), FM (2-operator frequency modulation), WTB (wavetable with 5 morph tables). Full ADSR envelope, 3 filter models: DIG (standard), MOG (4-pole Moog ladder via AudioWorklet), 303 (diode ladder). 4 filter types (LPF, HPF, BPF, notch) with cutoff, resonance, envelope depth, and drive. Sub-bass oscillator, unison (1–7 voices), detune, analog drift, and LFO with tempo sync. Per-channel trance gate and sidechain duck run inside the worklet for sample-accurate timing.
 
@@ -102,7 +102,7 @@ All sounds are synthesized in real-time via the Web Audio API. No sample files n
 | Bass | 26 | Acid Bass (303 filter), Deep Sub, Reese (MOG filter), 303 Acid, FM Bass, PWM Bass, Jungle Bass, Sync Bass, Dub Bass, Wobble, UK Sub, and more |
 | Drum Kits | 16 | Default, Boom Box, DnB, Dub, Electro, Garage, Glitch, Heavy, House, Industrial, Lo-Fi, Minimal, mloop, Tight, Trance, and more |
 | Mix Scenes | 10 | Neutral, Punchy, Warm, Airy, Tight, Heavy, Mellow, Spacious, Crisp, Loud |
-| Sample Packs | 7 | CR-78, DMX, LinnDrum, TR-606, TR-707, TR-808, TR-909 |
+| Sample Packs | 8 | CR-78, Drumulator, DMX, LinnDrum, TR-606, TR-707, TR-808, TR-909 |
 
 ---
 
@@ -166,7 +166,7 @@ All sounds are synthesized in real-time via the Web Audio API. No sample files n
 - 6 color themes (Forest, Amber, Neon, Minimal, Cream, Rosé)
 - Keyboard shortcuts (Space, R, arrows for navigation, M/S/L for mute/solo/lock, B for BPM, Tab to cycle views, 1-3 for view mode, ? for help)
 - QWERTY keyboard playing (⌨ button per instrument, A–L white keys, W–O black keys, Z/X octave, C/V velocity)
-- PWA with offline support and auto-update detection
+- PWA with offline support (after first load) and auto-update detection
 - MIDI device connect button (no permission prompt on load)
 - Responsive: works on desktop, tablet, and mobile
 

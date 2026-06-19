@@ -1,5 +1,12 @@
 import pako from "pako";
 
+/** Max length of an incoming payload string. A maxed-out legitimate session
+ *  compresses to a few KB of base64; anything far larger is hostile. */
+export const MAX_PAYLOAD_CHARS = 32_000;
+/** Ceiling on inflated output (chars). Guards against decompression bombs:
+ *  a few KB of deflate can otherwise expand to hundreds of MB and OOM the tab. */
+export const MAX_DECOMPRESSED_CHARS = 1_000_000;
+
 // --- Encoding: JSON → compressed URL-safe base64 ---
 
 /** Compress an object to URL-safe base64 (deflate + b64). */
@@ -17,8 +24,30 @@ function uint8ToUrlSafeB64(bytes: Uint8Array): string {
 
 // --- Decoding: supports both ?z= (compressed) and ?b= (legacy plain base64) ---
 
+/** Inflate with a hard ceiling on output size — aborts a decompression bomb
+ *  before it can allocate unbounded memory. */
+function inflateBounded(bytes: Uint8Array, maxChars: number): string {
+  const inflator = new pako.Inflate({ to: "string" });
+  let out = "";
+  let aborted = false;
+  inflator.onData = (chunk: unknown) => {
+    out += chunk as string;
+    if (out.length > maxChars) { aborted = true; throw new RangeError("share payload too large"); }
+  };
+  inflator.onEnd = () => { /* output accumulated in onData */ };
+  try {
+    inflator.push(bytes, true);
+  } catch (e) {
+    if (aborted) throw new RangeError("share payload too large");
+    throw e;
+  }
+  if (inflator.err) throw new Error("invalid share payload");
+  return out;
+}
+
 /** Decode a share payload string. Auto-detects compressed vs plain. */
 export function decodeSharePayload(payload: string): unknown {
+  if (payload.length > MAX_PAYLOAD_CHARS) throw new RangeError("share payload too large");
   const b64 = payload.replace(/-/g, "+").replace(/_/g, "/").padEnd(Math.ceil(payload.length / 4) * 4, "=");
   const binary = atob(b64);
   const bytes = new Uint8Array(binary.length);
@@ -26,10 +55,9 @@ export function decodeSharePayload(payload: string): unknown {
 
   // Deflate streams start with 0x78 (zlib header)
   if (bytes.length > 2 && bytes[0] === 0x78) {
-    const decompressed = pako.inflate(bytes, { to: "string" });
-    return JSON.parse(decompressed);
+    return JSON.parse(inflateBounded(bytes, MAX_DECOMPRESSED_CHARS));
   }
-  // Plain JSON base64
+  // Plain JSON base64 (input is already length-capped above)
   return JSON.parse(binary);
 }
 

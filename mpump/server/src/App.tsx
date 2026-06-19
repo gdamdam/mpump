@@ -4,7 +4,7 @@ import { Layout } from "./components/Layout";
 import { MidiGate } from "./components/MidiGate";
 import { ShareModal } from "./components/ShareModal";
 import { isSupported } from "./engine/MidiAccess";
-import { setItem, getJSON } from "./utils/storage";
+import { getItem, setItem, getJSON } from "./utils/storage";
 import { trackEvent } from "./utils/metrics";
 import { getLastSession, type SessionData } from "./utils/session";
 import { extractPayloadFromUrl } from "./utils/shareCodec";
@@ -16,7 +16,7 @@ export function getPerfMode(): PerfMode {
   const params = new URLSearchParams(window.location.search);
   if (params.get("eco") === "true") return "eco";
   if (params.get("lite") === "true") return "lite";
-  const stored = localStorage.getItem("mpump-perf-mode");
+  const stored = getItem("mpump-perf-mode");
   if (stored === "lite" || stored === "eco") return stored;
   return "normal";
 }

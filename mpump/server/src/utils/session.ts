@@ -4,8 +4,15 @@
 import { trackEvent } from "./metrics";
 import { getItem, getBool, getJSON, setJSON } from "./storage";
 
+/** Numeric schema version for the session format. Bump when an existing field's
+ *  meaning changes (not for purely additive fields). Lets newer-format sessions
+ *  be detected and rejected rather than silently misloaded. */
+export const SESSION_SCHEMA_VERSION = 1;
+
 export interface SessionData {
   version: string;
+  /** Schema version (see SESSION_SCHEMA_VERSION). Absent on legacy sessions → treated as 1. */
+  schemaVersion?: number;
   timestamp: string;
   bpm: number;
   swing: number;
@@ -82,6 +89,7 @@ export function exportSession(
 
   return {
     version: __APP_VERSION__,
+    schemaVersion: SESSION_SCHEMA_VERSION,
     timestamp: new Date().toISOString(),
     bpm: state.bpm,
     swing: state.swing,
@@ -146,6 +154,9 @@ export function readSessionFile(file: File): Promise<SessionData> {
       try {
         const data = JSON.parse(reader.result as string);
         if (!data.version || !data.devices) throw new Error("Invalid session file");
+        if (typeof data.schemaVersion === "number" && data.schemaVersion > SESSION_SCHEMA_VERSION) {
+          throw new Error("This session was saved by a newer version of mpump. Please update to open it.");
+        }
         resolve(data as SessionData);
       } catch (e) {
         reject(e);
@@ -198,6 +209,8 @@ export function getRecentSessions(): RecentSession[] {
 // ── Saved sessions (persistent, user-managed) ──────────────────────────
 
 const SAVED_KEY = "mpump-saved-sessions";
+/** Hard cap on persisted saved sessions to bound localStorage growth. */
+export const MAX_SAVED = 50;
 
 export interface SavedSession {
   id: string;
@@ -210,12 +223,25 @@ export function getSavedSessions(): SavedSession[] {
   return getJSON<SavedSession[]>(SAVED_KEY, []);
 }
 
-export function saveSession(name: string, data: SessionData): SavedSession {
+/**
+ * Persist a session to the saved library. Caps the list at MAX_SAVED and, under
+ * quota pressure, evicts the oldest entries so the newest save survives.
+ * Returns the stored entry, or null if even a single entry could not be written
+ * (so callers can surface a real error instead of falsely reporting success).
+ */
+export function saveSession(name: string, data: SessionData): SavedSession | null {
   const list = getSavedSessions();
   const entry: SavedSession = { id: crypto.randomUUID(), name, timestamp: Date.now(), data };
   list.unshift(entry);
-  setJSON(SAVED_KEY, list);
-  return entry;
+  if (list.length > MAX_SAVED) list.length = MAX_SAVED;
+  // Try to persist; on quota failure drop the oldest entry and retry until it
+  // fits or only the new entry remains.
+  let ok = setJSON(SAVED_KEY, list);
+  while (!ok && list.length > 1) {
+    list.pop();
+    ok = setJSON(SAVED_KEY, list);
+  }
+  return ok ? entry : null;
 }
 
 export function renameSavedSession(id: string, name: string): void {

@@ -260,9 +260,10 @@ describe("saved sessions (persistent)", () => {
   it("saveSession adds a session and returns it", () => {
     const s = makeSession();
     const saved = saveSession("My Mix", s);
-    expect(saved.name).toBe("My Mix");
-    expect(saved.id).toBeDefined();
-    expect(saved.data.bpm).toBe(130);
+    expect(saved).not.toBeNull();
+    expect(saved!.name).toBe("My Mix");
+    expect(saved!.id).toBeDefined();
+    expect(saved!.data.bpm).toBe(130);
     expect(getSavedSessions()).toHaveLength(1);
   });
 
@@ -277,7 +278,7 @@ describe("saved sessions (persistent)", () => {
   it("renameSavedSession updates the name", () => {
     const s = makeSession();
     const saved = saveSession("Old Name", s);
-    renameSavedSession(saved.id, "New Name");
+    renameSavedSession(saved!.id, "New Name");
     expect(getSavedSessions()[0].name).toBe("New Name");
   });
 
@@ -292,7 +293,7 @@ describe("saved sessions (persistent)", () => {
     const s = makeSession();
     const saved = saveSession("Delete Me", s);
     saveSession("Keep Me", s);
-    deleteSavedSession(saved.id);
+    deleteSavedSession(saved!.id);
     const list = getSavedSessions();
     expect(list).toHaveLength(1);
     expect(list[0].name).toBe("Keep Me");

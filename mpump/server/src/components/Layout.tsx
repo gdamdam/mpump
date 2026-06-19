@@ -22,7 +22,7 @@ import { ShareModal } from "./ShareModal";
 import { JamModal } from "./JamModal";
 import { JamReactions, useJamReactions } from "./JamReactions";
 import { useJam } from "../hooks/useJam";
-import { encodeSteps, decodeSteps, encodeDrumSteps, decodeDrumSteps, validateSharePayload, encodeGesture, decodeGesture, gestureUrlFit, encodeEffectParams, encodeSynthParamsCompact, decodeSynthParamsCompact } from "../utils/patternCodec";
+import { encodeSteps, decodeSteps, encodeDrumSteps, decodeDrumSteps, validateSharePayload, encodeGesture, decodeGesture, gestureUrlFit, encodeEffectParams, encodeSynthParamsCompact, decodeSynthParamsCompact, SHARE_SCHEMA_VERSION } from "../utils/patternCodec";
 import { useSupportPrompt, SupportPromptUI } from "./SupportPrompt";
 import { AboutModal } from "./AboutModal";
 import { MegaKaos } from "./MegaKaos";
@@ -885,6 +885,15 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, showDis
       tid = window.setTimeout(() => {
         const genres: Record<string, { gi: number; pi: number; bgi: number; bpi: number }> = {};
         for (const [k, v] of Object.entries(data.g)) genres[k] = { gi: v.gi, pi: v.pi, bgi: v.bgi ?? 0, bpi: v.bpi ?? 0 };
+        // Restore mute state BEFORE load_preset: startDevice reads the mute flag
+        // when it (re)builds each sequencer, so muted instruments start silent.
+        // Matches applySession ordering and avoids a transient audible blip of a
+        // muted instrument on shared-link load.
+        if (data.mu && data.mu.length === 3) {
+          if (data.mu[0] === "1") command({ type: "set_drums_mute", device: "preview_drums", muted: true });
+          if (data.mu[1] === "1") command({ type: "set_bass_mute", device: "preview_bass", muted: true });
+          if (data.mu[2] === "1") command({ type: "set_drums_mute", device: "preview_synth", muted: true });
+        }
         command({ type: "load_preset", bpm: data.bpm, genres });
         if (data.sw != null) command({ type: "set_swing", swing: data.sw });
         if (data.dk != null) handleDrumKitChange(data.dk);
@@ -961,12 +970,7 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, showDis
         if (data.lc != null) command({ type: "set_low_cut", freq: data.lc } as ClientMessage);
         if (data.mb === 0) command({ type: "set_multiband", on: false } as ClientMessage);
         if (data.mba != null) command({ type: "set_multiband_amount", amount: data.mba / 100 } as ClientMessage);
-        // Restore mute states
-        if (data.mu && data.mu.length === 3) {
-          if (data.mu[0] === "1") command({ type: "set_drums_mute", device: "preview_drums", muted: true });
-          if (data.mu[1] === "1") command({ type: "set_bass_mute", device: "preview_bass", muted: true });
-          if (data.mu[2] === "1") command({ type: "set_drums_mute", device: "preview_synth", muted: true });
-        }
+        // (mute state is applied before load_preset above)
         // Ensure music is playing after share link loads
         for (const d of connectedDevices) {
           if (d.paused) command({ type: "toggle_pause", device: d.id });
@@ -1259,7 +1263,11 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, showDis
       antiClipModeRef.current,
     );
     const name = getItem("mpump-track-name", "") || "Untitled";
-    saveSession(`${name} · ${stateRef.current.bpm} BPM`, session);
+    const saved = saveSession(`${name} · ${stateRef.current.bpm} BPM`, session);
+    if (!saved) {
+      alert("Couldn't save — your browser's storage is full. Delete some saved sessions and try again.");
+      return;
+    }
     // Also update autosave + last-session so Continue works immediately after save
     setJSON("mpump-autosave", session);
     saveLastSession(session, name);
@@ -1278,6 +1286,7 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, showDis
     for (const d of cd) g[d.id] = { gi: d.genre_idx, pi: d.pattern_idx, bgi: d.bass_genre_idx, bpi: d.bass_pattern_idx };
     const synthDev2 = cd.find(d => d.id === "preview_synth");
     const base: Record<string, unknown> = {
+      v: SHARE_SCHEMA_VERSION,
       bpm: stateRef.current.bpm, sw: stateRef.current.swing, dk: activeDrumKitRef.current, sp: activeSynthRef.current, bp: activeBassRef.current, g,
       tn: getItem("mpump-track-name", "mix"),
       ki: synthDev2?.key_idx ?? 0, oc: synthDev2?.octave ?? 2,
@@ -1685,7 +1694,7 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, showDis
       <header className="header">
         <div className="title">
           <pre ref={logoRef} className={`title-art ${logoFlash ? "logo-flash" : ""} ${logoKick ? "logo-kick" : ""}`} key={logoFlash} title="1× pulse · 2× beat sync · 3× theme · 4× credits" onClick={handleLogoClick}>{"█▀▄▀█ █▀█ █ █ █▀▄▀█ █▀█\n█ ▀ █ █▀▀ ▀▄▀ █ ▀ █ █▀▀"}</pre>
-          {(() => { const p = new URLSearchParams(window.location.search); const pm = p.get("eco") === "true" ? "eco" : p.get("lite") === "true" ? "lite" : localStorage.getItem("mpump-perf-mode"); return pm === "eco" || pm === "lite" ? <span className="beta-badge" style={{ background: pm === "eco" ? "#ff8c00" : "#ffcc00", color: pm === "eco" ? "#000" : "#000", marginLeft: 3, cursor: "pointer" }} title="Tap to switch back to Normal" onClick={() => { if (confirm(`Switch from ${pm === "eco" ? "Eco" : "Lite"} to Normal mode?\n\nThis restores full animations and audio quality.`)) { localStorage.setItem("mpump-perf-mode", "normal"); window.location.reload(); } }}>{pm === "eco" ? "ECO" : "LITE"}</span> : null; })()}
+          {(() => { const p = new URLSearchParams(window.location.search); const pm = p.get("eco") === "true" ? "eco" : p.get("lite") === "true" ? "lite" : getItem("mpump-perf-mode"); return pm === "eco" || pm === "lite" ? <span className="beta-badge" style={{ background: pm === "eco" ? "#ff8c00" : "#ffcc00", color: pm === "eco" ? "#000" : "#000", marginLeft: 3, cursor: "pointer" }} title="Tap to switch back to Normal" onClick={() => { if (confirm(`Switch from ${pm === "eco" ? "Eco" : "Lite"} to Normal mode?\n\nThis restores full animations and audio quality.`)) { setItem("mpump-perf-mode", "normal"); window.location.reload(); } }}>{pm === "eco" ? "ECO" : "LITE"}</span> : null; })()}
           <CpuDot getCpuLoad={getCpuLoad} />
           {linkConnected && <span style={{ color: "#66ff99", fontSize: 10, marginLeft: 2, verticalAlign: "top" }} title="Ableton Link connected">●</span>}
         </div>

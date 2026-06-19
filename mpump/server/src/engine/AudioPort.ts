@@ -9,6 +9,7 @@
 import type { SynthParams, EffectParams, EffectName, DrumVoiceParams } from "../types";
 import { DEFAULT_SYNTH_PARAMS, DEFAULT_EFFECTS, DEFAULT_DRUM_VOICE, lfoDivisionToHz, delayDivisionToSeconds } from "../types";
 import { CVOutput } from "./CVOutput";
+import { getItem } from "../utils/storage";
 import {
   perfToCtx,
   buildKit, DrumKit, DRUM_SYNTHS, applyFilter, applyFadeOut,
@@ -172,7 +173,7 @@ export class AudioPort {
     const AC = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     // Performance mode from App-level detection
     const params = new URLSearchParams(window.location.search);
-    this.perfMode = params.get("eco") === "true" ? "eco" : params.get("lite") === "true" ? "lite" : (localStorage.getItem("mpump-perf-mode") as "normal" | "lite" | "eco") ?? "normal";
+    this.perfMode = params.get("eco") === "true" ? "eco" : params.get("lite") === "true" ? "lite" : (getItem("mpump-perf-mode", "normal") as "normal" | "lite" | "eco");
     // Larger buffer prevents crackling under heavy effects chains (convolver, chorus, etc.).
     // The sequencer lookahead absorbs the extra latency.
     const hint = this.perfMode === "eco" ? "playback" : "balanced";

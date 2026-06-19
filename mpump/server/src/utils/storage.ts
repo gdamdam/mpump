@@ -11,11 +11,13 @@ export function getItem(key: string, fallback = ""): string {
   }
 }
 
-export function setItem(key: string, value: string): void {
+export function setItem(key: string, value: string): boolean {
   try {
     localStorage.setItem(key, value);
+    return true;
   } catch {
-    // Quota exceeded or private browsing — silently fail
+    // Quota exceeded or private browsing — report failure so callers can react
+    return false;
   }
 }
 
@@ -36,10 +38,13 @@ export function getJSON<T>(key: string, fallback: T): T {
   }
 }
 
-export function setJSON(key: string, value: unknown): void {
+export function setJSON(key: string, value: unknown): boolean {
   try {
     localStorage.setItem(key, JSON.stringify(value));
+    return true;
   } catch {
-    // Quota exceeded
+    // Quota exceeded — report failure so callers can surface it instead of
+    // silently losing the write (and falsely signalling success to the user).
+    return false;
   }
 }

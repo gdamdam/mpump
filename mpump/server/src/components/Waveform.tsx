@@ -1,5 +1,5 @@
 import { useRef, useEffect, useCallback } from "react";
-import { getBool } from "../utils/storage";
+import { getBool, getItem } from "../utils/storage";
 import type { ClientMessage } from "../types";
 
 interface Props {
@@ -53,7 +53,7 @@ export function Waveform({ getAnalyser, command }: Props) {
     ro.observe(canvas);
 
     const p = new URLSearchParams(window.location.search);
-    const isLite = p.get("lite") === "true" || p.get("eco") === "true" || localStorage.getItem("mpump-perf-mode") === "lite" || localStorage.getItem("mpump-perf-mode") === "eco";
+    const isLite = p.get("lite") === "true" || p.get("eco") === "true" || getItem("mpump-perf-mode") === "lite" || getItem("mpump-perf-mode") === "eco";
     let dataBuf: Uint8Array | null = null;
     let skip = 0;
     const draw = () => {

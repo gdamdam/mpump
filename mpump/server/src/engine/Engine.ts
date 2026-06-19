@@ -14,6 +14,7 @@
 
 import type { StepData, DrumHit, EngineState, Catalog, DeviceState, SynthParams, EffectName, EffectParams, DrumVoiceParams, SongScene, SongArrangementEntry, SongPlaybackState, SongState, TransitionType } from "../types";
 import { DEFAULT_SYNTH_PARAMS } from "../types";
+import { getItem, setItem } from "../utils/storage";
 import type { MidiPort } from "./MidiPort";
 import { AudioPort } from "./AudioPort";
 import { SYNTH_PRESETS, BASS_PRESETS, DRUM_KIT_PRESETS } from "../data/soundPresets";
@@ -356,9 +357,9 @@ export class Engine {
       // Curated selection fades over sessions (by unique days), with a 40% floor:
       // day 1=100%, 2=80%, 3=60%, 4=50%, 5+=40% (always some chance of a good combo)
       const today = new Date().toISOString().slice(0, 10);
-      const lastDay = localStorage.getItem("mpump-load-day") ?? "";
-      let loadCount = parseInt(localStorage.getItem("mpump-load-count") ?? "0");
-      if (today !== lastDay) { loadCount++; localStorage.setItem("mpump-load-count", String(loadCount)); localStorage.setItem("mpump-load-day", today); }
+      const lastDay = getItem("mpump-load-day", "");
+      let loadCount = parseInt(getItem("mpump-load-count", "0"));
+      if (today !== lastDay) { loadCount++; setItem("mpump-load-count", String(loadCount)); setItem("mpump-load-day", today); }
       const curateChance = Math.max(0.4, 1 - (loadCount - 1) * 0.2); // 1.0→0.8→0.6→0.5→0.4 floor
       const useCurated = Math.random() < curateChance;
 
@@ -780,8 +781,8 @@ export class Engine {
   ]);
 
   private isKeyLocked(): boolean {
-    const v = localStorage.getItem("mpump-key-lock");
-    return v === null || v === "true";
+    // Default (unset) is locked → getItem returns "true" when missing.
+    return getItem("mpump-key-lock", "true") === "true";
   }
 
   setKey(device: string, idx: number): void {

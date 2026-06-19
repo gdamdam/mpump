@@ -1,11 +1,26 @@
 // Cache version — bump this on every deploy to invalidate old caches
-const CACHE_VERSION = "1.12.4";
+const CACHE_VERSION = "1.13.0";
 const CACHE = `mpump-${CACHE_VERSION}`;
 
-// Pre-cache essential assets on install for offline support
+// Pre-cache the assets needed to produce sound + patterns offline. The hashed
+// JS bundle is cached network-first on first load; these static assets (audio
+// worklets + pattern data) are NOT hashed and would otherwise be missing on a
+// cold offline load, leaving the app silent with no patterns.
 const PRECACHE_URLS = [
   "./",
   "./index.html",
+  "./worklets/poly-synth.js",
+  "./worklets/bitcrusher.js",
+  "./worklets/diode-filter.js",
+  "./worklets/fm-osc.js",
+  "./worklets/moog-filter.js",
+  "./worklets/sync-osc.js",
+  "./worklets/wavetable-osc.js",
+  "./data/catalog.json",
+  "./data/featured.json",
+  "./data/patterns-s1.json",
+  "./data/patterns-t8-bass.json",
+  "./data/patterns-t8-drums.json",
 ];
 
 self.addEventListener("install", (e) => {

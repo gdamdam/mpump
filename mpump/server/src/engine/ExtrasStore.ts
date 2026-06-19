@@ -1,16 +1,14 @@
+import { getJSON, setJSON } from "../utils/storage";
+
 const STORAGE_KEY = "mpump-extras";
 
 export type ExtrasData = Record<string, { name: string; desc: string; steps: unknown }[]>;
 
 export function loadExtras(): ExtrasData {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
+  return getJSON<ExtrasData>(STORAGE_KEY, {});
 }
 
-export function saveExtras(extras: Record<string, unknown>): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(extras));
+/** Persist extras. Returns false if storage is full/unavailable (never throws). */
+export function saveExtras(extras: Record<string, unknown>): boolean {
+  return setJSON(STORAGE_KEY, extras);
 }

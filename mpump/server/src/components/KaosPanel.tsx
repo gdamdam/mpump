@@ -245,7 +245,7 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
     ro.observe(canvas);
 
     const p = new URLSearchParams(window.location.search);
-    const perfMode = p.get("eco") === "true" ? "eco" : p.get("lite") === "true" ? "lite" : (localStorage.getItem("mpump-perf-mode") ?? "normal");
+    const perfMode = p.get("eco") === "true" ? "eco" : p.get("lite") === "true" ? "lite" : getItem("mpump-perf-mode", "normal");
     let vizFrameSkip = 0;
     const draw = () => {
       waveRafRef.current = requestAnimationFrame(draw);
