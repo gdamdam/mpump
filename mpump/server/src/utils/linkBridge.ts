@@ -6,8 +6,9 @@
  * WebSocket connection and provides a simple pub/sub API for Link state.
  *
  * Connection strategy:
- *   - Tries ws://127.0.0.1, ws://[::1], ws://localhost (for Safari compatibility)
- *   - Auto-detect mode: tries once on page load, silently gives up if bridge isn't running
+ *   - Tries ws://localhost first, then ws://127.0.0.1, ws://[::1]. A blocked URL
+ *     (synchronous SecurityError) rolls over to the next variant immediately.
+ *   - Auto-detect mode: sweeps the variants once on page load, then gives up if the bridge isn't running
  *   - Explicit mode: retries every 5s until connected (when user enables in Settings)
  *
  * No internet connections are made — all traffic stays on localhost.
@@ -26,10 +27,14 @@ export interface LinkState {
 
 type LinkListener = (state: LinkState) => void;
 
-// Try multiple localhost variants — Safari blocks some from HTTPS pages
-const WS_URLS = ["ws://127.0.0.1:19876", "ws://[::1]:19876", "ws://localhost:19876"];
+// Try multiple localhost variants. `localhost` must come first: Firefox blocks
+// insecure ws:// to IP literals (127.0.0.1, [::1]) from an HTTPS page as mixed
+// content and only exempts the `localhost` hostname (Firefox bug 1376309).
+// Chrome accepts all three; Safari blocks every loopback ws:// from HTTPS.
+const WS_URLS = ["ws://localhost:19876", "ws://127.0.0.1:19876", "ws://[::1]:19876"];
 const RETRY_MS = 5000;
 let wsUrlIdx = 0;
+let sweepFails = 0; // consecutive synchronous-construction failures within one sweep
 
 let ws: WebSocket | null = null;
 let retryTimer: number | null = null;
@@ -45,9 +50,10 @@ function notify() {
 
 /** Open a WebSocket connection to the bridge. Cycles through URL variants on error. */
 function connect() {
-  if (ws) return;
+  if (ws || (!enabled && !autoMode)) return;
   try {
     ws = new WebSocket(WS_URLS[wsUrlIdx]);
+    sweepFails = 0; // constructor accepted this URL — reset the sweep counter
 
     ws.onopen = () => {
       enabled = true;
@@ -89,8 +95,17 @@ function connect() {
       ws?.close();
     };
   } catch {
+    // Synchronous throw = this URL is unusable in this browser (e.g. Firefox
+    // rejects ws:// to an IP literal from HTTPS with a SecurityError). Roll over
+    // to the next variant immediately; only back off once a whole sweep fails,
+    // so we don't spin when every variant is blocked (e.g. Safari).
     wsUrlIdx = (wsUrlIdx + 1) % WS_URLS.length;
-    if (enabled && !autoMode) scheduleRetry();
+    if (++sweepFails < WS_URLS.length) {
+      window.setTimeout(connect, 0);
+    } else {
+      sweepFails = 0;
+      if (enabled && !autoMode) scheduleRetry();
+    }
   }
 }
 
@@ -105,6 +120,7 @@ export function enableLinkBridge(on: boolean) {
   enabled = on;
   autoMode = false;
   if (on) {
+    sweepFails = 0;
     connect();
   } else {
     if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
@@ -150,5 +166,6 @@ export function getLinkState(): LinkState {
 export function autoDetectLinkBridge() {
   if (enabled || ws) return;
   autoMode = true;
+  sweepFails = 0;
   connect();
 }

@@ -166,7 +166,8 @@ describe("BPM validation", () => {
 // -- URL rotation tests --
 
 describe("WS URL rotation", () => {
-  const WS_URLS = ["ws://127.0.0.1:19876", "ws://[::1]:19876", "ws://localhost:19876"];
+  // localhost first — the only loopback form Firefox allows over HTTPS (bug 1376309).
+  const WS_URLS = ["ws://localhost:19876", "ws://127.0.0.1:19876", "ws://[::1]:19876"];
 
   it("cycles through URLs on error", () => {
     let idx = 0;
@@ -183,9 +184,9 @@ describe("WS URL rotation", () => {
     }
   });
 
-  it("includes IPv4, IPv6, and hostname variants", () => {
-    expect(WS_URLS[0]).toContain("127.0.0.1");
-    expect(WS_URLS[1]).toContain("::1");
-    expect(WS_URLS[2]).toContain("localhost");
+  it("tries the localhost hostname before the IP literals", () => {
+    expect(WS_URLS[0]).toContain("localhost");
+    expect(WS_URLS[1]).toContain("127.0.0.1");
+    expect(WS_URLS[2]).toContain("::1");
   });
 });
