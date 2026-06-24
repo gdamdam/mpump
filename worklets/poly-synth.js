@@ -186,6 +186,11 @@ class PolySynthProcessor extends AudioWorkletProcessor {
     this._duckDepth = 0.5;
     this._duckRelease = 0.04; // seconds
 
+    // Split mode: when on, bass (channel 1) renders to output[1] so the host
+    // FX router can route synth and bass through separate effect chains. Off
+    // by default — everything sums into output[0] exactly as before.
+    this._splitMode = false;
+
     // Per-channel trance gate state
     this._chGateOn = new Uint8Array(16);               // 0=off, 1=on
     this._chGateMode = new Uint8Array(16);             // 0=lfo, 1=pattern
@@ -228,6 +233,7 @@ class PolySynthProcessor extends AudioWorkletProcessor {
       case "pan": if (msg.channel !== undefined) this._chPan[msg.channel] = msg.pan; break;
       case "mute": if (msg.channel !== undefined) this._chMuted[msg.channel] = msg.muted ? 1 : 0; break;
       case "bpm": this._bpm = msg.bpm; break;
+      case "split": this._splitMode = !!msg.on; break;
       case "gate": this._gateFraction = msg.fraction; break;
       case "duck": {
         // Kick hit: duck specified channel immediately
@@ -422,12 +428,22 @@ class PolySynthProcessor extends AudioWorkletProcessor {
     const N = outL.length;
     const isStereo = outR !== outL;
 
+    // Split mode: bass (channel 1) renders to a second output so the FX router
+    // can route it independently. When off, out1L stays null and the entire
+    // mix flows through output[0] — bit-identical to the non-split path.
+    const split = this._splitMode;
+    const out1 = split ? outputs[1] : null;
+    const out1L = (out1 && out1[0]) ? out1[0] : null;
+    const out1R = out1L ? (out1.length > 1 ? out1[1] : out1L) : null;
+    const isStereo1 = out1L ? (out1R !== out1L) : false;
+
     if (!this._srReady) {
       this._sr = sampleRate; this._invSr = 1 / sampleRate;
       this._srReady = true; this._filterDirty = true;
     }
 
     for (let s = 0; s < N; s++) { outL[s] = 0; if (isStereo) outR[s] = 0; }
+    if (out1L) for (let s = 0; s < N; s++) { out1L[s] = 0; if (isStereo1) out1R[s] = 0; }
 
     const invSr = this._invSr;
     const sr = this._sr;
@@ -475,6 +491,14 @@ class PolySynthProcessor extends AudioWorkletProcessor {
       const ch = this._channel[v];
       // Skip muted channels
       if (this._chMuted[ch]) continue;
+
+      // In split mode, bass (channel 1) accumulates into the second output;
+      // everything else stays on output[0]. ch is constant per voice, so this
+      // is chosen once outside the sample loop.
+      const toBass = out1L !== null && ch === 1;
+      const vOutL = toBass ? out1L : outL;
+      const vOutR = toBass ? out1R : outR;
+      const vStereo = toBass ? isStereo1 : isStereo;
 
       const freq = this._freq[v];
       const vel = this._vel[v];
@@ -786,12 +810,12 @@ class PolySynthProcessor extends AudioWorkletProcessor {
         const gateGain = gateGains[ch] * this._chDuckLevel[ch];
         const outSampleL = mixL * envLevel * gateGain;
         const outSampleR = mixR * envLevel * gateGain;
-        if (isStereo) {
+        if (vStereo) {
           // Equal-power pan: chPan -1(L) to +1(R)
-          outL[s] += outSampleL * (1 - chPan * 0.5);
-          outR[s] += outSampleR * (1 + chPan * 0.5);
+          vOutL[s] += outSampleL * (1 - chPan * 0.5);
+          vOutR[s] += outSampleR * (1 + chPan * 0.5);
         } else {
-          outL[s] += outSampleL + outSampleR;
+          vOutL[s] += outSampleL + outSampleR;
         }
       }
 
@@ -813,6 +837,10 @@ class PolySynthProcessor extends AudioWorkletProcessor {
     for (let s = 0; s < N; s++) {
       outL[s] = Math.tanh(outL[s]);
       if (isStereo) outR[s] = Math.tanh(outR[s]);
+    }
+    if (out1L) for (let s = 0; s < N; s++) {
+      out1L[s] = Math.tanh(out1L[s]);
+      if (isStereo1) out1R[s] = Math.tanh(out1R[s]);
     }
 
     return true;
