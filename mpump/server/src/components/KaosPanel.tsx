@@ -41,6 +41,8 @@ interface Props {
   presetState?: PresetState;
   getAnalyser?: () => AnalyserNode | null;
   getChannelAnalyser?: (ch: number) => AnalyserNode | null;
+  /** Read global mixer state — used to seed the Drums → FX toggle (mbExcludeDrums). */
+  getMixerState?: () => { mbExcludeDrums: boolean };
   onMix?: () => void;
   onExport?: () => void;
   trackName?: string;
@@ -96,7 +98,7 @@ const EFFECT_FULL_NAMES: Record<EffectName, string> = {
   tremolo: "Tremolo",
 };
 
-export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChange, channelVolumes, onChannelVolumeChange, presetState, getAnalyser, getChannelAnalyser, onMix, onExport, trackName, onTrackNameChange, onJamXY, jamApplyXYRef, peerList, myPeerId, jamFxRef, inJam, isListener, pendingMutes, currentStep, jamXYLoopRef, onKbdFocusChange, kbdFocusDevice, soloChannel: soloProp, onSoloChange }: Props) {
+export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChange, channelVolumes, onChannelVolumeChange, presetState, getAnalyser, getChannelAnalyser, getMixerState, onMix, onExport, trackName, onTrackNameChange, onJamXY, jamApplyXYRef, peerList, myPeerId, jamFxRef, inJam, isListener, pendingMutes, currentStep, jamXYLoopRef, onKbdFocusChange, kbdFocusDevice, soloChannel: soloProp, onSoloChange }: Props) {
   const drumsDevice = devices.find(d => d.id === "preview_drums");
   const bassDevice = devices.find(d => d.id === "preview_bass");
   const synthDevice = devices.find(d => d.id === "preview_synth");
@@ -190,6 +192,9 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
   const [showDrumKit, setShowDrumKit] = useState(false);
   const [showChainEditor, setShowChainEditor] = useState(false);
   const [effectOrder, setEffectOrder] = useState<EffectName[]>(() => getJSON("mpump-effect-order", DEFAULT_EFFECT_ORDER));
+  // Whether drums are routed through the FX chain (global mbExcludeDrums inverse).
+  // Seeded from engine mixer state; the toggle below flips it via set_mb_exclude.
+  const [drumsInFx, setDrumsInFx] = useState(() => !(getMixerState?.().mbExcludeDrums ?? true));
   // Expose fx setters to parent for jam sync
   if (jamFxRef) jamFxRef.current = { setFx, setEffectOrder };
   const [xyX, setXyX] = useState<XYTarget>("cutoff");
@@ -910,6 +915,18 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
           <div className="kaos-fx-chain" onClick={() => setShowChainEditor(true)} title="Click to reorder effect chain">
             Chain: {effectOrder.filter(n => fx[n].on).map(n => EFFECT_LABELS[n]).join(" → ") || "none"}
           </div>
+          <button
+            className={`kaos-fx-reset ${drumsInFx ? "active" : ""}`}
+            style={drumsInFx ? { background: "var(--preview)", color: "#000" } : undefined}
+            title={drumsInFx
+              ? "Drums ARE routed through FX — tap to bypass FX for drums"
+              : "Drums bypass FX — tap to route them through the FX chain"}
+            onClick={() => {
+              const next = !drumsInFx;
+              setDrumsInFx(next);
+              command({ type: "set_mb_exclude", channel: "drums", exclude: !next } as ClientMessage);
+            }}
+          >DRUMS→FX</button>
           <button className="kaos-fx-reset" title="Reset all effects to defaults" onClick={() => {
             saveFx({ ...DEFAULT_EFFECTS });
             for (const name of Object.keys(DEFAULT_EFFECTS) as EffectName[]) {
@@ -969,6 +986,7 @@ export function KaosPanel({ devices, catalog, command, bpm, volume, onVolumeChan
           params={editingFx === "duck" ? { on: duckOn, depth: duckDepth, release: duckRelease, excludeBass: duckExcludeBass, excludeSynth: duckExcludeSynth } : fx[editingFx]}
           onUpdate={(p) => updateFxParam(editingFx, p)}
           onClose={() => setEditingFx(null)}
+          drumsInFx={drumsInFx}
         />
       )}
 

@@ -2077,6 +2077,7 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, showDis
             presetState={presetState}
             getAnalyser={getAnalyser}
             getChannelAnalyser={getChannelAnalyser}
+            getMixerState={getMixerState}
             onMix={doMix}
             onExport={support.onExport}
             trackName={trackName}

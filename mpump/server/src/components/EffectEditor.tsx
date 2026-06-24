@@ -12,6 +12,9 @@ interface Props {
   params: EffectParams[EffectName];
   onUpdate: (params: Record<string, unknown>) => void;
   onClose: () => void;
+  /** Whether drums are routed through the FX chain (global mbExcludeDrums inverse).
+   *  When false, the per-effect "EXCL. DRUMS" toggle is a no-op, so it's disabled. */
+  drumsInFx?: boolean;
 }
 
 interface SliderDef {
@@ -248,7 +251,7 @@ function EffectVis({ name, params }: { name: EffectName; params: Record<string, 
   }
 }
 
-export function EffectEditor({ name, params, onUpdate, onClose }: Props) {
+export function EffectEditor({ name, params, onUpdate, onClose, drumsInFx = true }: Props) {
   useEffect(() => {
     const handleEsc = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", handleEsc);
@@ -293,14 +296,19 @@ export function EffectEditor({ name, params, onUpdate, onClose }: Props) {
               )}
             </div>
             <div className="fx-editor-row" style={{ gap: 6 }}>
-              {([["excludeDrums", "DRUMS"], ["excludeBass", "BASS"], ["excludeSynth", "SYNTH"]] as const).map(([key, label]) => (
-                <button
-                  key={key}
-                  className={`synth-osc-btn ${p[key] ? "active" : ""}`}
-                  style={p[key] ? { background: "var(--preview)", color: "#000" } : undefined}
-                  onClick={() => onUpdate({ [key]: !p[key] })}
-                >EXCL. {label}</button>
-              ))}
+              {([["excludeDrums", "DRUMS"], ["excludeBass", "BASS"], ["excludeSynth", "SYNTH"]] as const).map(([key, label]) => {
+                const disabled = key === "excludeDrums" && !drumsInFx;
+                return (
+                  <button
+                    key={key}
+                    className={`synth-osc-btn ${p[key] ? "active" : ""}`}
+                    style={{ ...(p[key] ? { background: "var(--preview)", color: "#000" } : {}), ...(disabled ? { opacity: 0.4, cursor: "not-allowed" } : {}) }}
+                    disabled={disabled}
+                    title={disabled ? "Drums aren't routed through FX — turn on Drums → FX first" : undefined}
+                    onClick={() => onUpdate({ [key]: !p[key] })}
+                  >EXCL. {label}</button>
+                );
+              })}
             </div>
           </>
         )}
@@ -332,14 +340,19 @@ export function EffectEditor({ name, params, onUpdate, onClose }: Props) {
         {/* Channel exclusion — all effects except delay (has its own above) and duck (no drums) */}
         {name !== "delay" && name !== "duck" && (
           <div className="fx-editor-row" style={{ gap: 6 }}>
-            {([["excludeDrums", "DRUMS"], ["excludeBass", "BASS"], ["excludeSynth", "SYNTH"]] as const).map(([key, label]) => (
-              <button
-                key={key}
-                className={`synth-osc-btn ${p[key] ? "active" : ""}`}
-                style={p[key] ? { background: "var(--preview)", color: "#000" } : undefined}
-                onClick={() => onUpdate({ [key]: !p[key] })}
-              >EXCL. {label}</button>
-            ))}
+            {([["excludeDrums", "DRUMS"], ["excludeBass", "BASS"], ["excludeSynth", "SYNTH"]] as const).map(([key, label]) => {
+              const disabled = key === "excludeDrums" && !drumsInFx;
+              return (
+                <button
+                  key={key}
+                  className={`synth-osc-btn ${p[key] ? "active" : ""}`}
+                  style={{ ...(p[key] ? { background: "var(--preview)", color: "#000" } : {}), ...(disabled ? { opacity: 0.4, cursor: "not-allowed" } : {}) }}
+                  disabled={disabled}
+                  title={disabled ? "Drums aren't routed through FX — turn on Drums → FX first" : undefined}
+                  onClick={() => onUpdate({ [key]: !p[key] })}
+                >EXCL. {label}</button>
+              );
+            })}
           </div>
         )}
         {/* Tremolo: shape selector */}
