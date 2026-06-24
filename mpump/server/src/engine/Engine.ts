@@ -84,6 +84,9 @@ export class Engine {
 
   // Active sequencers/clocks
   private sequencers: Map<string, Sequencer | T8Sequencer> = new Map();
+  // Active musical scale + opt-in playback snap, fanned out to every sequencer.
+  private scale = "chromatic";
+  private scaleSnap = false;
   private clocks: Map<string, MidiClock> = new Map();
   private ports: DetectedPorts = {};
   private stopped: Set<string> = new Set();
@@ -498,6 +501,7 @@ export class Engine {
       seq.setHumanize(this.humanize);
       seq.setExternalSync(this.midiClockReceiver.enabled);
       seq.setArp(this.arpSettings.enabled, this.arpSettings.mode, this.arpSettings.rate);
+      seq.setScale(this.scale, this.scaleSnap);
       seq.onStep = (step) => {
         ds.step = step;
         this.cb.onStep(id, step);
@@ -539,6 +543,7 @@ export class Engine {
       });
       seq.setHumanize(this.humanize);
       seq.setExternalSync(this.midiClockReceiver.enabled);
+      seq.setScale(this.scale, this.scaleSnap);
       seq.onStep = (step) => {
         ds.step = step;
         this.cb.onStep(id, step);
@@ -783,6 +788,15 @@ export class Engine {
   private isKeyLocked(): boolean {
     // Default (unset) is locked → getItem returns "true" when missing.
     return getItem("mpump-key-lock", "true") === "true";
+  }
+
+  /** Set the active musical scale and whether to snap played notes to it.
+   *  Fans out to every sequencer; scale also drives arp chord quality.
+   *  Default chromatic + snap off is a no-op, so existing patterns are unchanged. */
+  setScale(scale: string, snap: boolean): void {
+    this.scale = scale;
+    this.scaleSnap = snap;
+    for (const [, seq] of this.sequencers) seq.setScale(scale, snap);
   }
 
   setKey(device: string, idx: number): void {

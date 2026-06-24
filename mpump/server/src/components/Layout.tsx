@@ -405,6 +405,13 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, showDis
     jam.broadcastCommand(msg);
   }, [rawCommand, jam.broadcastCommand, jam.status, jam.quantize, jam.queueAtBar, state.devices]);
 
+  // Sync the engine with the persisted scale + snap preference on load (no-op for
+  // the chromatic + snap-off default, so existing patterns are unaffected).
+  useEffect(() => {
+    command({ type: "set_scale", scale: getItem("mpump-scale-lock", "chromatic"), snap: getBool("mpump-scale-snap", false) });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Apply remote commands from jam peers
   useEffect(() => {
     jam.onRemoteCommand((msg: ClientMessage, sender?) => {
@@ -1227,7 +1234,7 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, showDis
       command({ type: "set_anti_clip", mode: session.antiClipMode as typeof antiClipMode });
     }
     if (session.effectOrder) { setJSON("mpump-effect-order", session.effectOrder); command({ type: "set_effect_order", order: session.effectOrder as import("../types").EffectName[] }); }
-    if (session.scaleLock) { setItem("mpump-scale-lock", session.scaleLock); setScaleLock(session.scaleLock); }
+    if (session.scaleLock) { setItem("mpump-scale-lock", session.scaleLock); setScaleLock(session.scaleLock); command({ type: "set_scale", scale: session.scaleLock, snap: getBool("mpump-scale-snap", false) }); }
     if (session.humanize) { setBool("mpump-humanize", true); command({ type: "set_humanize", on: true }); }
     if (session.sidechainDuck) { setBool("mpump-sidechain", true); command({ type: "set_sidechain_duck", on: true }); }
     if (session.metronome) { setBool("mpump-metronome", true); command({ type: "set_metronome", on: true }); }
@@ -2131,7 +2138,7 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, showDis
                 scaleLock={scaleLock}
                 channelVolumes={channelVolumes}
                 onChannelVolumeChange={handleChannelVolumeChange}
-                onScaleLockChange={(v) => { setScaleLock(v); setItem("mpump-scale-lock", v); }}
+                onScaleLockChange={(v) => { setScaleLock(v); setItem("mpump-scale-lock", v); command({ type: "set_scale", scale: v, snap: getBool("mpump-scale-snap", false) }); }}
                 soloChannel={soloChannel}
                 onSoloChange={setSoloChannel}
                 getChannelAnalyser={getChannelAnalyser}

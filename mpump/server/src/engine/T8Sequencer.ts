@@ -1,5 +1,6 @@
 import type { MidiPort } from "./MidiPort";
 import type { StepData, DrumHit } from "../types";
+import { snapToScale } from "../data/keys";
 
 const LOOKAHEAD_MS = 200;
 const SCHEDULE_INTERVAL_MS = 25;
@@ -35,6 +36,10 @@ export class T8Sequencer {
 
   /** External clock sync: when true, steps come from advanceStep() only. */
   private externalSync = false;
+
+  /** Active musical scale + opt-in snap for bass notes (drums unaffected). */
+  private scale = "chromatic";
+  private scaleSnap = false;
 
   constructor(opts: {
     port: MidiPort;
@@ -115,6 +120,17 @@ export class T8Sequencer {
     this.bassRoot = root;
   }
 
+  /** Set the active scale and whether to snap bass notes to it. Default chromatic+off is a no-op. */
+  setScale(scale: string, snap: boolean): void {
+    this.scale = scale;
+    this.scaleSnap = snap;
+  }
+
+  /** Apply opt-in scale snap to a semitone offset (no-op when off / chromatic). */
+  private snapSemi(semi: number): number {
+    return this.scaleSnap ? snapToScale(semi, this.scale) : semi;
+  }
+
   setBpm(bpm: number): void {
     this.bpm = bpm;
   }
@@ -165,7 +181,7 @@ export class T8Sequencer {
         this.pendingBassNote = null;
       }
     } else {
-      const midiNote = Math.max(0, Math.min(127, this.bassRoot + bassStep.semi));
+      const midiNote = Math.max(0, Math.min(127, this.bassRoot + this.snapSemi(bassStep.semi)));
       const velocity = this.humanizeVel(Math.min(127, Math.round(this.baseVelocity * bassStep.vel)));
       if (bassStep.slide && this.pendingBassNote !== null) {
         if (midiNote === this.pendingBassNote) {
@@ -232,7 +248,7 @@ export class T8Sequencer {
           this.pendingBassNote = null;
         }
       } else {
-        const midiNote = Math.max(0, Math.min(127, this.bassRoot + bassStep.semi));
+        const midiNote = Math.max(0, Math.min(127, this.bassRoot + this.snapSemi(bassStep.semi)));
         const velocity = this.humanizeVel(Math.min(127, Math.round(this.baseVelocity * bassStep.vel)));
 
         if (bassStep.slide && this.pendingBassNote !== null) {

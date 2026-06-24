@@ -1,14 +1,12 @@
 import type { MidiPort } from "./MidiPort";
 import type { StepData, ArpMode, ArpRate } from "../types";
+import { snapToScale, scaleTriad } from "../data/keys";
 
 // How far ahead to schedule notes (ms). Must be > 4× SCHEDULE_INTERVAL
 // to guarantee no gaps. Higher = more latency, lower = more CPU.
 const LOOKAHEAD_MS = 200;
 // How often the scheduler runs (ms). 25ms = ~40 checks/sec.
 const SCHEDULE_INTERVAL_MS = 25;
-
-/** Arp chord intervals from root: root, major 3rd, 5th, octave. */
-const ARP_INTERVALS = [0, 4, 7, 12];
 
 function arpRateToSubdivisions(rate: ArpRate): number {
   switch (rate) {
@@ -61,6 +59,11 @@ export class Sequencer {
   private arpMode: ArpMode = "up";
   private arpRate: ArpRate = "1/8";
   private arpSeqIdx = 0;
+
+  /** Active musical scale + opt-in snap (drives scale-aware arp + playback snap). */
+  private scale = "chromatic";
+  private scaleSnap = false;
+  private arpTriad: number[] = [0, 4, 7, 12];
 
   constructor(opts: {
     port: MidiPort;
@@ -156,6 +159,19 @@ export class Sequencer {
     this.arpSeqIdx = 0;
   }
 
+  /** Set the active scale and whether to snap played notes to it. The scale also
+   *  determines the arp chord quality (scaleTriad). Default chromatic+off is a no-op. */
+  setScale(scale: string, snap: boolean): void {
+    this.scale = scale;
+    this.scaleSnap = snap;
+    this.arpTriad = scaleTriad(scale);
+  }
+
+  /** Apply opt-in scale snap to a semitone offset (no-op when off / chromatic). */
+  private snapSemi(semi: number): number {
+    return this.scaleSnap ? snapToScale(semi, this.scale) : semi;
+  }
+
   private humanizeVel(vel: number): number {
     if (!this.humanize) return vel;
     const offset = vel * (Math.random() * 0.3 - 0.15);
@@ -185,7 +201,7 @@ export class Sequencer {
     } else if (this.arpEnabled) {
       this.scheduleArp(step, stepTime, stepDur, gateDur);
     } else {
-      const midiNote = Math.max(0, Math.min(127, this.rootNote + step.semi));
+      const midiNote = Math.max(0, Math.min(127, this.rootNote + this.snapSemi(step.semi)));
       const velocity = this.humanizeVel(Math.min(127, Math.round(this.baseVelocity * step.vel)));
       if (step.slide && this.pendingNote !== null) {
         if (midiNote === this.pendingNote) {
@@ -250,7 +266,7 @@ export class Sequencer {
         this.scheduleArp(step, stepTime, stepDur, gateDur);
       } else {
         // Normal playback
-        const midiNote = Math.max(0, Math.min(127, this.rootNote + step.semi));
+        const midiNote = Math.max(0, Math.min(127, this.rootNote + this.snapSemi(step.semi)));
         const velocity = this.humanizeVel(Math.min(127, Math.round(this.baseVelocity * step.vel)));
 
         if (step.slide && this.pendingNote !== null) {
@@ -299,7 +315,7 @@ export class Sequencer {
     const subDur = stepDur / subdivisions;
     const subGate = subDur * 0.8;
     const seq = getArpSequence(this.arpMode);
-    const baseMidi = this.rootNote + step.semi;
+    const baseMidi = this.rootNote + this.snapSemi(step.semi);
     const baseVel = Math.min(127, Math.round(this.baseVelocity * step.vel));
 
     for (let i = 0; i < subdivisions; i++) {
@@ -307,12 +323,12 @@ export class Sequencer {
       // Pick interval from arp sequence
       let seqIndex: number;
       if (this.arpMode === "random") {
-        seqIndex = Math.floor(Math.random() * ARP_INTERVALS.length);
+        seqIndex = Math.floor(Math.random() * this.arpTriad.length);
       } else {
         seqIndex = seq[this.arpSeqIdx % seq.length];
         this.arpSeqIdx++;
       }
-      const midiNote = Math.max(0, Math.min(127, baseMidi + ARP_INTERVALS[seqIndex]));
+      const midiNote = Math.max(0, Math.min(127, baseMidi + this.arpTriad[seqIndex]));
       const vel = this.humanizeVel(baseVel);
 
       this.port.noteOn(this.channel, midiNote, vel, t);

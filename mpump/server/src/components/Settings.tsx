@@ -237,6 +237,12 @@ export function Settings({ volume, onVolumeChange, onClose, swing, onSwingChange
                   </button>
                 )}
                 {command && (
+                  <button className={`settings-toggle ${getBool("mpump-scale-snap") ? "on" : ""}`} title="Snap played notes to the selected scale (set the scale on a device panel). Off = patterns play exactly as written."
+                    onClick={() => { const next = !getBool("mpump-scale-snap"); setBool("mpump-scale-snap", next); command({ type: "set_scale", scale: getItem("mpump-scale-lock", "chromatic"), snap: next }); window.dispatchEvent(new Event("mpump-settings-changed")); refreshToggles(); }}>
+                    <span className="settings-toggle-dot" />Scale Snap
+                  </button>
+                )}
+                {command && (
                   <button className={`settings-toggle ${getBool("mpump-mono") ? "on" : ""}`} title="Mono output — collapse stereo to mono"
                     onClick={() => { const next = !getBool("mpump-mono"); setBool("mpump-mono", next); command({ type: "set_mono", on: next }); window.dispatchEvent(new Event("mpump-settings-changed")); refreshToggles(); }}>
                     <span className="settings-toggle-dot" />Mono

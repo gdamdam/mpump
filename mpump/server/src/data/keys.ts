@@ -59,6 +59,15 @@ export function nextInScale(semi: number, direction: 1 | -1, scaleName: string):
   return target;
 }
 
+/** Arpeggiator chord (root, 3rd, 5th, octave) for a scale: stacked thirds on
+ *  scale degrees 1/3/5. Chromatic and unknown scales fall back to the major
+ *  triad [0,4,7,12] so existing patterns arp exactly as before. */
+export function scaleTriad(scaleName: string): number[] {
+  const intervals = SCALES[scaleName];
+  if (!intervals || scaleName === "chromatic" || intervals.length < 5) return [0, 4, 7, 12];
+  return [intervals[0], intervals[2], intervals[4], 12];
+}
+
 /** Snap a semitone offset to the nearest note in a scale. */
 export function snapToScale(semi: number, scaleName: string): number {
   const intervals = SCALES[scaleName];

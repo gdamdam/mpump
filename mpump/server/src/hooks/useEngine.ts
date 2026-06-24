@@ -74,6 +74,9 @@ export function useEngine() {
       case "set_key":
         engine.setKey(msg.device, msg.idx);
         break;
+      case "set_scale":
+        engine.setScale(msg.scale, msg.snap);
+        break;
       case "set_octave":
         engine.setOctave(msg.device, msg.octave);
         break;

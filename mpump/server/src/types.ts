@@ -259,6 +259,7 @@ export type ClientMessage =
   | { type: "set_genre"; device: string; idx: number }
   | { type: "set_pattern"; device: string; idx: number }
   | { type: "set_key"; device: string; idx: number }
+  | { type: "set_scale"; scale: string; snap: boolean }
   | { type: "set_octave"; device: string; octave: number }
   | { type: "set_bpm"; bpm: number }
   | { type: "toggle_pause"; device: string }
