@@ -186,6 +186,22 @@ class PolySynthProcessor extends AudioWorkletProcessor {
     this._duckDepth = 0.5;
     this._duckRelease = 0.04; // seconds
 
+    // Scheduled-event queue: noteOn/duck messages carrying an absolute
+    // audio-clock `when` are parked here and dispatched in process() on the
+    // render block whose time window contains `when` — block-accurate timing
+    // (≤ one quantum ≈ 2.9ms @ 44.1k) instead of firing on the jittery
+    // main-thread message loop. Pre-allocated to honor the zero-allocation
+    // rule; an empty slot is marked by _schedWhen[i] === Infinity.
+    this._schedCap = 256;
+    this._schedWhen = new Float64Array(this._schedCap).fill(Infinity);
+    this._schedType = new Uint8Array(this._schedCap);  // 0 = noteOn, 1 = duck
+    this._schedCh = new Int16Array(this._schedCap);
+    this._schedNote = new Uint8Array(this._schedCap);
+    this._schedVel = new Float32Array(this._schedCap);
+    this._schedGate = new Float32Array(this._schedCap);
+    this._schedDepth = new Float32Array(this._schedCap);
+    this._schedCount = 0;
+
     // Split mode: when on, bass (channel 1) renders to output[1] so the host
     // FX router can route synth and bass through separate effect chains. Off
     // by default — everything sums into output[0] exactly as before.
@@ -226,7 +242,12 @@ class PolySynthProcessor extends AudioWorkletProcessor {
 
   _handleMessage(msg) {
     switch (msg.type) {
-      case "noteOn": this._noteOn(msg.channel, msg.note, msg.vel, msg.gate || 0); break;
+      case "noteOn":
+        // Scheduled note (has absolute audio-clock `when`) → queue for block-
+        // accurate dispatch; live note (no `when`) → fire now.
+        if (msg.when !== undefined) this._schedule(0, msg.when, msg.channel, msg.note, msg.vel, msg.gate || 0, 0);
+        else this._noteOn(msg.channel, msg.note, msg.vel, msg.gate || 0);
+        break;
       case "noteOff": this._noteOff(msg.channel, msg.note); break;
       case "params": this._setParams(msg); break;
       case "volume": if (msg.channel !== undefined) this._chVolume[msg.channel] = msg.volume; break;
@@ -236,9 +257,11 @@ class PolySynthProcessor extends AudioWorkletProcessor {
       case "split": this._splitMode = !!msg.on; break;
       case "gate": this._gateFraction = msg.fraction; break;
       case "duck": {
-        // Kick hit: duck specified channel immediately
+        // Kick hit. With an absolute `when`, queue it so the duck lands on the
+        // kick's render block; without one, duck immediately (legacy/fallback).
         const ch = msg.channel;
-        this._chDuckLevel[ch] = 1 - (msg.depth ?? this._duckDepth);
+        if (msg.when !== undefined) this._schedule(1, msg.when, ch, 0, 0, 0, msg.depth ?? this._duckDepth);
+        else this._chDuckLevel[ch] = 1 - (msg.depth ?? this._duckDepth);
         break;
       }
       case "duck_params":
@@ -264,6 +287,44 @@ class PolySynthProcessor extends AudioWorkletProcessor {
         break;
       }
       case "allNotesOff": this._allNotesOff(msg.channel); break;
+    }
+  }
+
+  // Park a scheduled event (type 0 = noteOn, 1 = duck) in the first free slot.
+  // If the queue is full, dispatch immediately rather than drop the event.
+  _schedule(type, when, channel, note, vel, gate, depth) {
+    for (let i = 0; i < this._schedCap; i++) {
+      if (this._schedWhen[i] === Infinity) {
+        this._schedWhen[i] = when;
+        this._schedType[i] = type;
+        this._schedCh[i] = channel;
+        this._schedNote[i] = note;
+        this._schedVel[i] = vel;
+        this._schedGate[i] = gate;
+        this._schedDepth[i] = depth;
+        this._schedCount++;
+        return;
+      }
+    }
+    if (type === 0) this._noteOn(channel, note, vel, gate);
+    else this._chDuckLevel[channel] = 1 - depth;
+  }
+
+  // Dispatch every queued event whose `when` falls before the end of this render
+  // block (blockEnd = currentTime + N/sampleRate). Past-due events fire now.
+  _drainScheduled(blockEnd) {
+    if (this._schedCount === 0) return;
+    for (let i = 0; i < this._schedCap; i++) {
+      const w = this._schedWhen[i];
+      if (w !== Infinity && w < blockEnd) {
+        if (this._schedType[i] === 0) {
+          this._noteOn(this._schedCh[i], this._schedNote[i], this._schedVel[i], this._schedGate[i]);
+        } else {
+          this._chDuckLevel[this._schedCh[i]] = 1 - this._schedDepth[i];
+        }
+        this._schedWhen[i] = Infinity;
+        this._schedCount--;
+      }
     }
   }
 
@@ -441,6 +502,9 @@ class PolySynthProcessor extends AudioWorkletProcessor {
       this._sr = sampleRate; this._invSr = 1 / sampleRate;
       this._srReady = true; this._filterDirty = true;
     }
+
+    // Trigger any scheduled notes/ducks due in this render block (block-accurate).
+    this._drainScheduled(currentTime + N / sampleRate);
 
     for (let s = 0; s < N; s++) { outL[s] = 0; if (isStereo) outR[s] = 0; }
     if (out1L) for (let s = 0; s < N; s++) { out1L[s] = 0; if (isStereo1) out1R[s] = 0; }
