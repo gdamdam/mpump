@@ -325,3 +325,88 @@ describe("AudioPort FX groups", () => {
     expect(targets.has("drums")).toBe(false);
   });
 });
+
+// ── Worklet-active synth/bass split (Option B) ───────────────────────────
+// In a real browser the poly-synth worklet is ALWAYS present (it's the only
+// synth/bass path), so synth+bass share one output and can be routed apart
+// only when an effect's excludeSynth differs from excludeBass. jsdom has no
+// worklet, so the other describe blocks exercise the non-worklet path. Here we
+// fake the worklet's presence to cover the production routing CI otherwise
+// never reaches — the path where the old exclude buttons silently no-op'd.
+describe("AudioPort synth/bass split (worklet active)", () => {
+  let port: InstanceType<typeof AudioPort>;
+
+  type Priv = {
+    computeFxGroups(): { patternKey: string; sourceKeys: string[]; activeEffects: string[] }[];
+    synthBassNeedsSplit(active: string[]): boolean;
+    polySynth: unknown;
+    mbExcludeDrums: boolean;
+  };
+  const priv = (p: typeof port) => p as unknown as Priv;
+
+  beforeEach(() => {
+    port = new AudioPort();
+    // Stub worklet node: presence flips workletActive=true; the no-op port/
+    // connect/disconnect keep the debounced rebuildFxChain harmless in jsdom.
+    priv(port).polySynth = { port: { postMessage() {} }, connect() {}, disconnect() {} };
+  });
+
+  it("no excludes → synth and bass stay merged as a single source", () => {
+    port.setEffect("reverb", { on: true });
+    const groups = priv(port).computeFxGroups();
+    expect(groups.length).toBe(1);
+    expect(groups[0].sourceKeys).toEqual(["synthBass"]);
+    expect(groups[0].activeEffects).toEqual(["reverb"]);
+  });
+
+  it("excludeSynth only → splits; synth bypasses the effect, bass keeps it", () => {
+    port.setEffect("reverb", { on: true, excludeSynth: true });
+    const groups = priv(port).computeFxGroups();
+    expect(groups.length).toBe(2);
+    const synth = groups.find(g => g.sourceKeys.includes("synth"))!;
+    const bass = groups.find(g => g.sourceKeys.includes("bass"))!;
+    expect(synth.sourceKeys).toEqual(["synth"]);
+    expect(synth.activeEffects).toEqual([]);
+    expect(bass.sourceKeys).toEqual(["bass"]);
+    expect(bass.activeEffects).toEqual(["reverb"]);
+  });
+
+  it("excludeBass only → bass splits out, synth keeps the effect", () => {
+    port.setEffect("delay", { on: true, excludeBass: true });
+    const groups = priv(port).computeFxGroups();
+    expect(groups.length).toBe(2);
+    const synth = groups.find(g => g.sourceKeys.includes("synth"))!;
+    const bass = groups.find(g => g.sourceKeys.includes("bass"))!;
+    expect(synth.activeEffects).toEqual(["delay"]);
+    expect(bass.activeEffects).toEqual([]);
+  });
+
+  it("excludeSynth AND excludeBass → no split (both leave the effect together)", () => {
+    port.setEffect("reverb", { on: true, excludeSynth: true, excludeBass: true });
+    const groups = priv(port).computeFxGroups();
+    expect(groups.length).toBe(1);
+    expect(groups[0].sourceKeys).toEqual(["synthBass"]);
+    expect(groups[0].activeEffects).toEqual([]);
+  });
+
+  it("synthBassNeedsSplit only when excludeSynth differs from excludeBass", () => {
+    expect(priv(port).synthBassNeedsSplit([])).toBe(false);
+    port.setEffect("reverb", { on: true, excludeSynth: true });
+    expect(priv(port).synthBassNeedsSplit(["reverb"])).toBe(true);
+    port.setEffect("reverb", { on: true, excludeSynth: true, excludeBass: true });
+    expect(priv(port).synthBassNeedsSplit(["reverb"])).toBe(false);
+  });
+
+  it("split with drums un-bypassed → drums group with the non-excluded instrument", () => {
+    port.setMbExclude("drums", false);
+    port.setEffect("reverb", { on: true, excludeSynth: true });
+    const groups = priv(port).computeFxGroups();
+    expect(groups.length).toBe(2);
+    const synth = groups.find(g => g.sourceKeys.includes("synth"))!;
+    expect(synth.sourceKeys).toEqual(["synth"]);
+    expect(synth.activeEffects).toEqual([]);
+    const other = groups.find(g => !g.sourceKeys.includes("synth"))!;
+    expect(other.sourceKeys.sort()).toEqual(["bass", "drums"]);
+    expect(other.activeEffects).toEqual(["reverb"]);
+  });
+});
