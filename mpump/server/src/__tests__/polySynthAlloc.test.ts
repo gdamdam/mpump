@@ -16,6 +16,7 @@ g.AudioWorkletProcessor = class { port = { onmessage: null, postMessage() {} }; 
 g.registerProcessor = (_name: string, cls: typeof ProcessorClass) => { ProcessorClass = cls; };
 g.sampleRate = 44100;
 g.currentFrame = 0;
+g.currentTime = 0;
 
 // @ts-expect-error — plain JS worklet module without type declarations
 await import("../../public/worklets/poly-synth.js");

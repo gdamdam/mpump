@@ -123,3 +123,53 @@ describe("AudioPort poly-synth worklet loading", () => {
     port.close();
   });
 });
+
+describe("AudioPort scheduled dispatch (#1)", () => {
+  type Msg = { type: string; when?: number };
+  const calls = (node: { port: { postMessage: ReturnType<typeof vi.fn> } }, type: string) =>
+    node.port.postMessage.mock.calls.filter((c) => (c[0] as Msg).type === type).map((c) => c[0] as Msg);
+
+  it("forwards the scheduled time to the worklet as an absolute audio-clock `when`", async () => {
+    const port = new AudioPort();
+    await flush();
+    const node = (port as unknown as Priv).polySynth!;
+    expect(node).not.toBeNull();
+    node.port.postMessage.mockClear();
+    port.noteOn(0, 60, 100, performance.now() + 100); // synth channel, +100ms
+    const noteOns = calls(node, "noteOn");
+    expect(noteOns.length).toBe(1);
+    expect(noteOns[0].when).toBeDefined();
+    // MockAudioContext.currentTime is 0, so +100ms maps to ~0.1s
+    expect(noteOns[0].when!).toBeGreaterThan(0.05);
+    expect(noteOns[0].when!).toBeCloseTo(0.1, 2); // within ~5ms
+    port.close();
+  });
+
+  it("schedules the sidechain duck at the kick's audio-clock time", async () => {
+    const port = new AudioPort();
+    await flush();
+    const node = (port as unknown as Priv).polySynth!;
+    // ensure a kick buffer exists so playDrum reaches the duck call
+    (port as unknown as { kit: Map<number, unknown> }).kit.set(36, {});
+    port.setSidechainDuck(true);
+    node.port.postMessage.mockClear();
+    port.noteOn(9, 36, 120, performance.now() + 100); // drum ch, note 36 = kick
+    const ducks = calls(node, "duck");
+    expect(ducks.length).toBeGreaterThan(0);
+    expect(ducks[0].when).toBeDefined();
+    expect(ducks[0].when!).toBeCloseTo(0.1, 2);
+    port.close();
+  });
+
+  it("omits `when` for live notes with no scheduled time (immediate dispatch)", async () => {
+    const port = new AudioPort();
+    await flush();
+    const node = (port as unknown as Priv).polySynth!;
+    node.port.postMessage.mockClear();
+    port.noteOn(0, 60, 100); // no time → live/immediate
+    const noteOns = calls(node, "noteOn");
+    expect(noteOns.length).toBe(1);
+    expect(noteOns[0].when).toBeUndefined();
+    port.close();
+  });
+});

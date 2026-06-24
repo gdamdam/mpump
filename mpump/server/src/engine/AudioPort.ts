@@ -2075,7 +2075,7 @@ export class AudioPort {
     // scheduled automation causes undefined behavior in the Web Audio spec.
     // Recovery uses setTimeout instead of setTargetAtTime for the same reason.
     if (this.sidechainDuck && note === 36) {
-      this.applyDuck();
+      this.applyDuck(time);
     }
   }
 
@@ -2089,13 +2089,17 @@ export class AudioPort {
       bus.gain.value = this.channelVolumes.get(ch) ?? 1;
     }
   };
-  private applyDuck(): void {
+  private applyDuck(time?: number): void {
     const excludeBass  = !!(this.fx.duck as { excludeBass?: boolean }).excludeBass;
     const excludeSynth = !!(this.fx.duck as { excludeSynth?: boolean }).excludeSynth;
+    // Schedule the duck at the kick's actual audio-clock hit time (same model as
+    // the note queue) so the pump lines up with the kick instead of firing when
+    // the step was queued, up to a lookahead window early. Undefined => now.
+    const when = time !== undefined ? perfToCtx(this.ctx, time) : undefined;
     // Worklet path: send duck message per non-excluded, non-drum channel
     if (this.polySynth) {
-      if (!excludeSynth) this.polySynth.port.postMessage({ type: "duck", channel: 0, depth: this.duckDepth });
-      if (!excludeBass)  this.polySynth.port.postMessage({ type: "duck", channel: 1, depth: this.duckDepth });
+      if (!excludeSynth) this.polySynth.port.postMessage({ type: "duck", channel: 0, depth: this.duckDepth, when });
+      if (!excludeBass)  this.polySynth.port.postMessage({ type: "duck", channel: 1, depth: this.duckDepth, when });
     }
     // Web Audio path: set bus gain for non-worklet, non-excluded channels
     const duckTo = 1 - this.duckDepth;
@@ -2122,8 +2126,14 @@ export class AudioPort {
     const stepDur = 60 / (this.bpm * 4); // 16th note duration in seconds
     const noteLen = this.channelParams.get(ch)?.noteLength ?? 1;
     const gateSec = stepDur * noteLen * (this.polySynthGateFractions.get(ch) ?? this.polySynthGateFractionDefault);
+    // Absolute audio-clock time (seconds) the note should sound at. The worklet
+    // parks it in a time-ordered queue and triggers it on the matching render
+    // block, so synth/bass land block-accurate against the drums (which already
+    // use src.start(when)) instead of firing on the jittery main-thread message
+    // loop up to a lookahead window early. Undefined time => fire now (live keys).
+    const when = time !== undefined ? perfToCtx(this.ctx, time) : undefined;
     if (this.polySynth) {
-      this.polySynth.port.postMessage({ type: "noteOn", channel: ch, note, vel, gate: gateSec });
+      this.polySynth.port.postMessage({ type: "noteOn", channel: ch, note, vel, gate: gateSec, when });
     } else if (!this.polySynthFailed && this.pendingSynthNotes.length < 64) {
       // Worklet still loading — queue so the first scheduled notes aren't dropped
       this.pendingSynthNotes.push({ ch, note, vel, gate: gateSec });
