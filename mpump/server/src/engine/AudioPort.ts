@@ -178,9 +178,12 @@ export class AudioPort {
     // Performance mode from App-level detection
     const params = new URLSearchParams(window.location.search);
     this.perfMode = params.get("eco") === "true" ? "eco" : params.get("lite") === "true" ? "lite" : (getItem("mpump-perf-mode", "normal") as "normal" | "lite" | "eco");
-    // Larger buffer prevents crackling under heavy effects chains (convolver, chorus, etc.).
-    // The sequencer lookahead absorbs the extra latency.
-    const hint = this.perfMode === "eco" ? "playback" : "balanced";
+    // latencyHint trades live-input latency against glitch resistance. The
+    // sequencer lookahead hides latency for *sequenced* notes regardless, but
+    // live keyboard/pad taps feel the buffer — so the default (normal) uses
+    // "interactive" for snappy play, while lite/eco keep larger buffers to stay
+    // glitch-free on weaker devices / heavy FX chains (convolver, chorus, etc.).
+    const hint = this.perfMode === "eco" ? "playback" : this.perfMode === "lite" ? "balanced" : "interactive";
     this.ctx = new AC({ latencyHint: hint });
     (window as unknown as Record<string, unknown>).__audioCtx = this.ctx;
     (window as unknown as Record<string, unknown>).__audioPort = this;

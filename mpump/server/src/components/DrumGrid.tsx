@@ -55,9 +55,10 @@ function DrumRow({ note, label, fullName, drumData, currentStep, accent, muted, 
     onPaint: (i, on) => { if (!!hitAt(i) !== on) onToggle?.(i, note, DEFAULT_VEL); },
     onVerticalStart: (i) => { startVel.current = hitAt(i)?.vel ?? DEFAULT_VEL; },
     onVerticalMove: (i, dy) => {
-      if (!hitAt(i) || !onSetVelocity) return;
+      const cur = hitAt(i);
+      if (!cur || !onSetVelocity) return;
       const v = Math.max(1, Math.min(127, Math.round(startVel.current - dy * VEL_PER_PX)));
-      onSetVelocity(i, note, v);
+      if (v !== cur.vel) onSetVelocity(i, note, v); // only dispatch on change (avoid per-move flood)
     },
     cellLabel: (i) => { const h = hitAt(i); return `${fullName} step ${i + 1}, ${h ? `velocity ${h.vel}` : "off"}`; },
   });
