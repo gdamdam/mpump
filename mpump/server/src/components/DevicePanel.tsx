@@ -320,6 +320,13 @@ export function DevicePanel({ state, catalog, command, onLoadSamples, bpm, prese
     command({ type: "edit_drum_step", device, step: stepIdx, hits: newHits });
   }, [state.drum_data, device, command]);
 
+  const handleDrumSetVelocity = useCallback((stepIdx: number, note: number, vel: number) => {
+    const existing = state.drum_data[stepIdx] ?? [];
+    if (!existing.some((h) => h.note === note)) return;
+    const newHits: DrumHit[] = existing.map((h) => h.note === note ? { ...h, vel } : h);
+    command({ type: "edit_drum_step", device, step: stepIdx, hits: newHits });
+  }, [state.drum_data, device, command]);
+
   // ── Bass step editing (drums+bass mode) ────────────────────────────────
 
   const handleBassTap = useCallback((idx: number) => {
@@ -545,6 +552,7 @@ export function DevicePanel({ state, catalog, command, onLoadSamples, bpm, prese
                   currentStep={doubled ? (state.step < 16 ? state.step : -1) : state.step}
                   accent={accent}
                   onToggle={handleDrumToggle}
+                  onSetVelocity={handleDrumSetVelocity}
                   mutedNotes={isPreview ? mutedDrumNotes : undefined}
                   onToggleMute={isPreview ? toggleDrumVoiceMute : undefined}
                 />
@@ -555,6 +563,7 @@ export function DevicePanel({ state, catalog, command, onLoadSamples, bpm, prese
                       currentStep={state.step >= 16 ? state.step - 16 : -1}
                       accent={accent}
                       onToggle={(stepIdx, note, vel) => handleDrumToggle(stepIdx + 16, note, vel)}
+                      onSetVelocity={(stepIdx, note, vel) => handleDrumSetVelocity(stepIdx + 16, note, vel)}
                       mutedNotes={isPreview ? mutedDrumNotes : undefined}
                     />
                   </div>

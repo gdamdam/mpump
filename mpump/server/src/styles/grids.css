@@ -55,6 +55,16 @@
   border-radius: 2px;
   overflow: hidden;
   transition: background 0.06s, opacity 0.06s;
+  touch-action: none; /* drag = paint/pitch, not scroll */
+  user-select: none;
+}
+
+.step-cell:focus-visible,
+.drum-cell:focus-visible,
+.bass-note-cell:focus-visible {
+  outline: 2px solid var(--preview);
+  outline-offset: -2px;
+  z-index: 1;
 }
 
 .step-cell.active {
@@ -216,6 +226,8 @@
   border-radius: 2px;
   transition: background 0.06s, opacity 0.06s;
   position: relative;
+  touch-action: none; /* drag = paint/velocity, not scroll */
+  user-select: none;
 }
 
 .drum-cell.active:not(.hit) {

@@ -2,6 +2,8 @@ import { useRef, useCallback, useState } from "react";
 import type { StepData } from "../types";
 import { tapVibrate } from "../utils/haptic";
 import { nextInScale, SCALES } from "../data/keys";
+import { useGridPointer } from "../hooks/useGridPointer";
+import { dyToSteps } from "../utils/gridGesture";
 
 const NOTE_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
 
@@ -17,6 +19,7 @@ interface Props {
 }
 
 const LONG_PRESS_MS = 500;
+const PX_PER_SEMI = 14; // vertical drag sensitivity for pitch
 
 /** Get note name from root + semitone offset */
 function getNoteName(rootNote: number, semi: number): string {
@@ -57,43 +60,13 @@ function semiToNoteName(semi: number, root: number): string {
 }
 
 export function StepGrid({ steps, currentStep, accent, onTap, onLongPress, rootNote = 45, scaleLock, onEditStep }: Props) {
-  const longFired = useRef(false);
-  const timerRef = useRef<number>(0);
-  const [pressingIdx, setPressingIdx] = useState<number | null>(null);
   const [dropdownIdx, setDropdownIdx] = useState<number | null>(null);
+  const startSemi = useRef(0);
 
   const semis = steps.filter(Boolean).map((s) => s!.semi);
   const minSemi = semis.length ? Math.min(...semis) : 0;
   const maxSemi = semis.length ? Math.max(...semis) : 0;
   const range = Math.max(maxSemi - minSemi, 1);
-
-  const startLong = useCallback((i: number) => {
-    longFired.current = false;
-    setPressingIdx(i);
-    clearTimeout(timerRef.current);
-    timerRef.current = window.setTimeout(() => {
-      longFired.current = true;
-      setPressingIdx(null);
-      setDropdownIdx(null);
-      onLongPress?.(i);
-    }, LONG_PRESS_MS);
-  }, [onLongPress]);
-
-  const cancelLong = useCallback(() => {
-    clearTimeout(timerRef.current);
-    setPressingIdx(null);
-  }, []);
-
-  const handleClick = useCallback((i: number) => {
-    if (longFired.current) {
-      longFired.current = false;
-      return;
-    }
-    tapVibrate();
-    cancelLong();
-    setDropdownIdx(null);
-    onTap?.(i);
-  }, [onTap, cancelLong]);
 
   const handleWheel = useCallback((e: React.WheelEvent, i: number, step: StepData) => {
     if (!onEditStep) return;
@@ -103,9 +76,7 @@ export function StepGrid({ steps, currentStep, accent, onTap, onLongPress, rootN
       ? nextInScale(step.semi, dir, scaleLock)
       : step.semi + dir;
     const clamped = Math.max(-12, Math.min(24, nextSemi));
-    if (clamped !== step.semi) {
-      onEditStep(i, { ...step, semi: clamped });
-    }
+    if (clamped !== step.semi) onEditStep(i, { ...step, semi: clamped });
   }, [onEditStep, scaleLock]);
 
   const handleDropdownChange = useCallback((i: number, step: StepData, newSemi: number) => {
@@ -117,29 +88,44 @@ export function StepGrid({ steps, currentStep, accent, onTap, onLongPress, rootN
   const availableNotes = dropdownIdx !== null ? getAvailableNotes(scaleLock, rootNote) : [];
 
   const handleNoteClick = useCallback((i: number) => {
-    const step = steps[i];
-    if (step && onEditStep) {
-      setDropdownIdx((prev) => prev === i ? null : i);
-    }
+    if (steps[i] && onEditStep) setDropdownIdx((prev) => prev === i ? null : i);
   }, [steps, onEditStep]);
+
+  // Shared pointer + keyboard behavior: tap toggles, horizontal drag paints,
+  // vertical drag nudges pitch (matches the bar height). Long-press → editor.
+  const grid = useGridPointer({
+    cellCount: steps.length,
+    cellOn: (i) => !!steps[i],
+    onTap: (i) => { tapVibrate(); setDropdownIdx(null); onTap?.(i); },
+    onPaint: (i, on) => { if (!!steps[i] !== on) onTap?.(i); },
+    onVerticalStart: (i) => { startSemi.current = steps[i]?.semi ?? 0; },
+    onVerticalMove: (i, dy) => {
+      const step = steps[i];
+      if (!step || !onEditStep) return;
+      const semi = Math.max(-12, Math.min(24, startSemi.current + dyToSteps(dy, PX_PER_SEMI)));
+      if (semi !== step.semi) onEditStep(i, { ...step, semi });
+    },
+    onLongPress: onLongPress ? (i) => { setDropdownIdx(null); onLongPress(i); } : undefined,
+    cellLabel: (i) => { const s = steps[i]; return s ? `Step ${i + 1}, ${semiToNoteName(s.semi, rootNote)}` : `Step ${i + 1}, rest`; },
+    longPressMs: LONG_PRESS_MS,
+  });
 
   return (
     <div className="step-grid-wrap">
-      <div className="step-grid">
+      <div className="step-grid" role="group" aria-label="Synth steps" ref={grid.gridRef} {...grid.gridHandlers}>
         {steps.map((step, i) => {
           const active = i === currentStep;
           const barStart = i % 4 === 0;
+          const pressing = grid.pressingIdx === i;
 
           if (!step) {
             return (
               <div
                 key={i}
-                className={`step-cell rest ${active ? "active" : ""} ${barStart ? "bar-start" : ""} ${onTap ? "editable" : ""} ${pressingIdx === i ? "step-pressing" : ""}`}
+                data-grid-idx={i}
+                className={`step-cell rest ${active ? "active" : ""} ${barStart ? "bar-start" : ""} ${onTap ? "editable" : ""} ${pressing ? "step-pressing" : ""}`}
                 title={`Step ${i + 1}: rest`}
-                onClick={() => handleClick(i)}
-                onPointerDown={() => startLong(i)}
-                onPointerUp={cancelLong}
-                onPointerLeave={cancelLong}
+                {...grid.cellProps(i)}
                 onContextMenu={(e) => { e.preventDefault(); onLongPress?.(i); }}
               >
                 <div className="step-bar rest-bar" />
@@ -153,12 +139,10 @@ export function StepGrid({ steps, currentStep, accent, onTap, onLongPress, rootN
           return (
             <div
               key={i}
-              className={`step-cell ${active ? "active" : ""} ${barStart ? "bar-start" : ""} ${step.slide ? "slide" : ""} ${onTap ? "editable" : ""} ${pressingIdx === i ? "step-pressing" : ""}`}
+              data-grid-idx={i}
+              className={`step-cell ${active ? "active" : ""} ${barStart ? "bar-start" : ""} ${step.slide ? "slide" : ""} ${onTap ? "editable" : ""} ${pressing ? "step-pressing" : ""}`}
               title={`Step ${i + 1}: ${semiToNoteName(step.semi, rootNote)} vel:${step.vel}`}
-              onClick={() => handleClick(i)}
-              onPointerDown={() => startLong(i)}
-              onPointerUp={cancelLong}
-              onPointerLeave={cancelLong}
+              {...grid.cellProps(i)}
               onContextMenu={(e) => { e.preventDefault(); setDropdownIdx(null); onLongPress?.(i); }}
               onWheel={(e) => handleWheel(e, i, step)}
             >
