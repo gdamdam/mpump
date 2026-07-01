@@ -5,7 +5,7 @@
  * must not be dropped, and addModule failure must be handled gracefully.
  * @vitest-environment jsdom
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 // ── Web Audio stubs (minimal subset used by AudioPort) ────────────────────
 function makeParam() {
@@ -128,6 +128,12 @@ describe("AudioPort scheduled dispatch (#1)", () => {
   type Msg = { type: string; when?: number };
   const calls = (node: { port: { postMessage: ReturnType<typeof vi.fn> } }, type: string) =>
     node.port.postMessage.mock.calls.filter((c) => (c[0] as Msg).type === type).map((c) => c[0] as Msg);
+
+  // Freeze performance.now so the test's read and AudioPort's internal read
+  // return the same value — otherwise real wall-clock time elapsing between
+  // the two reads makes `when` drift below the ~5ms tolerance (flaky on CI).
+  beforeEach(() => { vi.spyOn(performance, "now").mockReturnValue(1000); });
+  afterEach(() => { vi.restoreAllMocks(); });
 
   it("forwards the scheduled time to the worklet as an absolute audio-clock `when`", async () => {
     const port = new AudioPort();
