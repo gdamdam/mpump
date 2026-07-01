@@ -23,9 +23,77 @@ export interface LinkState {
   peers: number;    // Number of other Link peers (e.g. Ableton Live instances)
   clients: number;  // Number of browser clients connected to the bridge
   connected: boolean; // Whether we're connected to the bridge
+  /** performance.now() timestamp when this state was received — the anchor for
+   *  projecting beat/phase forward. Stamped in the scheduler's clock domain
+   *  (the Engine schedules against performance.now()). */
+  receivedAt: number;
 }
 
 type LinkListener = (state: LinkState) => void;
+
+/**
+ * Minimal Link clock anchor for projecting the shared beat/phase forward.
+ * Captured from a LinkState; `receivedAt` is a performance.now() timestamp so
+ * projections land in the same clock domain the scheduler uses.
+ */
+export interface LinkClock {
+  tempo: number;      // BPM (kept fractional — never round the session tempo)
+  beat: number;       // beat position at receivedAt
+  phase: number;      // phase within the bar at receivedAt (0..barBeats)
+  receivedAt: number; // performance.now() ms when this anchor was captured
+}
+
+/** Project the shared beat at time `nowMs` (performance.now domain). */
+export function projectBeat(c: LinkClock, nowMs: number): number {
+  return c.beat + (nowMs - c.receivedAt) * (c.tempo / 60000);
+}
+
+/** Project the shared phase within a bar (wrapped to 0..barBeats). */
+export function projectPhase(c: LinkClock, nowMs: number, barBeats = 4): number {
+  const p = c.phase + (nowMs - c.receivedAt) * (c.tempo / 60000);
+  return ((p % barBeats) + barBeats) % barBeats;
+}
+
+/**
+ * Next shared bar boundary as a performance.now() timestamp (ms).
+ *
+ * Aligns to multiples of `barBeats` on the shared Link beat timeline (beat 0 =
+ * a downbeat for every peer), so all clients land on the same bar. Skips to the
+ * following bar if the next one is closer than `minLeadMs` (no time to schedule
+ * cleanly). Because it derives the target from the projected beat and only ever
+ * returns a time >= now, a stale anchor produces a forward-aligned boundary — it
+ * never rewinds and never emits a catch-up burst.
+ */
+export function nextBarTime(c: LinkClock, nowMs: number, barBeats = 4, minLeadMs = 50): number {
+  const msPerBeat = 60000 / c.tempo;
+  const beat = projectBeat(c, nowMs);
+  let target = Math.ceil(beat / barBeats) * barBeats;
+  if ((target - beat) * msPerBeat < minLeadMs) target += barBeats;
+  return nowMs + (target - beat) * msPerBeat;
+}
+
+/**
+ * Decide how a client should follow the session transport on a Link update.
+ * Returns the target local playing state, or `null` for "do nothing".
+ *
+ *  - First update after connect (`prev === null`): adopt only the already-playing
+ *    case — join a live session (start on the next shared bar). A stopped session
+ *    leaves local transport untouched, so connecting-while-stopped never starts.
+ *  - Later updates: follow genuine transitions only (never re-apply a repeat).
+ */
+export function followTransportDecision(prev: boolean | null, next: boolean): boolean | null {
+  if (prev === null) return next ? true : null;
+  return next !== prev ? next : null;
+}
+
+/**
+ * Decide whether a local Play/Stop should be pushed to the session. Suppresses
+ * redundant commands (the session is already in the target state) to prevent
+ * echo loops; the bridge treats such commands as no-ops anyway.
+ */
+export function shouldSendPlaying(lastKnown: boolean | null, target: boolean): boolean {
+  return lastKnown !== target;
+}
 
 // Try multiple localhost variants. `localhost` must come first: Firefox blocks
 // insecure ws:// to IP literals (127.0.0.1, [::1]) from an HTTPS page as mixed
@@ -39,7 +107,7 @@ let sweepFails = 0; // consecutive synchronous-construction failures within one 
 let ws: WebSocket | null = null;
 let retryTimer: number | null = null;
 let listeners: LinkListener[] = [];
-let lastState: LinkState = { tempo: 120, beat: 0, phase: 0, playing: false, peers: 0, clients: 0, connected: false };
+let lastState: LinkState = { tempo: 120, beat: 0, phase: 0, playing: false, peers: 0, clients: 0, connected: false, receivedAt: 0 };
 let enabled = false;
 let autoMode = false; // true = auto-detect (try once), false = explicit (retry on disconnect)
 
@@ -73,6 +141,8 @@ function connect() {
             peers: msg.peers ?? lastState.peers,
             clients: msg.clients ?? lastState.clients,
             connected: true,
+            // Stamp in the scheduler's clock domain so projections align.
+            receivedAt: performance.now(),
           };
           notify();
         }

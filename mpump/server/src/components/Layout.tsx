@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { enableLinkBridge, onLinkState, autoDetectLinkBridge, sendLinkTempo, sendLinkPlaying } from "../utils/linkBridge";
+import { enableLinkBridge, onLinkState, autoDetectLinkBridge, sendLinkTempo, sendLinkPlaying, followTransportDecision, shouldSendPlaying } from "../utils/linkBridge";
 import type { Catalog, ClientMessage, EngineState, PreviewMode, EffectName, EffectParams } from "../types";
 import { DEFAULT_EFFECTS } from "../types";
 import { Settings, getSongModeEnabled, getBottomTransportEnabled, PALETTES, applyPalette } from "./Settings";
@@ -721,11 +721,26 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, showDis
    *  the push effect must never echo these back (re-sending the rounded
    *  value would force-quantize fractional session tempos for all peers). */
   const lastLinkTempo = useRef<number | null>(null);
+  /** Last Link playing state we know about (received or sent). Used as an echo
+   *  guard so a local Play/Stop never re-sends a state the session is already
+   *  in, and so a received state we caused doesn't double-toggle devices. */
+  const lastLinkPlaying = useRef<boolean | null>(null);
   useEffect(() => {
     // Link Bridge off by default — users enable via Settings
     enableLinkBridge(getBool("mpump-link-bridge", false));
     let prevLinkBpm = 0;
     let prevLinkPlaying: boolean | null = null;
+    /** Follow the session transport by pausing/unpausing devices. Starts align
+     *  to the shared Link bar grid (Engine.nextBarBoundary), so we join on the
+     *  next shared downbeat; stops are immediate and flush ringing notes
+     *  (Sequencer.stop). Never sends a transport command back — that would echo. */
+    const followTransport = (playing: boolean) => {
+      const devices = Object.values(stateRef.current.devices).filter(d => d.connected);
+      for (const d of devices) {
+        if (playing && d.paused) command({ type: "toggle_pause", device: d.id });
+        else if (!playing && !d.paused) command({ type: "toggle_pause", device: d.id });
+      }
+    };
     const unsub = onLinkState((s) => {
       setLinkConnected(s.connected);
       if (s.connected && s.tempo >= 20 && s.tempo <= 300) {
@@ -733,17 +748,18 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, showDis
         if (rounded !== prevLinkBpm) {
           prevLinkBpm = rounded;
           lastLinkTempo.current = rounded;
+          // Fractional session tempo is preserved: the Link bar grid uses the
+          // exact s.tempo; only the local display BPM is rounded here.
           command({ type: "set_bpm", bpm: rounded });
         }
-        // Sync play/stop — only react to changes
-        if (prevLinkPlaying !== null && s.playing !== prevLinkPlaying) {
-          const devices = Object.values(stateRef.current.devices).filter(d => d.connected);
-          for (const d of devices) {
-            if (s.playing && d.paused) command({ type: "toggle_pause", device: d.id });
-            else if (!s.playing && !d.paused) command({ type: "toggle_pause", device: d.id });
-          }
-        }
+        // Transport follow. On connect we adopt only the already-playing case
+        // (join a live session at the next shared bar, no Play sent); a stopped
+        // session leaves local transport untouched. Afterward, follow genuine
+        // transitions only. See followTransportDecision.
+        const target = followTransportDecision(prevLinkPlaying, s.playing);
+        if (target !== null) followTransport(target);
         prevLinkPlaying = s.playing;
+        lastLinkPlaying.current = s.playing;
       }
     });
     return unsub;
@@ -755,6 +771,7 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, showDis
     if (!linkConnected) {
       prevLocalBpm.current = null;
       lastLinkTempo.current = null;
+      lastLinkPlaying.current = null;
       return;
     }
     if (prevLocalBpm.current === null) {
@@ -1487,8 +1504,15 @@ export function Layout({ state, catalog, command: rawCommand, isPreview, showDis
     }
     // Broadcast explicit play/stop state to jam peers
     jam.broadcastPlayState(!shouldPause);
-    // Push play/stop to Link so mloop follows
-    if (linkConnected) sendLinkPlaying(!shouldPause);
+    // Push play/stop to Link so peers follow — but only when it actually changes
+    // the session state. If Link is already in the target state (e.g. local Play
+    // while the session is already playing) we send nothing: redundant commands
+    // would echo back and the bridge already treats them as no-ops.
+    const target = !shouldPause;
+    if (linkConnected && shouldSendPlaying(lastLinkPlaying.current, target)) {
+      lastLinkPlaying.current = target; // Link will echo this back
+      sendLinkPlaying(target);
+    }
   };
 
   toggleAllPauseRef.current = toggleAllPause;

@@ -29,6 +29,7 @@ import { DEVICE_REGISTRY, findDeviceConfig, type DeviceConfig } from "../data/de
 import { parseKey } from "../data/keys";
 import { loadExtras, saveExtras } from "./ExtrasStore";
 import { MidiClockReceiver } from "./MidiClockReceiver";
+import { onLinkState, nextBarTime, type LinkClock } from "../utils/linkBridge";
 
 /** Callbacks the Engine uses to notify the React UI of changes. */
 export interface EngineCallbacks {
@@ -97,8 +98,14 @@ export class Engine {
   // MIDI clock sync
   private midiClockReceiver: MidiClockReceiver;
 
-  // Global step grid origin
+  // Global step grid origin (private fallback used only when Link is inactive)
   private t0: number = performance.now();
+
+  // Shared Ableton Link bar grid. When set, sequencer starts align to the Link
+  // session's shared downbeat instead of the private t0 grid, so every peer
+  // lands on the same bar. Null when Link is disabled/disconnected.
+  private linkClock: LinkClock | null = null;
+  private linkUnsub: (() => void) | null = null;
 
   // Throttled state emission — collapses rapid parameter changes into one React update
   private stateTimer = 0;
@@ -194,6 +201,18 @@ export class Engine {
     this.data = await loadCatalog();
     this.t0 = performance.now();
 
+    // Track the shared Link bar grid. Updating the anchor is cheap and does NOT
+    // restart sequencers — running voices keep their timers; only the *next*
+    // start/restart re-aligns to the shared downbeat. Cleared on disconnect so
+    // the private t0 grid is used when Link is unavailable.
+    this.linkUnsub = onLinkState((s) => {
+      this.setLinkClock(
+        s.connected && s.tempo > 0
+          ? { tempo: s.tempo, beat: s.beat, phase: s.phase, receivedAt: s.receivedAt }
+          : null,
+      );
+    });
+
     // Hot-plug detection (only when we have real MIDI access)
     if (this.access) {
       this.access.onstatechange = () => this.handleDeviceChange();
@@ -220,6 +239,8 @@ export class Engine {
   }
 
   shutdown(): void {
+    if (this.linkUnsub) { this.linkUnsub(); this.linkUnsub = null; }
+    this.linkClock = null;
     for (const [, seq] of this.sequencers) seq.stop();
     for (const [, clk] of this.clocks) clk.stop();
     this.sequencers.clear();
@@ -455,14 +476,32 @@ export class Engine {
   // ── Sequencer lifecycle ──────────────────────────────────────────────
 
   /**
+   * Set (or clear) the shared Ableton Link bar grid. When set, sequencer starts
+   * align to the Link session's shared downbeat instead of the private t0 grid.
+   * Pure state update — does not restart running sequencers, so it is safe to
+   * call on every 20Hz Link update.
+   */
+  setLinkClock(clock: LinkClock | null): void {
+    this.linkClock = clock;
+  }
+
+  /**
    * Calculate the next bar boundary for phase-locked sequencer starts.
-   * Returns a timestamp (ms) aligned to the global t0 grid.
-   * If the boundary is less than 50ms away, skip to the next one.
+   * Returns a timestamp (ms).
+   *
+   * When joined to a Link session, aligns to the shared Link bar grid (fractional
+   * session tempo included) so every peer starts on the same downbeat. Otherwise
+   * falls back to the private t0 grid. If the boundary is under 50ms away, skips
+   * to the next one.
    */
   private nextBarBoundary(numSteps = 16): number {
+    const now = performance.now();
+    if (this.linkClock) {
+      // barBeats = numSteps / 4 (16 sixteenths = 4 beats = one 4/4 bar).
+      return nextBarTime(this.linkClock, now, numSteps / 4, 50);
+    }
     const stepDur = 60000 / (this.bpm * 4);  // duration of one 16th note in ms
     const barDur = numSteps * stepDur;
-    const now = performance.now();
     const elapsed = now - this.t0;
     const n = Math.ceil(elapsed / barDur);
     let tBar = this.t0 + n * barDur;
