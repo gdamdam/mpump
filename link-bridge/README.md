@@ -70,6 +70,11 @@ JSON messages over WebSocket:
 {"type":"set_playing","playing":true}
 ```
 
+`set_playing` is idempotent: a request matching the current transport state is a
+no-op (no session commit, no beat remap). A `false → true` transition starts
+playback and requests a beat on the bar boundary (quantum 4); a `true → false`
+transition stops playback and leaves the beat timeline untouched.
+
 ## Build from source
 
 Requires [Rust](https://rustup.rs/) and [Node.js](https://nodejs.org/).

@@ -57,6 +57,29 @@ enum ClientMessage {
     SetPlaying { playing: bool },
 }
 
+/// What to do with the transport given the current and requested playing states.
+/// Kept as a pure decision so it can be unit-tested without a live Link session.
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+enum TransportAction {
+    /// Already in the requested state — do nothing (no commit, no beat remap).
+    NoOp,
+    /// stopped → playing: start and request a beat on the bar boundary.
+    Start,
+    /// playing → stopped: stop without touching the beat timeline.
+    Stop,
+}
+
+/// Decide the transport action from the current and requested playing states.
+/// Idempotent: a request matching the current state is a no-op, so we never
+/// commit a redundant session update or remap the beat under peers' feet.
+fn decide_transport(current: bool, requested: bool) -> TransportAction {
+    match (current, requested) {
+        (false, true) => TransportAction::Start,
+        (true, false) => TransportAction::Stop,
+        _ => TransportAction::NoOp,
+    }
+}
+
 #[tokio::main]
 async fn main() {
     // Initialize Ableton Link at 120 BPM and join the Link session
@@ -212,11 +235,22 @@ async fn handle_connection(
                         }
                     }
                     ClientMessage::SetPlaying { playing } => {
-                        // Request beat at time 0 on bar boundary (quantum=4)
-                        session.set_is_playing_and_request_beat_at_time(
-                            playing, time, 0.0, 4.0,
-                        );
-                        link.commit_app_session_state(&session);
+                        // Only act on a real transition; a redundant request is a no-op
+                        // so we never commit or remap the beat under peers' feet.
+                        match decide_transport(session.is_playing(), playing) {
+                            TransportAction::Start => {
+                                // Request beat at time 0 on bar boundary (quantum=4)
+                                session
+                                    .set_is_playing_and_request_beat_at_time(true, time, 0.0, 4.0);
+                                link.commit_app_session_state(&session);
+                            }
+                            TransportAction::Stop => {
+                                // Stop only — leave the beat timeline untouched.
+                                session.set_is_playing(false, time);
+                                link.commit_app_session_state(&session);
+                            }
+                            TransportAction::NoOp => {}
+                        }
                     }
                 }
             }
@@ -315,6 +349,30 @@ mod tests {
         let json = r#"{"type":"set_tempo"}"#;
         let result = serde_json::from_str::<ClientMessage>(json);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn transport_starts_from_stopped() {
+        // stopped → playing: start and request a beat
+        assert_eq!(decide_transport(false, true), TransportAction::Start);
+    }
+
+    #[test]
+    fn transport_stops_from_playing() {
+        // playing → stopped: stop without remapping the beat
+        assert_eq!(decide_transport(true, false), TransportAction::Stop);
+    }
+
+    #[test]
+    fn transport_noop_when_already_playing() {
+        // playing → playing: redundant, do nothing
+        assert_eq!(decide_transport(true, true), TransportAction::NoOp);
+    }
+
+    #[test]
+    fn transport_noop_when_already_stopped() {
+        // stopped → stopped: redundant, do nothing
+        assert_eq!(decide_transport(false, false), TransportAction::NoOp);
     }
 
     #[test]
