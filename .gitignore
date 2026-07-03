@@ -24,3 +24,4 @@ coverage/
 p-plans/
 stickers/
 misc/
+.claude/settings.local.json

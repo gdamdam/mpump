@@ -326,6 +326,31 @@ describe("AudioPort FX groups", () => {
   });
 });
 
+// ── Master volume reaches MB-bypassed drums ──────────────────────────────
+// Drums default to mbExcludeDrums=true, routing panner → mbDrumsDirectOut →
+// driveGain, which sits DOWNSTREAM of the `master` gain node. Master volume
+// must therefore also be applied on the drum-bypass node, else the master
+// fader silently leaves drums at full volume (regression: v1.15.x).
+describe("AudioPort master volume — drums bypass path", () => {
+  type Priv = {
+    mbDrumsDirectOut: { gain: { value: number; setValueAtTime: ReturnType<typeof vi.fn> } } | null;
+    _masterVol: number;
+  };
+  const priv = (p: InstanceType<typeof AudioPort>) => p as unknown as Priv;
+
+  it("drum bypass gain reflects master volume at construction", () => {
+    const port = new AudioPort();
+    expect(priv(port).mbDrumsDirectOut!.gain.value).toBe(priv(port)._masterVol);
+  });
+
+  it("setVolume applies the new level to the drum bypass path", () => {
+    const port = new AudioPort();
+    const g = priv(port).mbDrumsDirectOut!.gain;
+    port.setVolume(0.3);
+    expect(g.setValueAtTime).toHaveBeenCalledWith(0.3, expect.anything());
+  });
+});
+
 // ── Worklet-active synth/bass split (Option B) ───────────────────────────
 // In a real browser the poly-synth worklet is ALWAYS present (it's the only
 // synth/bass path), so synth+bass share one output and can be routed apart
