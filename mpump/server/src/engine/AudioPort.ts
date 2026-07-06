@@ -9,6 +9,7 @@
 import type { SynthParams, EffectParams, EffectName, DrumVoiceParams } from "../types";
 import { DEFAULT_SYNTH_PARAMS, DEFAULT_EFFECTS, DEFAULT_DRUM_VOICE, lfoDivisionToHz, delayDivisionToSeconds } from "../types";
 import { CVOutput } from "./CVOutput";
+import { registerMbusTap } from "../utils/mbusPublish";
 import { getItem } from "../utils/storage";
 import {
   perfToCtx,
@@ -252,6 +253,9 @@ export class AudioPort {
     this.analyser = this.ctx.createAnalyser();
     this.analyser.fftSize = 256;
     this.analyser.connect(this.ctx.destination);
+    // End-of-chain tap, offered to the mbus patchbay when the user enables the
+    // Settings BUS toggle (see utils/mbusPublish).
+    registerMbusTap(this.analyser);
 
 
     // Default mode is "limiter": fxOutput → limiter → analyser
@@ -1994,6 +1998,7 @@ export class AudioPort {
     if (this.visibilityHandler) {
       document.removeEventListener("visibilitychange", this.visibilityHandler);
     }
+    registerMbusTap(null);
     this.cv.close();
     this.ctx.close();
   }

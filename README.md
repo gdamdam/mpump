@@ -198,6 +198,10 @@ No terminal, no configuration. Works with Ableton Live, Logic Pro, Bitwig, Trakt
 
 See [link-bridge/README.md](link-bridge/README.md) for build instructions and technical details.
 
+### mbus patchbay
+
+The same bridge also carries the **[mbus](https://mbus.mpump.live)** patchbay: Settings → Sync → **mbus Out** offers mpump's master output as a source named `mpump` (tab-to-tab WebRTC, peer-to-peer, no server — audio never touches the bridge). Off by default, never persisted, harmless without the bridge. The vendored mbus-client lives in `mpump/server/src/transport/mbus/` (provenance in its index.ts header).
+
 ### MIDI Clock
 
 mpump can sync to any DAW or hardware that sends MIDI clock. No downloads needed.

@@ -9,6 +9,7 @@ import { getItem, setItem, getBool, setBool } from "../utils/storage";
 import { isInstallAvailable, triggerInstallPrompt } from "../main";
 import { MidiSyncGuide } from "./MidiSyncGuide";
 import { enableLinkBridge, onLinkState, getLinkState, type LinkState } from "../utils/linkBridge";
+import { enableMbusPublish, isMbusPublishEnabled } from "../utils/mbusPublish";
 import {
   isJamEnabled, setJamEnabled,
   getCustomJamProviders, setCustomJamProviders,
@@ -145,6 +146,10 @@ export function Settings({ volume, onVolumeChange, onClose, swing, onSwingChange
   const [showMidiGuide, setShowMidiGuide] = useState(false);
   const [linkEnabled, setLinkEnabled] = useState(() => getBool("mpump-link-bridge", false));
   const [linkState, setLinkState] = useState<LinkState>(getLinkState);
+  // mbus publish intent. Deliberately NOT persisted (unlike Link): publishing
+  // audio is off-by-default per session. Seeded from the module singleton so a
+  // Settings remount reflects the live state.
+  const [busEnabled, setBusEnabled] = useState<boolean>(isMbusPublishEnabled);
   const [expanded, setExpanded] = useState<string | null>("audio");
   const [jamOn, setJamOn] = useState<boolean>(isJamEnabled);
   const [jamProviderId, setJamProviderId] = useState<string>(getSelectedJamProviderId);
@@ -464,6 +469,11 @@ export function Settings({ volume, onVolumeChange, onClose, swing, onSwingChange
                 <button className={`settings-toggle ${midiClockSync ? "on" : ""}`} title="Sync to external MIDI clock (24 PPQN)"
                   onClick={() => { const next = !midiClockSync; setMidiClockSync(next); command?.({ type: "set_midi_clock_sync", on: next }); }}>
                   <span className="settings-toggle-dot" />MIDI Clock In
+                </button>
+                <button className={`settings-toggle ${busEnabled ? "on" : ""}`}
+                  title="Publish the master output to the mbus patchbay (tab-to-tab audio via the same bridge; off by default, harmless without it)"
+                  onClick={() => { const next = !busEnabled; setBusEnabled(next); enableMbusPublish(next); }}>
+                  <span className="settings-toggle-dot" />mbus Out
                 </button>
                 {onCVChange && (
                   <button className={`settings-toggle ${cvEnabled ? "on" : ""}`} title="CV output via DC-coupled interface"
