@@ -119,6 +119,56 @@ export interface MbusClient {
 const HELLO_TIMEOUT_MS = 2000
 const RETRY_MS = 5000
 
+/** Opus fmtp params requested on every local description. Receiver-directed:
+ *  each side asks its peer for full-band stereo at the Opus ceiling with CBR
+ *  (localhost/LAN has the bandwidth; CBR avoids bitrate-adaptation artefacts).
+ *  Applied to both the publisher's offer and the subscriber's answer so the
+ *  send direction that matters (publisher → subscriber) is always covered. */
+const OPUS_TUNING: ReadonlyArray<readonly [string, string]> = [
+  ['maxaveragebitrate', '510000'],
+  ['stereo', '1'],
+  ['sprop-stereo', '1'],
+  ['cbr', '1'],
+]
+
+/**
+ * Append the Opus tuning params to an SDP's opus fmtp line(s). Pure and
+ * idempotent: params already present (any value) are never overridden, an
+ * fmtp line is created after the rtpmap when missing, non-opus payloads and
+ * SDP without opus are untouched, and CRLF/LF line endings are preserved.
+ */
+export function tuneOpusSdp(sdp: string): string {
+  const eol = sdp.includes('\r\n') ? '\r\n' : '\n'
+  const lines = sdp.split(eol)
+  const opusPts = new Set<string>()
+  for (const line of lines) {
+    const m = /^a=rtpmap:(\d+)\s+opus\//i.exec(line)
+    if (m?.[1]) opusPts.add(m[1])
+  }
+  if (opusPts.size === 0) return sdp
+
+  const out: string[] = []
+  for (const line of lines) {
+    const m = /^a=fmtp:(\d+)\s+(.*)$/.exec(line)
+    if (m?.[1] && m[2] !== undefined && opusPts.has(m[1])) {
+      const present = new Set(m[2].split(';').map((p) => p.split('=')[0]?.trim()))
+      const missing = OPUS_TUNING.filter(([k]) => !present.has(k))
+      out.push(missing.length === 0 ? line : `${line};${missing.map(([k, v]) => `${k}=${v}`).join(';')}`)
+      continue
+    }
+    out.push(line)
+    const r = /^a=rtpmap:(\d+)\s+opus\//i.exec(line)
+    if (r?.[1] && !hasFmtpLater(lines, r[1])) {
+      out.push(`a=fmtp:${r[1]} ${OPUS_TUNING.map(([k, v]) => `${k}=${v}`).join(';')}`)
+    }
+  }
+  return out.join(eol)
+}
+
+function hasFmtpLater(lines: readonly string[], pt: string): boolean {
+  return lines.some((l) => l.startsWith(`a=fmtp:${pt} `) || l.startsWith(`a=fmtp:${pt}\t`))
+}
+
 interface PubRecord extends Publication {
   node: AudioNode
   dest: MediaStreamAudioDestinationNode | null
@@ -389,8 +439,9 @@ export function createMbusClient(options: MbusClientOptions = {}): MbusClient {
     }
     try {
       const offer = await pc.createOffer()
-      await pc.setLocalDescription(offer)
-      send(outbound.signal(from, { kind: 'offer', sourceId, sdp: offer.sdp ?? '' }))
+      const offerSdp = tuneOpusSdp(offer.sdp ?? '')
+      await pc.setLocalDescription({ type: offer.type, sdp: offerSdp })
+      send(outbound.signal(from, { kind: 'offer', sourceId, sdp: offerSdp }))
     } catch {
       pc.close()
       pub.pcs.delete(from)
@@ -469,8 +520,9 @@ export function createMbusClient(options: MbusClientOptions = {}): MbusClient {
       try {
         await pc.setRemoteDescription({ type: 'offer', sdp: payload.sdp })
         const answer = await pc.createAnswer()
-        await pc.setLocalDescription(answer)
-        send(outbound.signal(from, { kind: 'answer', sourceId: payload.sourceId, sdp: answer.sdp ?? '' }))
+        const answerSdp = tuneOpusSdp(answer.sdp ?? '')
+        await pc.setLocalDescription({ type: answer.type, sdp: answerSdp })
+        send(outbound.signal(from, { kind: 'answer', sourceId: payload.sourceId, sdp: answerSdp }))
       } catch {
         failSubscription(sub)
       }
