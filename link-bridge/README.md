@@ -1,8 +1,8 @@
 <h1 align="center">mpump Link Bridge</h1>
-<p align="center">Companion app for <a href="https://mpump.live">mpump.live</a> — bridges Ableton Link to the browser.<br>Wireless tempo and transport sync with Ableton Live, Logic Pro, and any Link-enabled app.<br>Download, double-click, done.</p>
+<p align="center">Companion app for the <a href="https://mpump.live">mpump</a> suite — bridges Ableton Link to the browser and carries the signaling for the <a href="https://mbus.mpump.live">mbus</a> audio patchbay.<br>Wireless tempo and transport sync with Ableton Live, Logic Pro, and any Link-enabled app.<br>Download, double-click, done.</p>
 
 <p align="center">
-  <a href="https://github.com/gdamdam/mpump"><img src="https://img.shields.io/badge/version-1.0.0-blue" alt="Version"></a>
+  <a href="https://github.com/gdamdam/mpump"><img src="https://img.shields.io/badge/version-1.1.1-blue" alt="Version"></a>
   <a href="https://github.com/gdamdam/mpump/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue" alt="License"></a>
   <a href="https://github.com/gdamdam/mpump"><img src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey" alt="Platforms"></a>
 </p>
@@ -25,6 +25,7 @@ Ableton Live ←→ Link Bridge ←→ mpump.live (browser)
 - **Transport sync** — start/stop propagates across all Link peers
 - **Zero config** — apps discover each other automatically on your local network
 - **Multiple browsers** — any number of mpump tabs can connect
+- **mbus patchbay signaling** — the same socket carries the [mbus](https://mbus.mpump.live) source directory and WebRTC handshakes, so suite instruments can stream audio tab-to-tab. Signaling only: **no audio ever passes through the bridge**
 
 ## Quick Start
 
@@ -32,7 +33,7 @@ Ableton Live ←→ Link Bridge ←→ mpump.live (browser)
 2. **Run** the app — a small window appears showing tempo, peers, and connection status
 3. **macOS firewall prompt**: Click **Allow** — Link needs local network access to discover Ableton and other peers (see [Network](#network) below)
 4. **Open** [mpump.live](https://mpump.live) → Settings → enable **Ableton Link (beta)**
-4. **Open** Ableton Live (or any Link-enabled app) — sync starts automatically
+5. **Open** Ableton Live (or any Link-enabled app) — sync starts automatically
 
 That's it. No terminal, no Python, no configuration.
 
@@ -44,6 +45,8 @@ The Link Bridge runs two things:
 2. **WebSocket server** on `ws://localhost:19876` — mpump.live connects to this automatically when Link is enabled in Settings
 
 The bridge broadcasts Link state (tempo, beat, phase, playing, peers) at 20Hz. When mpump sends a tempo change, it propagates to all Link peers.
+
+The same WebSocket also serves the **mbus** namespace (`mbus/*` messages): a directory of published audio sources plus an opaque SDP/ICE relay that lets suite instruments negotiate tab-to-tab WebRTC audio. Link traffic is untouched by it, and audio flows peer-to-peer between browser tabs — never through the bridge.
 
 ## UI
 
@@ -75,6 +78,13 @@ no-op (no session commit, no beat remap). A `false → true` transition starts
 playback and requests a beat on the bar boundary (quantum 4); a `true → false`
 transition stops playback and leaves the beat timeline untouched.
 
+**mbus** messages ride the same socket under the `mbus/*` type prefix
+(`mbus/hello` → `mbus/welcome`, `mbus/announce`/`mbus/unannounce`,
+`mbus/sources` directory snapshots, `mbus/request`, and point-to-point
+`mbus/signal` relays). The wire spec lives in the
+[mbus repo](https://github.com/gdamdam/mbus) (`docs/protocol.md`); clients that
+never send `mbus/hello` (plain Link clients) are completely unaffected.
+
 ## Build from source
 
 Requires [Rust](https://rustup.rs/) and [Node.js](https://nodejs.org/).
@@ -83,6 +93,15 @@ Requires [Rust](https://rustup.rs/) and [Node.js](https://nodejs.org/).
 cd link-bridge
 npm install
 npx tauri build
+```
+
+For a dev build (`npm run tauri dev`), first serve the static frontend on the
+port Tauri expects — there is no `beforeDevCommand`, so without this it waits
+forever on "Waiting for your frontend dev server":
+
+```bash
+python3 -m http.server 1420 -d src   # terminal 1
+npm run tauri dev                    # terminal 2
 ```
 
 The output is in `src-tauri/target/release/bundle/`:
@@ -113,6 +132,7 @@ link-bridge/
       default.json           # Tauri v2 permissions
     src/
       main.rs               # Link peer + WebSocket server
+      mbus.rs               # mbus source directory + SDP/ICE signaling relay
 ```
 
 ## Dependencies
