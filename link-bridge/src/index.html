@@ -128,9 +128,17 @@
 
   <button id="toggle-btn" onclick="togglePlay()">Start</button>
 
-  <div class="url">connect at <span>ws://localhost:19876</span></div>
+  <div class="url"><span id="version"></span>connect at <span>ws://localhost:19876</span></div>
 
   <script>
+    // Show the bundle version (from tauri.conf.json via the Tauri API). Absent
+    // when the page is served to a plain browser in dev — then just omit it.
+    if (window.__TAURI__ && window.__TAURI__.app && window.__TAURI__.app.getVersion) {
+      window.__TAURI__.app.getVersion().then(function (v) {
+        document.getElementById('version').textContent = 'v' + v + ' · ';
+      }).catch(function () { /* leave blank */ });
+    }
+
     // Connect to the Link Bridge WS server running in the Tauri backend.
     let ws = null;
     let state = { tempo: 0, beat: 0, phase: 0, playing: false, peers: 0, clients: 0 };
