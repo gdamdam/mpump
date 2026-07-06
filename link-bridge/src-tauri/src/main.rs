@@ -8,6 +8,11 @@
 //!   2. Link poller — reads Link state 20× per second and broadcasts to all WS clients
 //!   3. Tauri — renders the companion app window
 //!
+//! The same WebSocket also carries mbus signaling (tab-to-tab WebRTC audio):
+//! `mbus/*` messages are routed point-to-point via the mbus module, while
+//! Link state keeps flowing on the broadcast channel exactly as before.
+//! Connections that never send `mbus/hello` see no mbus traffic at all.
+//!
 //! No internet connections are made. Only local network UDP (Link) and local network TCP
 //! (WebSocket). The WebSocket server intentionally binds 0.0.0.0 so any device on the LAN
 //! (phones, tablets, other laptops) can use the bridge — which also means any LAN host can
@@ -18,11 +23,34 @@
 use futures_util::{SinkExt, StreamExt};
 use rusty_link::{AblLink, SessionState};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::{TcpListener, TcpStream};
-use tokio::sync::{broadcast, Mutex};
+use tokio::sync::{broadcast, mpsc, Mutex};
 use tokio_tungstenite::tungstenite::Message;
+
+mod mbus;
+
+/// Shared mbus state: the protocol registry plus each connection's outbound
+/// channel, used for targeted (non-broadcast) delivery of mbus messages.
+#[derive(Default)]
+struct MbusShared {
+    registry: mbus::Registry,
+    senders: HashMap<u64, mpsc::UnboundedSender<String>>,
+}
+
+impl MbusShared {
+    /// Send each (connection, json) pair down that connection's channel.
+    /// Vanished connections are skipped — their cleanup is already underway.
+    fn deliver(&self, out: Vec<mbus::Outgoing>) {
+        for (target, json) in out {
+            if let Some(tx) = self.senders.get(&target) {
+                let _ = tx.send(json);
+            }
+        }
+    }
+}
 
 /// State broadcast to all connected browser clients at 20Hz.
 /// The `type` field is always "link" so the browser can identify these messages.
@@ -94,12 +122,16 @@ async fn main() {
     // Broadcast channel: Link poller sends JSON strings, all WS handlers receive them
     let (tx, _) = broadcast::channel::<String>(64);
 
+    // mbus signaling state: protocol registry + per-connection channels
+    let mbus_shared = Arc::new(Mutex::new(MbusShared::default()));
+
     // Task 1: WebSocket server — accepts browser connections
     let ws_link = link.clone();
     let ws_tx = tx.clone();
     let ws_client_count = client_count.clone();
+    let ws_mbus = mbus_shared.clone();
     tokio::spawn(async move {
-        run_ws_server(ws_link, ws_tx, ws_client_count).await;
+        run_ws_server(ws_link, ws_tx, ws_client_count, ws_mbus).await;
     });
 
     // Task 2: Link poller — reads Link state at 20Hz and broadcasts to all WS clients
@@ -165,6 +197,7 @@ async fn run_ws_server(
     link: Arc<Mutex<AblLink>>,
     tx: broadcast::Sender<String>,
     client_count: Arc<std::sync::atomic::AtomicUsize>,
+    mbus_shared: Arc<Mutex<MbusShared>>,
 ) {
     let listener = match TcpListener::bind("0.0.0.0:19876").await {
         Ok(l) => l,
@@ -178,22 +211,25 @@ async fn run_ws_server(
         let link = link.clone();
         let tx = tx.clone();
         let client_count = client_count.clone();
+        let mbus_shared = mbus_shared.clone();
         tokio::spawn(async move {
-            handle_connection(stream, peer, link, tx, client_count).await;
+            handle_connection(stream, peer, link, tx, client_count, mbus_shared).await;
         });
     }
 }
 
 /// Handles a single WebSocket connection.
 /// Two concurrent tasks per client:
-///   - Send task: forwards broadcast Link state messages to this client
-///   - Receive loop: processes set_tempo / set_playing messages from the browser
+///   - Send task: forwards broadcast Link state messages and this client's
+///     targeted mbus messages to it
+///   - Receive loop: processes set_tempo / set_playing / mbus/* messages
 async fn handle_connection(
     stream: TcpStream,
     peer: SocketAddr,
     link: Arc<Mutex<AblLink>>,
     tx: broadcast::Sender<String>,
     client_count: Arc<std::sync::atomic::AtomicUsize>,
+    mbus_shared: Arc<Mutex<MbusShared>>,
 ) {
     let ws_stream = match tokio_tungstenite::accept_async(stream).await {
         Ok(ws) => ws,
@@ -209,9 +245,31 @@ async fn handle_connection(
     let (mut ws_sender, mut ws_receiver) = ws_stream.split();
     let mut rx = tx.subscribe();
 
-    // Send task: forward all broadcast messages to this client
+    // Register with mbus so welcome/errors are deliverable pre-hello. The
+    // connection stays Link-only (receives no mbus traffic) until it says
+    // mbus/hello.
+    let (mbus_tx, mut mbus_rx) = mpsc::unbounded_channel::<String>();
+    let conn = {
+        let mut shared = mbus_shared.lock().await;
+        let conn = shared.registry.connect();
+        shared.senders.insert(conn, mbus_tx);
+        conn
+    };
+
+    // Send task: forward broadcast messages and targeted mbus messages.
+    // Broadcast errors end the task as before (Lagged/Closed both break).
     let send_task = tokio::spawn(async move {
-        while let Ok(msg) = rx.recv().await {
+        loop {
+            let msg = tokio::select! {
+                m = rx.recv() => match m {
+                    Ok(m) => m,
+                    Err(_) => break,
+                },
+                m = mbus_rx.recv() => match m {
+                    Some(m) => m,
+                    None => break, // sender dropped during cleanup
+                },
+            };
             if ws_sender.send(Message::Text(msg)).await.is_err() {
                 break; // client disconnected
             }
@@ -222,7 +280,13 @@ async fn handle_connection(
     let mut session = SessionState::new();
     while let Some(Ok(msg)) = ws_receiver.next().await {
         if let Message::Text(text) = msg {
-            if let Ok(client_msg) = serde_json::from_str::<ClientMessage>(&text) {
+            // mbus messages are routed by the registry; anything matching
+            // neither enum is ignored, exactly as before.
+            if let Ok(mbus_msg) = serde_json::from_str::<mbus::MbusIn>(&text) {
+                let shared = &mut *mbus_shared.lock().await;
+                let out = shared.registry.handle(conn, mbus_msg);
+                shared.deliver(out);
+            } else if let Ok(client_msg) = serde_json::from_str::<ClientMessage>(&text) {
                 let link = link.lock().await;
                 let time = link.clock_micros();
                 link.capture_app_session_state(&mut session);
@@ -255,6 +319,15 @@ async fn handle_connection(
                 }
             }
         }
+    }
+
+    // Drop this connection's mbus state and tell remaining clients its
+    // sources are gone.
+    {
+        let shared = &mut *mbus_shared.lock().await;
+        shared.senders.remove(&conn);
+        let out = shared.registry.disconnect(conn);
+        shared.deliver(out);
     }
 
     client_count.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
