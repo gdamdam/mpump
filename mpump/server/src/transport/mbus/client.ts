@@ -188,6 +188,8 @@ interface SubRecord extends Subscription {
   listeners: Array<(s: SubscriptionState) => void>
   /** Muted media-element sink required by Chromium (crbug.com/121673). */
   audioEl: HTMLAudioElement | null
+  /** Remote track wired into the gain node (ontrack fired). */
+  hasTrack: boolean
 }
 
 const WS_OPEN = 1
@@ -481,7 +483,11 @@ export function createMbusClient(options: MbusClientOptions = {}): MbusClient {
       void el.play().catch(() => {})
       sub.audioEl = el
     }
-    setSubState(sub, 'live')
+    // 'live' needs media AND transport: ontrack fires at SDP time, but ICE
+    // can still fail after it (e.g. incognito/firewalled loopback), and a
+    // premature 'live' badge hides exactly that failure.
+    sub.hasTrack = true
+    if (sub.pc?.connectionState === 'connected') setSubState(sub, 'live')
   }
 
   /** SDP/ICE relayed from another client (routing key: payload.sourceId). */
@@ -516,6 +522,7 @@ export function createMbusClient(options: MbusClientOptions = {}): MbusClient {
       }
       pc.onconnectionstatechange = () => {
         if (pc.connectionState === 'failed') failSubscription(sub)
+        else if (pc.connectionState === 'connected' && sub.hasTrack) setSubState(sub, 'live')
       }
       try {
         await pc.setRemoteDescription({ type: 'offer', sdp: payload.sdp })
@@ -647,6 +654,7 @@ export function createMbusClient(options: MbusClientOptions = {}): MbusClient {
         state: 'connecting',
         listeners: [],
         audioEl: null,
+        hasTrack: false,
         get node() {
           return sub.gain
         },
