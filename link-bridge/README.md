@@ -2,7 +2,7 @@
 <p align="center">Companion app for the <a href="https://mpump.live">mpump</a> suite — bridges Ableton Link to the browser and carries the signaling for the <a href="https://mbus.mpump.live">mbus</a> audio patchbay.<br>Wireless tempo and transport sync with Ableton Live, Logic Pro, and any Link-enabled app.<br>Download, double-click, done.</p>
 
 <p align="center">
-  <a href="https://github.com/gdamdam/mpump"><img src="https://img.shields.io/badge/version-1.1.2-blue" alt="Version"></a>
+  <a href="https://github.com/gdamdam/mpump"><img src="https://img.shields.io/badge/version-1.1.3-blue" alt="Version"></a>
   <a href="https://github.com/gdamdam/mpump/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue" alt="License"></a>
   <a href="https://github.com/gdamdam/mpump"><img src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux-lightgrey" alt="Platforms"></a>
 </p>
