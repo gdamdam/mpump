@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.15.3 — Docs Polish
+
+### Docs
+- README: corrected the Project Layout description of `docs/` (technical reference docs, not "11 chapters")
+- Version bump to 1.15.3
+
 ## v1.12.0 — Review Fixes
 
 _Stability and correctness fixes from the 2026-06-09 code review._
