@@ -828,7 +828,9 @@ class PolySynthProcessor extends AudioWorkletProcessor {
 
           } else if (filterModel === FLT_MOOG) {
             const wc = TWOPI * Math.min(fc, sr * 0.45) / sr;
-            const g = 0.9892 * wc - 0.4342 * wc * wc + 0.1381 * wc * wc * wc - 0.0202 * wc * wc * wc * wc;
+            // Clamp to 1.0: the Huovilainen fit overshoots (~1.16 at 0.45·sr) above ~0.30·sr,
+            // pushing the one-pole coefficient past unity so cutoff no longer tracks fc (audible detune).
+            const g = Math.min(1.0, 0.9892 * wc - 0.4342 * wc * wc + 0.1381 * wc * wc * wc - 0.0202 * wc * wc * wc * wc);
             const feedback = ladderRes * (ly3 - mid * 0.0005);
             const x = mid - Math.tanh(feedback);
             const s0 = ly0 + g * (Math.tanh(x) - Math.tanh(ly0));
@@ -844,7 +846,9 @@ class PolySynthProcessor extends AudioWorkletProcessor {
           } else {
             // Välimäki diode ladder (4-pole, asymmetric clipping)
             const wc = TWOPI * Math.min(fc, sr * 0.45) / sr;
-            const g = 0.9892 * wc - 0.4342 * wc * wc + 0.1381 * wc * wc * wc - 0.0202 * wc * wc * wc * wc;
+            // Clamp to 1.0: the Huovilainen fit overshoots (~1.16 at 0.45·sr) above ~0.30·sr,
+            // pushing the one-pole coefficient past unity so cutoff no longer tracks fc (audible detune).
+            const g = Math.min(1.0, 0.9892 * wc - 0.4342 * wc * wc + 0.1381 * wc * wc * wc - 0.0202 * wc * wc * wc * wc);
             const feedback = ladderRes * 1.1 * (ly3 - mid * 0.0005);
             const x = mid - feedback;
             // Inline diode clip: asymmetric tanh
