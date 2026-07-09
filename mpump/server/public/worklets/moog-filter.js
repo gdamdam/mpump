@@ -43,7 +43,9 @@ class MoogFilterProcessor extends AudioWorkletProcessor {
       // Based on Huovilainen (2007) "Non-linear Digital Implementation of the Moog Ladder Filter"
       // Maps digital frequency to analog equivalent for accurate cutoff tracking
       const wc = 2 * Math.PI * Math.min(fc, sr * 0.45) / sr;
-      const g = 0.9892 * wc - 0.4342 * wc * wc + 0.1381 * wc * wc * wc - 0.0202 * wc * wc * wc * wc;
+      // Clamp to 1.0: the Huovilainen fit overshoots (~1.16 at 0.45·sr) above ~0.30·sr,
+      // pushing the one-pole coefficient past unity so cutoff no longer tracks fc (audible detune).
+      const g = Math.min(1.0, 0.9892 * wc - 0.4342 * wc * wc + 0.1381 * wc * wc * wc - 0.0202 * wc * wc * wc * wc);
 
       // Process mono sum for filter (stereo reconstructed after)
       const mono = (inL[i] + (inR ? inR[i] : inL[i])) * 0.5;
