@@ -169,6 +169,20 @@ function hasFmtpLater(lines: readonly string[], pt: string): boolean {
   return lines.some((l) => l.startsWith(`a=fmtp:${pt} `) || l.startsWith(`a=fmtp:${pt}\t`))
 }
 
+/** Per-peer-connection ICE state. Inbound candidates are buffered here until
+ *  the pc's remoteDescription is set, then flushed in arrival order — a
+ *  candidate applied before setRemoteDescription is silently dropped by the
+ *  browser, which used to strand subscriptions intermittently. Each record is
+ *  a distinct instance: replacing a pc discards the old record (and its
+ *  buffered candidates), so stale candidates never reach the replacement. */
+interface PcRecord {
+  pc: PeerConnectionLike
+  /** Buffered inbound candidates (null = end-of-candidates), FIFO. */
+  pendingIce: Array<RTCIceCandidateInit | null>
+  /** True once setRemoteDescription has resolved for this pc. */
+  remoteReady: boolean
+}
+
 interface PubRecord extends Publication {
   node: AudioNode
   dest: MediaStreamAudioDestinationNode | null
@@ -176,7 +190,7 @@ interface PubRecord extends Publication {
   state: PublicationState
   listeners: Array<(s: PublicationState) => void>
   /** Peer connections keyed by subscriber clientId. */
-  pcs: Map<string, PeerConnectionLike>
+  pcs: Map<string, PcRecord>
 }
 
 interface SubRecord extends Subscription {
@@ -188,8 +202,18 @@ interface SubRecord extends Subscription {
   listeners: Array<(s: SubscriptionState) => void>
   /** Muted media-element sink required by Chromium (crbug.com/121673). */
   audioEl: HTMLAudioElement | null
+  /** Media-source node feeding the gain node; disconnected on teardown. */
+  mediaSrc: MediaStreamAudioSourceNode | null
   /** Remote track wired into the gain node (ontrack fired). */
   hasTrack: boolean
+  /** Buffered inbound candidates (null = end-of-candidates), FIFO. */
+  pendingIce: Array<RTCIceCandidateInit | null>
+  /** True once setRemoteDescription has resolved for the current pc. */
+  remoteReady: boolean
+  /** Monotonic pc generation; a teardown/replacement bumps it so any
+   *  in-flight async callback for the old pc can detect it no longer owns
+   *  the subscription and bow out. */
+  pcGen: number
 }
 
 const WS_OPEN = 1
@@ -230,11 +254,15 @@ export function createMbusClient(options: MbusClientOptions = {}): MbusClient {
     for (const fn of [...stateListeners]) fn(state)
   }
 
-  function setSources(next: SourceInfo[]): void {
+  function setSources(next: SourceInfo[], detectVanish = true): void {
     sources = next
     for (const fn of [...sourceListeners]) fn(sources)
-    // A source vanishing from the snapshot is how subscribers learn the
-    // publisher died (no peer-gone message in v1).
+    // A source vanishing from a *live* directory update is how subscribers
+    // learn the publisher died (no peer-gone message in v1). But an empty
+    // snapshot pushed during a transient WS drop must NOT be read this way —
+    // that would delete recoverable subscription intent — so teardown paths
+    // pass detectVanish=false.
+    if (!detectVanish) return
     const alive = new Set(sources.map((s) => s.sourceId))
     for (const sub of [...subscriptions.values()]) {
       if (!alive.has(sub.sourceId)) failSubscription(sub)
@@ -338,18 +366,23 @@ export function createMbusClient(options: MbusClientOptions = {}): MbusClient {
     }
   }
 
-  /** Close every peer connection; ids and RTC state never survive a drop. */
+  /** Close every peer connection; ids and RTC state never survive a drop.
+   *  Subscription *intent* is preserved: each sub is torn down to bare metal
+   *  and reset to 'connecting' (kept in the map, gain node intact) so the
+   *  welcome re-request loop transparently rewires it into the same node. */
   function dropPeerConnections(): void {
     clientId = null
     announceQueue.length = 0
     for (const pub of publications) {
-      for (const pc of pub.pcs.values()) pc.close()
+      for (const rec of pub.pcs.values()) rec.pc.close()
       pub.pcs.clear()
       pub.sourceId = null
       if (pub.state === 'announced') setPubState(pub, 'announcing')
     }
-    for (const sub of [...subscriptions.values()]) failSubscription(sub)
-    setSources([])
+    for (const sub of [...subscriptions.values()]) resetSubForReconnect(sub)
+    // detectVanish=false: an empty directory here is the drop itself, not a
+    // signal that every publisher died — intent must survive to reconnect.
+    setSources([], false)
   }
 
   function handleServerMessage(msg: ServerMessage): void {
@@ -410,6 +443,21 @@ export function createMbusClient(options: MbusClientOptions = {}): MbusClient {
     send(outbound.announce(pub.name))
   }
 
+  /** Flush a publisher pc's buffered candidates in arrival order once its
+   *  remoteDescription (the answer) is set. Bails if the pc was superseded. */
+  async function flushPubIce(pub: PubRecord, from: string, rec: PcRecord): Promise<void> {
+    const pending = rec.pendingIce
+    rec.pendingIce = []
+    for (const c of pending) {
+      if (pub.pcs.get(from) !== rec) return
+      try {
+        await rec.pc.addIceCandidate(c ?? undefined)
+      } catch {
+        /* stale candidate — ignore */
+      }
+    }
+  }
+
   /** A subscriber asked for one of our sources: offer it audio. */
   async function handleRequest(sourceId: string, from: string): Promise<void> {
     const pub = publications.find((p) => p.sourceId === sourceId && p.state === 'announced')
@@ -421,13 +469,22 @@ export function createMbusClient(options: MbusClientOptions = {}): MbusClient {
       pub.dest = (pub.node.context as AudioContext).createMediaStreamDestination()
       pub.node.connect(pub.dest)
     }
-    pub.pcs.get(from)?.close() // a re-request replaces the old connection
+    // A re-request replaces the old connection. Delete before close so the
+    // old pc's close-triggered connectionstatechange can't delete the new
+    // record we're about to store under the same key.
+    const prior = pub.pcs.get(from)
+    if (prior) {
+      pub.pcs.delete(from)
+      prior.pc.close()
+    }
     const pc = makePc(rtcConfig)
-    pub.pcs.set(from, pc)
+    const rec: PcRecord = { pc, pendingIce: [], remoteReady: false }
+    pub.pcs.set(from, rec)
     for (const track of pub.dest.stream.getAudioTracks()) {
       pc.addTrack(track, pub.dest.stream)
     }
     pc.onicecandidate = (e) => {
+      if (pub.pcs.get(from) !== rec) return // superseded by a newer pc
       send(outbound.signal(from, {
         kind: 'ice',
         sourceId,
@@ -435,18 +492,27 @@ export function createMbusClient(options: MbusClientOptions = {}): MbusClient {
       }))
     }
     pc.onconnectionstatechange = () => {
+      if (pub.pcs.get(from) !== rec) return // a later callback must not delete a newer pc
       if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
         pub.pcs.delete(from)
       }
     }
     try {
       const offer = await pc.createOffer()
+      if (pub.pcs.get(from) !== rec) {
+        pc.close()
+        return
+      }
       const offerSdp = tuneOpusSdp(offer.sdp ?? '')
       await pc.setLocalDescription({ type: offer.type, sdp: offerSdp })
+      if (pub.pcs.get(from) !== rec) {
+        pc.close()
+        return
+      }
       send(outbound.signal(from, { kind: 'offer', sourceId, sdp: offerSdp }))
     } catch {
+      if (pub.pcs.get(from) === rec) pub.pcs.delete(from)
       pc.close()
-      pub.pcs.delete(from)
     }
   }
 
@@ -458,25 +524,99 @@ export function createMbusClient(options: MbusClientOptions = {}): MbusClient {
     for (const fn of [...sub.listeners]) fn(next)
   }
 
+  /** Tear the RTC/media half of a subscription down to nothing, exactly once.
+   *  Idempotent (safe to call from any teardown path) and bumps pcGen so any
+   *  in-flight async callback for the old pc detects it no longer owns the
+   *  subscription. Leaves the gain node and the map entry untouched. */
+  function teardownSubMedia(sub: SubRecord): void {
+    sub.pcGen++
+    if (sub.pc) {
+      sub.pc.close()
+      sub.pc = null
+    }
+    if (sub.mediaSrc) {
+      try {
+        sub.mediaSrc.disconnect()
+      } catch {
+        /* graph may already be torn down */
+      }
+      sub.mediaSrc = null
+    }
+    if (sub.audioEl) {
+      try {
+        sub.audioEl.srcObject = null
+      } catch {
+        /* element may already be released */
+      }
+      sub.audioEl = null
+    }
+    sub.peerClientId = null
+    sub.hasTrack = false
+    sub.remoteReady = false
+    sub.pendingIce = []
+  }
+
+  /** Terminal failure: unrecoverable, drops intent and notifies. */
   function failSubscription(sub: SubRecord): void {
     if (sub.state === 'closed' || sub.state === 'failed') return
-    sub.pc?.close()
-    sub.pc = null
+    teardownSubMedia(sub)
     subscriptions.delete(sub.sourceId)
     setSubState(sub, 'failed')
+  }
+
+  /** Transient drop: preserve intent. Tear down the RTC/media half but keep
+   *  the sub (and its gain node) in the map, reset to 'connecting' so welcome
+   *  re-requests it into the same node. */
+  function resetSubForReconnect(sub: SubRecord): void {
+    if (sub.state === 'closed' || sub.state === 'failed') return
+    teardownSubMedia(sub)
+    setSubState(sub, 'connecting')
+  }
+
+  /** Flush buffered candidates in arrival order once remoteReady. Bails if the
+   *  pc was superseded (gen changed) mid-flush. */
+  async function flushSubIce(sub: SubRecord, gen: number): Promise<void> {
+    const pending = sub.pendingIce
+    sub.pendingIce = []
+    for (const c of pending) {
+      if (sub.pcGen !== gen || !sub.pc) return
+      try {
+        await sub.pc.addIceCandidate(c ?? undefined)
+      } catch {
+        /* stale candidate — ignore */
+      }
+    }
   }
 
   function attachRemoteTrack(sub: SubRecord, track: MediaStreamTrack, streams: readonly MediaStream[]): void {
     const stream =
       streams[0] ?? (typeof MediaStream !== 'undefined' ? new MediaStream([track]) : null)
     if (!stream) return
+    // Replacement safety: drop any prior media-source node before rewiring so
+    // the graph never accumulates orphaned MediaStreamAudioSourceNodes.
+    if (sub.mediaSrc) {
+      try {
+        sub.mediaSrc.disconnect()
+      } catch {
+        /* graph may already be torn down */
+      }
+      sub.mediaSrc = null
+    }
     const src = sub.ctx.createMediaStreamSource(stream)
     src.connect(sub.gain)
+    sub.mediaSrc = src
     // Chromium quirk: audio from a remote WebRTC MediaStream is silent
     // through Web Audio unless the stream also feeds a media element
     // (crbug.com/121673). A muted element satisfies it; muted playback is
     // exempt from autoplay gesture rules.
     if (typeof Audio !== 'undefined') {
+      if (sub.audioEl) {
+        try {
+          sub.audioEl.srcObject = null
+        } catch {
+          /* element may already be released */
+        }
+      }
       const el = new Audio()
       el.muted = true
       el.srcObject = stream
@@ -494,13 +634,16 @@ export function createMbusClient(options: MbusClientOptions = {}): MbusClient {
   async function handleSignal(from: string, payload: SignalPayload): Promise<void> {
     if (payload.kind === 'answer') {
       const pub = publications.find((p) => p.sourceId === payload.sourceId)
-      const pc = pub?.pcs.get(from)
-      if (pc) {
+      const rec = pub?.pcs.get(from)
+      if (rec) {
         try {
-          await pc.setRemoteDescription({ type: 'answer', sdp: payload.sdp })
+          await rec.pc.setRemoteDescription({ type: 'answer', sdp: payload.sdp })
+          if (pub?.pcs.get(from) !== rec) return // superseded during the await
+          rec.remoteReady = true
+          await flushPubIce(pub, from, rec)
         } catch {
-          pc.close()
-          pub?.pcs.delete(from)
+          if (pub?.pcs.get(from) === rec) pub.pcs.delete(from)
+          rec.pc.close()
         }
       }
       return
@@ -510,10 +653,17 @@ export function createMbusClient(options: MbusClientOptions = {}): MbusClient {
     if (payload.kind === 'offer') {
       if (!sub || sub.pc) return // no such subscription, or already offered
       const pc = makePc(rtcConfig)
+      const gen = ++sub.pcGen
       sub.pc = pc
       sub.peerClientId = from
-      pc.ontrack = (e) => attachRemoteTrack(sub, e.track, e.streams)
+      sub.remoteReady = false
+      sub.pendingIce = []
+      pc.ontrack = (e) => {
+        if (sub.pcGen !== gen) return // superseded pc
+        attachRemoteTrack(sub, e.track, e.streams)
+      }
       pc.onicecandidate = (e) => {
+        if (sub.pcGen !== gen) return
         send(outbound.signal(from, {
           kind: 'ice',
           sourceId: payload.sourceId,
@@ -521,30 +671,69 @@ export function createMbusClient(options: MbusClientOptions = {}): MbusClient {
         }))
       }
       pc.onconnectionstatechange = () => {
+        if (sub.pcGen !== gen) return // a later callback must not touch a newer pc
         if (pc.connectionState === 'failed') failSubscription(sub)
         else if (pc.connectionState === 'connected' && sub.hasTrack) setSubState(sub, 'live')
       }
       try {
         await pc.setRemoteDescription({ type: 'offer', sdp: payload.sdp })
+        if (sub.pcGen !== gen) {
+          pc.close()
+          return
+        }
+        // Remote description is set: any buffered candidates can now apply,
+        // in arrival order, before we build/answer.
+        sub.remoteReady = true
+        await flushSubIce(sub, gen)
+        if (sub.pcGen !== gen) {
+          pc.close()
+          return
+        }
         const answer = await pc.createAnswer()
+        if (sub.pcGen !== gen) {
+          pc.close()
+          return
+        }
         const answerSdp = tuneOpusSdp(answer.sdp ?? '')
         await pc.setLocalDescription({ type: answer.type, sdp: answerSdp })
+        if (sub.pcGen !== gen) {
+          pc.close()
+          return
+        }
         send(outbound.signal(from, { kind: 'answer', sourceId: payload.sourceId, sdp: answerSdp }))
       } catch {
-        failSubscription(sub)
+        if (sub.pcGen === gen) failSubscription(sub)
+        else pc.close()
       }
       return
     }
 
     // kind === 'ice' — route to whichever side owns this exchange. A null
     // candidate is end-of-candidates (addIceCandidate with no argument).
-    const pubPc = publications.find((p) => p.sourceId === payload.sourceId)?.pcs.get(from)
-    const pc = pubPc ?? (sub?.peerClientId === from ? sub.pc : null)
-    if (pc) {
-      try {
-        await pc.addIceCandidate(payload.candidate ?? undefined)
-      } catch {
-        /* stale candidate after close — ignore */
+    // Until the owning pc's remoteDescription is set, buffer in arrival order;
+    // applying a candidate too early makes the browser silently drop it.
+    const pubRec = publications.find((p) => p.sourceId === payload.sourceId)?.pcs.get(from)
+    if (pubRec) {
+      if (pubRec.remoteReady) {
+        try {
+          await pubRec.pc.addIceCandidate(payload.candidate ?? undefined)
+        } catch {
+          /* stale candidate after close — ignore */
+        }
+      } else {
+        pubRec.pendingIce.push(payload.candidate)
+      }
+      return
+    }
+    if (sub && sub.peerClientId === from && sub.pc) {
+      if (sub.remoteReady) {
+        try {
+          await sub.pc.addIceCandidate(payload.candidate ?? undefined)
+        } catch {
+          /* stale candidate after close — ignore */
+        }
+      } else {
+        sub.pendingIce.push(payload.candidate)
       }
     }
   }
@@ -618,7 +807,7 @@ export function createMbusClient(options: MbusClientOptions = {}): MbusClient {
         stop() {
           if (pub.state === 'stopped') return
           if (pub.sourceId) send(outbound.unannounce(pub.sourceId))
-          for (const pc of pub.pcs.values()) pc.close()
+          for (const rec of pub.pcs.values()) rec.pc.close()
           pub.pcs.clear()
           if (pub.dest) {
             try {
@@ -654,7 +843,11 @@ export function createMbusClient(options: MbusClientOptions = {}): MbusClient {
         state: 'connecting',
         listeners: [],
         audioEl: null,
+        mediaSrc: null,
         hasTrack: false,
+        pendingIce: [],
+        remoteReady: false,
+        pcGen: 0,
         get node() {
           return sub.gain
         },
@@ -667,13 +860,10 @@ export function createMbusClient(options: MbusClientOptions = {}): MbusClient {
           }
         },
         close() {
+          // Manual close is terminal and never resurrected: even mid-drop it
+          // removes intent so a later welcome won't re-request it.
           if (sub.state === 'closed') return
-          sub.pc?.close()
-          sub.pc = null
-          if (sub.audioEl) {
-            sub.audioEl.srcObject = null
-            sub.audioEl = null
-          }
+          teardownSubMedia(sub)
           subscriptions.delete(sub.sourceId)
           setSubState(sub, 'closed')
         },
