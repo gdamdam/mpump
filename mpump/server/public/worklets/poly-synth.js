@@ -14,6 +14,12 @@ const MAX_UNISON = 7;
 const VXU = MAX_VOICES * MAX_UNISON;
 const TWOPI = 2 * Math.PI;
 
+// ── Diode clip: asymmetric tanh (module-level so no closure is allocated
+//    inside process(); see zero-allocation invariant above) ──
+function diodeClip(v) {
+  return v > 0 ? Math.tanh(v * 1.2) : Math.tanh(v * 0.8);
+}
+
 // ── PolyBLEP ──
 function polyblep(t, dt) {
   if (t < dt) { const r = t / dt; return r + r - r * r - 1; }
@@ -851,12 +857,10 @@ class PolySynthProcessor extends AudioWorkletProcessor {
             const g = Math.min(1.0, 0.9892 * wc - 0.4342 * wc * wc + 0.1381 * wc * wc * wc - 0.0202 * wc * wc * wc * wc);
             const feedback = ladderRes * 1.1 * (ly3 - mid * 0.0005);
             const x = mid - feedback;
-            // Inline diode clip: asymmetric tanh
-            const dc = (v) => v > 0 ? Math.tanh(v * 1.2) : Math.tanh(v * 0.8);
-            const s0 = ly0 + g * (dc(x) - dc(ly0));
-            const s1 = ly1 + g * (dc(s0) - dc(ly1));
-            const s2 = ly2 + g * (dc(s1) - dc(ly2));
-            const s3 = ly3 + g * (dc(s2) - dc(ly3));
+            const s0 = ly0 + g * (diodeClip(x) - diodeClip(ly0));
+            const s1 = ly1 + g * (diodeClip(s0) - diodeClip(ly1));
+            const s2 = ly2 + g * (diodeClip(s1) - diodeClip(ly2));
+            const s3 = ly3 + g * (diodeClip(s2) - diodeClip(ly3));
             ly0 = Math.abs(s0) < 1e-15 ? 0 : s0;
             ly1 = Math.abs(s1) < 1e-15 ? 0 : s1;
             ly2 = Math.abs(s2) < 1e-15 ? 0 : s2;

@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.15.7 — Diode Ladder Allocation Fix
+
+### Audio Engine
+- Poly-synth worklet: diode-ladder clipper closure was allocated per sample inside `process()`, violating the zero-allocation invariant (GC dropouts); hoisted to a module-level function, behavior unchanged
+- Regression test: `process()` source is asserted closure-free
+
 ## v1.15.3 — Docs Polish
 
 ### Docs

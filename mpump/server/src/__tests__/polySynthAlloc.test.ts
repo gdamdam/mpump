@@ -44,4 +44,12 @@ describe("poly-synth process() allocations", () => {
     }
     expect(allocs).toBe(0);
   });
+
+  it("declares no function expressions inside process()", () => {
+    // A closure declared in process() (e.g. inside the per-sample filter
+    // loop) allocates per call/sample — hoist helpers to module level.
+    expect(ProcessorClass).not.toBeNull();
+    const src = new ProcessorClass!().process.toString();
+    expect(src).not.toMatch(/=>|\bfunction\s*\(/);
+  });
 });
