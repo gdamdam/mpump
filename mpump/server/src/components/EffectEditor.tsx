@@ -306,7 +306,7 @@ export function EffectEditor({ name, params, onUpdate, onClose, drumsInFx = true
                     disabled={disabled}
                     title={disabled ? "Drums aren't routed through FX — turn on Drums → FX first" : undefined}
                     onClick={() => onUpdate({ [key]: !p[key] })}
-                  >EXCL. {label}</button>
+                  >{disabled ? "DRUMS BYPASSED" : `EXCL. ${label}`}</button>
                 );
               })}
             </div>
@@ -350,7 +350,7 @@ export function EffectEditor({ name, params, onUpdate, onClose, drumsInFx = true
                   disabled={disabled}
                   title={disabled ? "Drums aren't routed through FX — turn on Drums → FX first" : undefined}
                   onClick={() => onUpdate({ [key]: !p[key] })}
-                >EXCL. {label}</button>
+                >{disabled ? "DRUMS BYPASSED" : `EXCL. ${label}`}</button>
               );
             })}
           </div>

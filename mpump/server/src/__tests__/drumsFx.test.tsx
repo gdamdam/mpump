@@ -32,14 +32,21 @@ const render = (drumsInFx: boolean) =>
   );
 
 describe("EffectEditor — per-effect DRUMS exclude (B)", () => {
-  it("disables the EXCL. DRUMS button when drums are not routed through FX", () => {
+  it("disables the drums exclude button when drums are not routed through FX", () => {
     const html = render(false);
-    expect(/<button[^>]*\bdisabled\b[^>]*>EXCL\. DRUMS/.test(html)).toBe(true);
+    // Disabled state relabels to point at the real switch instead of "EXCL. DRUMS".
+    expect(/<button[^>]*\bdisabled\b[^>]*>DRUMS BYPASSED/.test(html)).toBe(true);
   });
 
-  it("enables the EXCL. DRUMS button when drums ARE routed through FX", () => {
+  it("shows the Drums → FX hint on the disabled drums button", () => {
+    const html = render(false);
+    expect(/<button[^>]*\bdisabled\b[^>]*title="[^"]*Drums → FX[^"]*"/.test(html)).toBe(true);
+  });
+
+  it("labels the button EXCL. DRUMS and enables it when drums ARE routed through FX", () => {
     const html = render(true);
     expect(/<button[^>]*\bdisabled\b[^>]*>EXCL\. DRUMS/.test(html)).toBe(false);
+    expect(/<button[^>]*>EXCL\. DRUMS/.test(html)).toBe(true);
   });
 
   it("never disables the BASS / SYNTH exclude buttons", () => {
