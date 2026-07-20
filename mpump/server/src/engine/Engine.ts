@@ -491,14 +491,16 @@ export class Engine {
    *
    * When joined to a Link session, aligns to the shared Link bar grid (fractional
    * session tempo included) so every peer starts on the same downbeat. Otherwise
-   * falls back to the private t0 grid. If the boundary is under 50ms away, skips
-   * to the next one.
+   * falls back to the private t0 grid.
    */
   private nextBarBoundary(numSteps = 16): number {
     const now = performance.now();
     if (this.linkClock) {
-      // barBeats = numSteps / 4 (16 sixteenths = 4 beats = one 4/4 bar).
-      return nextBarTime(this.linkClock, now, numSteps / 4, 50);
+      // Quantize to a fixed one-bar (4-beat) grid on the shared Link timeline,
+      // regardless of pattern length. This matches the bridge's 4/4 quantum and
+      // mchord's 1-bar quantize, so all peers launch on the same downbeat.
+      // (numSteps still drives playback length, just not the launch boundary.)
+      return nextBarTime(this.linkClock, now, 4);
     }
     const stepDur = 60000 / (this.bpm * 4);  // duration of one 16th note in ms
     const barDur = numSteps * stepDur;

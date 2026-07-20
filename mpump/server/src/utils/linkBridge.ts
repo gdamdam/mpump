@@ -58,18 +58,18 @@ export function projectPhase(c: LinkClock, nowMs: number, barBeats = 4): number 
  * Next shared bar boundary as a performance.now() timestamp (ms).
  *
  * Aligns to multiples of `barBeats` on the shared Link beat timeline (beat 0 =
- * a downbeat for every peer), so all clients land on the same bar. Skips to the
- * following bar if the next one is closer than `minLeadMs` (no time to schedule
- * cleanly). Because it derives the target from the projected beat and only ever
+ * a downbeat for every peer), so all clients land on the same bar. Takes the
+ * imminent boundary — it never skips a whole bar ahead — so mpump lands on the
+ * same downbeat as other peers (e.g. mchord, whose quantize has no min-lead
+ * skip). Because it derives the target from the projected beat and only ever
  * returns a time >= now, a stale anchor produces a forward-aligned boundary — it
  * never rewinds and never emits a catch-up burst.
  */
-export function nextBarTime(c: LinkClock, nowMs: number, barBeats = 4, minLeadMs = 50): number {
+export function nextBarTime(c: LinkClock, nowMs: number, barBeats = 4): number {
   const msPerBeat = 60000 / c.tempo;
   const beat = projectBeat(c, nowMs);
-  let target = Math.ceil(beat / barBeats) * barBeats;
-  if ((target - beat) * msPerBeat < minLeadMs) target += barBeats;
-  return nowMs + (target - beat) * msPerBeat;
+  const target = Math.ceil(beat / barBeats) * barBeats;
+  return nowMs + Math.max(0, (target - beat) * msPerBeat);
 }
 
 /**

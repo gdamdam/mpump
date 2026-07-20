@@ -53,13 +53,14 @@ describe("nextBarTime (shared bar grid)", () => {
   it("returns the next shared downbeat aligned to the beat timeline", () => {
     // At beat 2.0, 120 BPM: next 4-beat boundary is beat 4 → 2 beats = 1000ms away.
     const c: LinkClock = { tempo: 120, beat: 2, phase: 2, receivedAt: 0 };
-    expect(nextBarTime(c, 0, 4, 50)).toBeCloseTo(1000, 6);
+    expect(nextBarTime(c, 0, 4)).toBeCloseTo(1000, 6);
   });
 
-  it("skips to the following bar when the boundary is within minLeadMs", () => {
-    // Exactly on a downbeat (beat 0): 0ms lead < 50ms → skip to beat 4 (2000ms).
+  it("takes the imminent boundary without skipping a bar (stays aligned with peers)", () => {
+    // Exactly on a downbeat (beat 0): launch immediately on this bar (0ms),
+    // never skip a whole bar ahead — otherwise mpump lands a bar after mchord.
     const c: LinkClock = { tempo: 120, beat: 0, phase: 0, receivedAt: 0 };
-    expect(nextBarTime(c, 0, 4, 50)).toBeCloseTo(2000, 6);
+    expect(nextBarTime(c, 0, 4)).toBeCloseTo(0, 6);
   });
 
   it("tempo change preserves phase (grid stays continuous across the anchor)", () => {
@@ -70,8 +71,8 @@ describe("nextBarTime (shared bar grid)", () => {
     const fast: LinkClock = { tempo: 140, beat: 1.5, phase: 1.5, receivedAt: 1000 };
     expect(projectPhase(slow, 1000, 4)).toBeCloseTo(projectPhase(fast, 1000, 4), 6);
     // Next boundary is beat 4 in both, distance = 2.5 beats at each tempo.
-    expect(nextBarTime(slow, 1000, 4, 50)).toBeCloseTo(1000 + 2.5 * (60000 / 120), 6);
-    expect(nextBarTime(fast, 1000, 4, 50)).toBeCloseTo(1000 + 2.5 * (60000 / 140), 6);
+    expect(nextBarTime(slow, 1000, 4)).toBeCloseTo(1000 + 2.5 * (60000 / 120), 6);
+    expect(nextBarTime(fast, 1000, 4)).toBeCloseTo(1000 + 2.5 * (60000 / 140), 6);
   });
 
   it("forward correction: a stale anchor still yields a future boundary, never a rewind or catch-up", () => {
@@ -79,8 +80,8 @@ describe("nextBarTime (shared bar grid)", () => {
     // of `now` and aligned — we skip the missed bars, we do not replay them.
     const c: LinkClock = { tempo: 120, beat: 0, phase: 0, receivedAt: 0 };
     const now = 10_000; // 20 beats / 5 bars later
-    const t = nextBarTime(c, now, 4, 50);
-    expect(t).toBeGreaterThan(now);           // never in the past
+    const t = nextBarTime(c, now, 4);
+    expect(t).toBeGreaterThanOrEqual(now);    // never in the past (== now when on a downbeat)
     const beatAtBoundary = projectBeat(c, t);
     expect(beatAtBoundary % 4).toBeCloseTo(0, 6); // still a shared downbeat
   });

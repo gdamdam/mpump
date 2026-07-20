@@ -102,6 +102,11 @@ export class Sequencer {
 
     // In external sync mode the clock receiver drives steps via advanceStep()
     if (!this.externalSync) {
+      // Prime the look-ahead immediately so a start landing near a downbeat is
+      // scheduled at its exact time, instead of waiting up to SCHEDULE_INTERVAL_MS
+      // for the first tick — which would slip the first step behind peers whose
+      // scheduler primes on start (e.g. mchord). Keeps Link-synced starts tight.
+      this.schedule();
       this.timerId = window.setInterval(() => this.schedule(), SCHEDULE_INTERVAL_MS);
     }
   }

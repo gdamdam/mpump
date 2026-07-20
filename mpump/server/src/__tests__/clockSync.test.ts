@@ -33,8 +33,10 @@ describe("Sequencer external sync", () => {
   it("suspends the internal scheduler while synced; advanceStep still plays", () => {
     const port = mockPort();
     const seq = new Sequencer({ port, channel: 0, pattern: PATTERN, rootNote: 60, bpm: 120 });
-    seq.start();
+    // Production order (Engine.startDevice): external sync is set before start(),
+    // so start() never primes the internal scheduler while synced.
     seq.setExternalSync(true);
+    seq.start();
 
     vi.advanceTimersByTime(1000);
     // Internal scheduler must not have played anything
@@ -55,11 +57,22 @@ describe("Sequencer external sync", () => {
     seq.stop();
   });
 
-  it("resumes internal scheduling when sync is disabled", () => {
+  it("primes the look-ahead on start() — first step scheduled before the first interval tick", () => {
     const port = mockPort();
     const seq = new Sequencer({ port, channel: 0, pattern: PATTERN, rootNote: 60, bpm: 120 });
     seq.start();
+    // No timer advance yet: the immediate prime must already have scheduled the
+    // first step. Without priming, nothing fires until SCHEDULE_INTERVAL_MS (25ms),
+    // which is the slip that put mpump behind Link peers on near-downbeat starts.
+    expect(port.noteOn).toHaveBeenCalled();
+    seq.stop();
+  });
+
+  it("resumes internal scheduling when sync is disabled", () => {
+    const port = mockPort();
+    const seq = new Sequencer({ port, channel: 0, pattern: PATTERN, rootNote: 60, bpm: 120 });
     seq.setExternalSync(true);
+    seq.start();
     vi.advanceTimersByTime(500);
     expect(port.noteOn).not.toHaveBeenCalled();
 
@@ -79,8 +92,9 @@ describe("T8Sequencer external sync", () => {
       bassPattern: Array.from({ length: 16 }, (): null => null),
       bpm: 120,
     });
-    seq.start();
+    // Production order (Engine.startDevice): external sync is set before start().
     seq.setExternalSync(true);
+    seq.start();
 
     vi.advanceTimersByTime(1000);
     expect(port.noteOn).not.toHaveBeenCalled();

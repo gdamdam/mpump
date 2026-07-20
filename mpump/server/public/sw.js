@@ -1,5 +1,5 @@
 // Cache version — bump this on every deploy to invalidate old caches
-const CACHE_VERSION = "1.15.7";
+const CACHE_VERSION = "1.15.9";
 const CACHE = `mpump-${CACHE_VERSION}`;
 
 // Pre-cache the assets needed to produce sound + patterns offline. The hashed
