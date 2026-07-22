@@ -35,6 +35,14 @@ export function isMbusPublishEnabled(): boolean {
   return wanted;
 }
 
+/** True when publishing is enabled AND at least one subscriber is connected —
+ *  i.e. mbus is actually carrying our output right now. AudioPort uses this to
+ *  mute the local monitor so we don't hear our audio twice (local, plus the
+ *  WebRTC-delayed copy coming back through mbus). */
+export function isMbusActivelyPublishing(): boolean {
+  return wanted && !!pub && pub.subscriberCount() > 0;
+}
+
 function apply(): void {
   if (wanted && tap) {
     if (pub) return;

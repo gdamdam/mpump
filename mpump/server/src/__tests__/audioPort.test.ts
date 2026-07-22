@@ -137,6 +137,20 @@ describe("AudioPort", () => {
     expect(port.id).toBe("preview");
   });
 
+  it("local monitor is on by default and toggles without throwing", () => {
+    expect(port.isLocalMonitorMuted()).toBe(false);
+    expect(() => port.setLocalMonitorMuted(true)).not.toThrow();
+    expect(port.isLocalMonitorMuted()).toBe(true);
+    expect(() => port.setLocalMonitorMuted(false)).not.toThrow();
+    expect(port.isLocalMonitorMuted()).toBe(false);
+  });
+
+  it("re-muting the local monitor is idempotent", () => {
+    port.setLocalMonitorMuted(true);
+    expect(() => port.setLocalMonitorMuted(true)).not.toThrow();
+    expect(port.isLocalMonitorMuted()).toBe(true);
+  });
+
   it("noteOn with drum channel (9) does not throw", () => {
     expect(() => port.noteOn(9, 36, 100)).not.toThrow();
     expect(() => port.noteOn(9, 38, 80)).not.toThrow();

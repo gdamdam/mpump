@@ -68,6 +68,14 @@ export interface WebSocketLike {
   onerror: (() => void) | null
 }
 
+/** Minimal RTCRtpReceiver surface: the two playout-latency knobs we tune.
+ *  `jitterBufferTarget` (ms, current spec) and `playoutDelayHint` (seconds,
+ *  legacy Chrome) — either may be absent depending on the browser. */
+export interface RtpReceiverLike {
+  jitterBufferTarget?: number | null
+  playoutDelayHint?: number
+}
+
 /** Minimal RTCPeerConnection surface used by the client (injectable). */
 export interface PeerConnectionLike {
   addTrack(track: MediaStreamTrack, stream: MediaStream): unknown
@@ -79,7 +87,13 @@ export interface PeerConnectionLike {
   close(): void
   connectionState: string
   onicecandidate: ((e: { candidate: { toJSON(): RTCIceCandidateInit } | null }) => void) | null
-  ontrack: ((e: { track: MediaStreamTrack; streams: readonly MediaStream[] }) => void) | null
+  ontrack:
+    | ((e: {
+        track: MediaStreamTrack
+        streams: readonly MediaStream[]
+        receiver?: RtpReceiverLike
+      }) => void)
+    | null
   onconnectionstatechange: (() => void) | null
 }
 
@@ -167,6 +181,30 @@ export function tuneOpusSdp(sdp: string): string {
 
 function hasFmtpLater(lines: readonly string[], pt: string): boolean {
   return lines.some((l) => l.startsWith(`a=fmtp:${pt} `) || l.startsWith(`a=fmtp:${pt}\t`))
+}
+
+/**
+ * Pin a receiver's playout to the minimum jitter buffer. mbus is a
+ * localhost/LAN system (host ICE candidates only — see the module header), so
+ * the RTP path has essentially no jitter to absorb; the browser's adaptive
+ * NetEq otherwise defaults to a conservative buffer (tens to hundreds of ms)
+ * sized for lossy internet paths, which is pure latency here and reads as the
+ * mixed-back audio lagging the source. NetEq still grows the buffer on real
+ * loss, so 0 is a floor, not a guarantee. Feature-detected and swallowed:
+ * `jitterBufferTarget` (ms) is the current spec, `playoutDelayHint` (seconds)
+ * the legacy Chrome name; browsers expose one, the other, or neither. */
+function minimizePlayoutDelay(receiver: RtpReceiverLike | undefined): void {
+  if (!receiver) return
+  try {
+    if ('jitterBufferTarget' in receiver) receiver.jitterBufferTarget = 0
+  } catch {
+    /* read-only / unsupported on this browser */
+  }
+  try {
+    if ('playoutDelayHint' in receiver) receiver.playoutDelayHint = 0
+  } catch {
+    /* read-only / unsupported on this browser */
+  }
 }
 
 /** Per-peer-connection ICE state. Inbound candidates are buffered here until
@@ -588,7 +626,15 @@ export function createMbusClient(options: MbusClientOptions = {}): MbusClient {
     }
   }
 
-  function attachRemoteTrack(sub: SubRecord, track: MediaStreamTrack, streams: readonly MediaStream[]): void {
+  function attachRemoteTrack(
+    sub: SubRecord,
+    track: MediaStreamTrack,
+    streams: readonly MediaStream[],
+    receiver?: RtpReceiverLike,
+  ): void {
+    // Trim the receive-side latency before anything else: this is the
+    // dominant, otherwise-unmanaged component of the source→playout offset.
+    minimizePlayoutDelay(receiver)
     const stream =
       streams[0] ?? (typeof MediaStream !== 'undefined' ? new MediaStream([track]) : null)
     if (!stream) return
@@ -660,7 +706,7 @@ export function createMbusClient(options: MbusClientOptions = {}): MbusClient {
       sub.pendingIce = []
       pc.ontrack = (e) => {
         if (sub.pcGen !== gen) return // superseded pc
-        attachRemoteTrack(sub, e.track, e.streams)
+        attachRemoteTrack(sub, e.track, e.streams, e.receiver)
       }
       pc.onicecandidate = (e) => {
         if (sub.pcGen !== gen) return

@@ -9,7 +9,7 @@ import { getItem, setItem, getBool, setBool } from "../utils/storage";
 import { isInstallAvailable, triggerInstallPrompt } from "../main";
 import { MidiSyncGuide } from "./MidiSyncGuide";
 import { enableLinkBridge, onLinkState, getLinkState, type LinkState } from "../utils/linkBridge";
-import { enableMbusPublish, isMbusPublishEnabled } from "../utils/mbusPublish";
+import { enableMbusPublish, isMbusPublishEnabled, isMbusActivelyPublishing } from "../utils/mbusPublish";
 import {
   isJamEnabled, setJamEnabled,
   getCustomJamProviders, setCustomJamProviders,
@@ -150,6 +150,10 @@ export function Settings({ volume, onVolumeChange, onClose, swing, onSwingChange
   // audio is off-by-default per session. Seeded from the module singleton so a
   // Settings remount reflects the live state.
   const [busEnabled, setBusEnabled] = useState<boolean>(isMbusPublishEnabled);
+  // True while mbus actually carries our output (a subscriber is live) — at
+  // which point AudioPort mutes local playback. Polled (no subscriber-count
+  // callback exists); only runs while the panel is open and BUS is on.
+  const [busActive, setBusActive] = useState<boolean>(false);
   const [expanded, setExpanded] = useState<string | null>("audio");
   const [jamOn, setJamOn] = useState<boolean>(isJamEnabled);
   const [jamProviderId, setJamProviderId] = useState<string>(getSelectedJamProviderId);
@@ -163,6 +167,14 @@ export function Settings({ volume, onVolumeChange, onClose, swing, onSwingChange
     const unsub = onLinkState((s) => setLinkState(s));
     return unsub;
   }, []);
+
+  useEffect(() => {
+    if (!busEnabled) { setBusActive(false); return; }
+    const tick = () => setBusActive(isMbusActivelyPublishing());
+    tick();
+    const id = window.setInterval(tick, 1000);
+    return () => window.clearInterval(id);
+  }, [busEnabled]);
 
   // force re-render for toggles that read getBool directly
   const [, forceUpdate] = useState(0);
@@ -475,6 +487,14 @@ export function Settings({ volume, onVolumeChange, onClose, swing, onSwingChange
                   onClick={() => { const next = !busEnabled; setBusEnabled(next); enableMbusPublish(next); }}>
                   <span className="settings-toggle-dot" />mbus Out
                 </button>
+                {busEnabled && (
+                  <span style={{ fontSize: 10, opacity: 0.7, alignSelf: "center", marginLeft: 2 }}
+                    title={busActive
+                      ? "mbus is carrying this output — local speakers are muted to avoid double-monitoring (the mbus mix lags local by codec + buffer latency)."
+                      : "Published to the patchbay; monitoring locally until something subscribes."}>
+                    {busActive ? "● monitoring via mbus" : "○ published · local"}
+                  </span>
+                )}
                 {onCVChange && (
                   <button className={`settings-toggle ${cvEnabled ? "on" : ""}`} title="CV output via DC-coupled interface"
                     onClick={() => onCVChange(!cvEnabled)}>

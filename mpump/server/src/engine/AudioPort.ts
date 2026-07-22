@@ -9,7 +9,7 @@
 import type { SynthParams, EffectParams, EffectName, DrumVoiceParams } from "../types";
 import { DEFAULT_SYNTH_PARAMS, DEFAULT_EFFECTS, DEFAULT_DRUM_VOICE, lfoDivisionToHz, delayDivisionToSeconds } from "../types";
 import { CVOutput } from "./CVOutput";
-import { registerMbusTap } from "../utils/mbusPublish";
+import { registerMbusTap, isMbusActivelyPublishing } from "../utils/mbusPublish";
 import { getItem } from "../utils/storage";
 import {
   perfToCtx,
@@ -104,6 +104,11 @@ export class AudioPort {
   private airRolloff: BiquadFilterNode;
   private masterBoost: GainNode;
   private analyser: AnalyserNode;
+  /** Local monitor gain: analyser → here → destination. Sits downstream of the
+   *  mbus tap (which is on the analyser) so muting local playback never alters
+   *  what mbus receives. Auto-muted while mbus actively carries our output. */
+  private monitorGain!: GainNode;
+  private _localMonitorMuted = false;
   /** Effects state */
   private fx: EffectParams = JSON.parse(JSON.stringify(DEFAULT_EFFECTS));
   /** Configurable effect chain order. */
@@ -252,7 +257,13 @@ export class AudioPort {
 
     this.analyser = this.ctx.createAnalyser();
     this.analyser.fftSize = 256;
-    this.analyser.connect(this.ctx.destination);
+    // Local monitor path: analyser → monitorGain → destination. The mbus tap
+    // (below) sits on the analyser, upstream of monitorGain, so muting local
+    // playback leaves the published stream untouched.
+    this.monitorGain = this.ctx.createGain();
+    this.monitorGain.gain.value = 1;
+    this.analyser.connect(this.monitorGain);
+    this.monitorGain.connect(this.ctx.destination);
     // End-of-chain tap, offered to the mbus patchbay when the user enables the
     // Settings BUS toggle (see utils/mbusPublish).
     registerMbusTap(this.analyser);
@@ -303,6 +314,11 @@ export class AudioPort {
       if (needsResume()) {
         this.ctx.resume().catch(() => {});
       }
+      // One-path monitoring: mute local output while mbus is actively carrying
+      // it (a subscriber is connected), else restore. Polled here rather than
+      // event-driven — subscriber arrival/exit has no callback, and a ~1s
+      // reconciliation is imperceptible for a monitoring toggle.
+      this.setLocalMonitorMuted(isMbusActivelyPublishing());
       // Flush automation timelines on persistent nodes to prevent buildup.
       // cancelScheduledValues(0) clears ALL events (past + future), then we
       // re-set the current value so the node continues at the right level.
@@ -471,6 +487,21 @@ export class AudioPort {
   /** Check if worklets are available. */
   hasWorklets(): boolean {
     return this.workletsLoaded;
+  }
+
+  /** Mute/unmute the local monitor (analyser → destination). Used to avoid
+   *  double-monitoring: while mbus is carrying our output, the local speakers
+   *  would play a copy slightly ahead of the WebRTC-delayed mbus mix. The mbus
+   *  tap is upstream of monitorGain, so muting never affects the published
+   *  stream. Idempotent; short-ramped to avoid a click. */
+  setLocalMonitorMuted(muted: boolean): void {
+    if (this._localMonitorMuted === muted) return;
+    this._localMonitorMuted = muted;
+    this.monitorGain.gain.setTargetAtTime(muted ? 0 : 1, this.ctx.currentTime, 0.02);
+  }
+
+  isLocalMonitorMuted(): boolean {
+    return this._localMonitorMuted;
   }
 
   // ── Multiband compressor ─────────────────────────────────────────────
