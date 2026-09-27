@@ -25,3 +25,6 @@ p-plans/
 stickers/
 misc/
 .claude/settings.local.json
+
+# Vite dependency optimization cache
+.vite/
